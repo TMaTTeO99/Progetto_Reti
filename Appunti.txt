@@ -1,6 +1,7 @@
 Parole del vocabolario in memoria: 
 
-fare semplicemente una hashMap <Stringa, boolean> map ; 
+Fare semplicemente una hashMap <Stringa, boolean> map ;
+
 
 NOTE riguardo come sviluppare le classi per fare le diverse operazioni:
 Lato server implementero diverse classi "task" che quindi implementano runnable per effettuare le diverse operazioni che il client richiede al
