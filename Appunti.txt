@@ -1,3 +1,5 @@
+Giorno 1):
+
 Parole del vocabolario in memoria: 
 
 Fare semplicemente una hashMap <Stringa, boolean> map ;
@@ -6,3 +8,13 @@ Fare semplicemente una hashMap <Stringa, boolean> map ;
 NOTE riguardo come sviluppare le classi per fare le diverse operazioni:
 Lato server implementero diverse classi "task" che quindi implementano runnable per effettuare le diverse operazioni che il client richiede al
 al server, voglio usare java NIO quindi anche un selettore .
+
+Giorno 2):
+
+	1) Implemento la fase di registrazione, tramite RMI, quando il client si registra dovrà passare come paramentro dellare gistrazione lo stub per far si che possa ricevere le notifiche dal server dopo aver effettuato il login riguardo gli aggiornamenti della classifica 
+	
+	2) Riguardo la lista contenente gli utenti registrati, per prima cosa l accesso alla lista dovra essere fatto in mutua esclusione, questo perche possono esserci contemporaneamente thread che leggono e thread che scrivono nella lista
+	Soluzione del 2) ho implementato il meccanismo per la registrazione e della terminazione di RMI
+	
+	3) Ora vogliio implementare l'operazione di notifica del server verso il client, per farlo il client deve passare un oggetto esportato al server senza che venga registrato sul registro, il testo dice: " In seguito alla login il client si registra a un
+servizio di notifica del server per ricevere aggiornamenti sulla classifica degli utenti", quindi la mia idea è passare lo stub in fase di registrazione, e poi abilitare il servizio di notifica quando il client effettua il login e disabilitarlo quando effettua il logout
