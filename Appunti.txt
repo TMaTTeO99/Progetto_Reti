@@ -8,6 +8,7 @@ Fare semplicemente una hashMap <Stringa, boolean> map ;
 NOTE riguardo come sviluppare le classi per fare le diverse operazioni:
 Lato server implementero diverse classi "task" che quindi implementano runnable per effettuare le diverse operazioni che il client richiede al
 al server, voglio usare java NIO quindi anche un selettore .
+--------------------------------------------------------------------------------------------------------------------
 
 Giorno 2):
 
@@ -17,4 +18,91 @@ Giorno 2):
 	Soluzione del 2) ho implementato il meccanismo per la registrazione e della terminazione di RMI
 	
 	3) Ora vogliio implementare l'operazione di notifica del server verso il client, per farlo il client deve passare un oggetto esportato al server senza che venga registrato sul registro, il testo dice: " In seguito alla login il client si registra a un
-servizio di notifica del server per ricevere aggiornamenti sulla classifica degli utenti", quindi la mia idea è passare lo stub in fase di registrazione, e poi abilitare il servizio di notifica quando il client effettua il login e disabilitarlo quando effettua il logout
+servizio di notifica del server per ricevere aggiornamenti sulla classifica degli utenti", quindi la mia idea è passare lo stub in fase di registrazione, e poi abilitare il servizio di notifica quando il client effettua il login e disabilitarlo quando effettua il logout.
+--------------------------------------------------------------------------------------------------------------------
+
+Giorno 3):
+	Nota: ho ottimizzato la ricerca dei registrati usando una un HashSet in modo che il metodo contains abbia costo
+		costante 
+	1) Ora devo individuare quali sono le operazioni che devo serializzare in caso di riavvio del server,
+		Quelle di cui sono sicuro sono: Gli utenti registarti.
+		
+		Ragionamento: Quando un utente si registra a wordle viene inserito nel hashSet, il punto è che 
+			      il server potrebbe essere spento in qualsiasi momento, sia con una operazione di riavvio
+			      del server diciamo "delicata" (richiesta dal gestor edel server) e che quindi è possibile
+			      effettuare controlli prima di scarricare il file sul disco, sia per un eventuale chiusura
+			      "brusca" per un qualche motivo, quindi bisogna fare in modo che il file json che conterrà
+			      i dati venga arricchito man mano che gli utenti si registrano, quindi poer fare questo, 
+			      quello che voglio fare è lanciare un thread che in "background" crea via via il file json   
+	
+	2) Per seguire il  ragionamento del punto 1), bisogna quindi implementare il threadpool, il mio pool di thread
+	lo implemento con una capacita limitata di thread in modo tale da non sovraccaricare la macchina,
+	il server sara formato di un thread che smista le connessioni, un server che si occupa di creare 
+	il file json e poi una serie di worker per elaborare le richieste, Inoltre considerare anche i 
+	threads che possono essere lanciati per effettuare le diverse scritture al servizio a causa dell RMI, 
+	evito di scrivere sul disco direttamente quando registro i client in quanto è una operazione molto lenta 
+	e siccome sono con la lock potrei rallentare troppo altri thread che vorrebbero magari solo leggere
+	
+	3) Siccome devo cominciare a implementare il threadpool devo avere i dati, tali dati devono essere contenuti 
+	all interno di un file che il server in fase di configurazione deve leggere per poi avviarsi 
+	Questo file faccio in modo che il server riesca a trovarlo automaticamnete senza che gli venga asseggnato alcun
+	path e che non gli venga fornito nulla da tastiera, per farlo devo inserire nel codice sorgente
+	la cartella da cui cominciare a cercare ricorsivamente, ricerca e apertura del file di configurazione 
+	implementata, adesso bisogna scegliere un formasto di tale file per effettuare il parsing, per ora le info 
+	che so di certo che voglio sapere sono il numero di thread del server e dopo quanto tempo il server deve 
+	proporre una nuova parola, riguardo al formato da usare: 
+	
+	FildNome:dato
+	FildNome:dato
+	FildNome:dato
+	.
+	.
+	. 		
+--------------------------------------------------------------------------------------------------------------------
+		
+Giorno 4) :	
+		
+	Continuo il discorso precedente, a questo punto bisogna fare il parsing del file di config, 
+	per ora le info che mi interessa recuoerare sono
+	thread:10
+	timeword:0 24	
+	Quindi leggo il file linea per linea e estraggo i dati inserendoli in opportune variabili statiche 
+	all interno della classe StartServerWordle per poi passarle ad un istanza di ServerWordle
+	I primi dati sono statio raccolti, ora dopo aver implementato il pool di thread comincio con i task:
+	
+	1) il primo task che implemento è quello che salva lo stato del sistema su un file json, come ho gia detto 
+	i dati  che deve salvare riguardano gli utenti, quindi, comincio con gli utenti registati (credo che alla fine
+	sarà l'unica cosa da dover scaricare sul json ma vedremo):
+		Implemento un task che verra eseguito da un thread su un ciclo infinito per scrivere il file json, 
+		per fare cio quindi c'è bisogno di una condition variable per far fermare il thread quando non ci sono
+		utenti che non abbia gia registarto uso "CondWriteJson"(<-- è il nome della condition variable che uso), 
+		la classe che conterra il metodo run per effettuare quest aoperazione si chiama MakeJson
+		Per far capire al thread che serializza quali utenti scrivere su json uso una lista di supporto che 
+		conterra l'username dell utente da scrivere su json, cosi il thread fara la pop dalla lista e con tale
+		username cerca nel hashset in tempo costante e scrive l'utente sul file
+		
+	NOTA IMPORTANTE!!! Ho dovuto cambiare l implementazione della struttura dati che contiene i registrati
+			L ho dovuta rendere una HASHMAP invece che HASHSET in  quanto con hashset non potevo
+			recuperare gli utenti, a questo punto non serve piu fare l override di equals e 
+			hashcode in utenti perche uso in contains la chiave che è l username che deve essere univoco
+			
+			
+	C'era un problema sulla cond della readwrite lock per l'inserimento in hashmap e scrittura sul json, 
+	siccome la readlock non puo creare la var di condizione è necessario che usi la writelock per creare la
+	condizione su cui si addormenta il thread che deve serializzare, ho paura ora che quando lancio la
+	serializzazione mi venga sollevata un exception, devo testare, come pensavo non funziona perche la signal non
+	viene fatta credo, quindi quello che mi conviene fare è usare altre lock, quindi creo un altra coppia di lock
+	che verranno condivise dal thread dell rmi solo per fare la signal verso il thread che deve serializzare che 
+	intanto dorme, anzi ancora meglio quello che posso fare è usare invece della linked list per contenere
+	gli username degli utenti che devono essere scrritti su json usare una blockingqueue direttamente, 
+	appesantendo di meno il codice,
+	NOTA: siccome usa lo blocking queue quando faccio la take il thread va a dormire, quello che succede è
+	quindi che per risvegliare quel thread non basta chiudere il pool ma bisogna agiungere un elemento in coda
+	e fare un controllo che sia un elemento nullo prima di serializzare cosi facendo poi il thread 
+	testera il flag per la ricezione di una interrupted e chiudera   
+
+			
+		
+		
+--------------------------------------------------------------------------------------------------------------------
+		
