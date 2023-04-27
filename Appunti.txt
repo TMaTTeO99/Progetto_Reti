@@ -94,15 +94,108 @@ Giorno 4) :
 	viene fatta credo, quindi quello che mi conviene fare è usare altre lock, quindi creo un altra coppia di lock
 	che verranno condivise dal thread dell rmi solo per fare la signal verso il thread che deve serializzare che 
 	intanto dorme, anzi ancora meglio quello che posso fare è usare invece della linked list per contenere
-	gli username degli utenti che devono essere scrritti su json usare una blockingqueue direttamente, 
+	gli username degli utenti che devono essere scritti su json usare una blockingqueue direttamente, 
 	appesantendo di meno il codice,
 	NOTA: siccome usa lo blocking queue quando faccio la take il thread va a dormire, quello che succede è
 	quindi che per risvegliare quel thread non basta chiudere il pool ma bisogna agiungere un elemento in coda
 	e fare un controllo che sia un elemento nullo prima di serializzare cosi facendo poi il thread 
 	testera il flag per la ricezione di una interrupted e chiudera   
 
-			
-		
-		
+					
 --------------------------------------------------------------------------------------------------------------------
+	
+Giorno 5) : Riprendendo dal fatto che quando il server termina deve svegliare il thread che serializza devo inviare 
+	    sulla blockingqueue un username fittizio per far svegliare il thread quello che succede pero è che devo 
+	    scegliere un username particolare che gli utenti non possono usare per registrare devo fare questo 
+	    controllo quando gli utenti tentano di registrarsi, il nome non diposnibile è STOP_THREAD.
+	    Altra considerazione da fare: Il server deve scrivere sul json gli utenti che si registrano, 
+	    quando si spegne rilegge dal json e carica i dati, a questo punto potrebbero iscriversi altri utenti 
+	    quindi non posso riscrivere tutto il json da capo, allora come mi comporto?????  
+	     
+-------------------------------------------------------------------------------------------------------------------
+
+
+Giorno 6) : Riguardo il fatto visto la scorsa sezione del json, la mia idea è quella di utilizzare piu file
+	    per la serializzazione, uno per ogni riavvio del server, in modo da non avere problemi per la 
+	    scrittura e l eventuale rilettura dei file, posso quindi poi usare l aogo che implementato per la ricerca
+	    dei file in una dir specificata per recuperare i file .json e ricostruiìre le strutture dati, 
+	    Ora provo a implementare l'eventuale recupero dei dati:
+	    
+	    	Ragionamento: Prima cosa devo inserire nel file di configurazione il campo per recuperare la dir di 
+	    	dove andare a scrivere i file json e quindi poi anche a recuperarli (Seguendo sempre il formato del 
+	    	file config), bisogna quindi fornire una directory che deve essere gia presente nella dir del progetto
+	    	Tale dir la chiamo JsonSerializzation (ok), ora devo fare in modo che ogni volta che il server si 
+	    	riavvi acrea un nuovo file .json, quindi se il file esiste gia deve crearne un altro perche sarà 
+	    	un altra run, quindi il server ad ogni riavvio deve controllare del nella dir dove sono presenti 
+	    	i file json esistono file json, anzi, ad ogni riavvio il server deve controllare se la dir che
+	    	dovrà contenere i file json esiste per prima cosa, se non esiste la deve creare, cosi facendo,
+	    	se la dir esiste non deveo cercare se contiene file json perche sicuramente ne conterrà, allora deve
+	    	creare un nuovo file.
+	    	Nota siccome devo creare un nuovo file .json ad ogni  riavvio, mi serve sapere che nome dargli, 
+	    	il nome sara sempre uguale tranne per un numero es 12_DataStorage.json, il 12 sarà un numero 
+	    	presente nel file di configurazione, al primo avvio sarà 0, dopo la lettura di tale campo il numero
+	    	varra aggiornato subito. Tale campo si chiamerà versionjson.
+	    	
+	    	Questo ragionamento non va bene, la soluzione migliore è creare un file json unico e modificarlo ad 
+	    	ogni riavvio, quello che faccio quindi è creare la dir se non è presente in modo da avere piu 
+	    	disaccoppiamento dal file system, inizialmente il file json viene creato.
+	    	Ora devo capire come fare a serializzare anche lo stub che ogni utente ha nella sua definizione
+	    	se non risolvo questo problema non posso andare avanti, provo a non esportare il meccanismo di
+	    	notifica e inviare lo stub come parametro normale, non funziona, devo capire come serializzare un 
+	    	oggetto di tipo proxy
 		
+-------------------------------------------------------------------------------------------------------------------
+
+Giorno 7):	Ricomincio da dal discorso della serializzazione, quello che stavo tentando di fare non si puo
+		fare facilmente, il punto è che non c'è bisogno, il fatto è che le notifiche il server le invia al
+		client dopo che il client ha fatto il login, a questo punto posso chiedere al client di inviare 
+		lo stub che sarà usato per mandare le noptifiche, quindi quando creo un Utente, non devo inserire lo 
+		stub ma lo stub deve essere inviato dal client solo quando si logga per poi effettuare la 
+		serializzazione, poi, quando dovrò serializzare nuovamente devo trovare il modo di eliminare lo stub, 
+		questo perche non riesco a serializzarlo. A questo punto tolgo lo stub dalla  segnatura del metodo 
+		registrazione  e creo un altro metodo all'interno dell interfaccia/classe remota in modo da poter 
+		passare lo stub quando viene effettuata la login. Quindi fino a questo punto, quello che succede è 
+		che riesco a serializzare e recuperare lo stato del sistema, per quanto riguarda lo stub, 
+		quando l'utente si iscrive non invia lo stub in modo da poter serializzare gli utenti registrati,
+		nell interfaccia remota dell'oggetto esportato dal server invece ho implementato un metodo
+		che il client puo usare per inviare al server lo stub quando si logga al server, in questo modo 
+		gli utenti vengono comunque serializzati on demand senza lo stub, quando si loggano 
+		ogni utente avra il suo stub lato server in modo da poter ricevere notifiche, quando effettueranno il
+		logout lo stub verra tolto.
+		A questo punto, sembra funzionare tutto correttamente, e posso cominciare a implementare appunto
+		la fase di login tramite connessione TCP:
+			
+		Parto dall implementazione lato server: 
+		NOTA IMPORTANTE: Devo ricordarmi che le info come IP e PORT devono essere prese dal file di config
+		,il pars di tali iinfo devo ancora implementarlo NON DEVO DIMENTICARLO, per ora le uso temporane, 
+		Ora devo vedere come effettuare il parse dei messaggi che il client invia al server, devo capire se
+		all interno dello StartServer devo leggere l operazione che bisogna essere fatta e poi lanciare 
+		un thread del pool che usa un task specifico per quella operazione, oppure fare un unico task che 
+		riceve l input e in base all input ricevuto fa diverse operazioni, in quest ultimo modo forse sono
+		meno ordinato ma piu veloce, nel primo modo forse ottengo un codice piu leggibile per iul thread
+		che accetta le connessioni deve comunque effettuare delle operazioni di parsing => perde un po di 
+		tempo, quindi io credo che l operazione migliore da fare sia lanciare un tipo di task unico con 
+		al suo interno diversi metodi privati che effettuano le diverse operazioni ma cosi facendo il 
+		server che fa il multiplexing è piu efficente.
+		Riguardo l'implementazione della classe che effettuerà veramente le operazioni, la prima 
+		cosa che devo valutare sono gli oggetti che devo passare nel costruttore in base alle operazioni che il 
+		thread deve fare; Innanzi tutto al task bisogna passare la SelectioKey per recuperare il channel
+		e fare le diverse operazioni di comunicazione, devo vedere anche il resto.
+		Prima cosa che implemento è la fase di login, quindi quella che registra i client al servizio di 
+		ricezione della notiica, ora devo pensare a come tenere traccia degli utenti loggati, 
+		inserisco un campo nella classe utente che aggiorno in seguito a login e logout, oppure
+		uso un altra struttura dati? Credo che la prima opzione sia la migliore.
+		Altri parametri che credo siano necessari sono le lock e le condition variable.
+		Sono arrivato alla fase in cui devo cominciare a leggere i dati che ricevo, a questo punto, 
+		è necessario utilizzare un protocollo di comunicazione standard, nelle specifiche non 
+		viene detto nulla sul tipo di protocollo usare, quindi in teroia devo crearlo io.
+		
+		
+		PROTOCOLLO COMUNICAZIONE::::: 
+			1) Ogni messaggio conterrà all inizio del messaggio la lunghezza del messaggio stesso
+			cosi all inizio leggo 4 byte cioe un int che indichera la dim, dopo di che inizio a leggere il 
+			messaggio
+		 
+		 
+
+-------------------------------------------------------------------------------------------------------------------
