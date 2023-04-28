@@ -199,3 +199,52 @@ Giorno 7):	Ricomincio da dal discorso della serializzazione, quello che stavo te
 		 
 
 -------------------------------------------------------------------------------------------------------------------
+
+Giorno 8):
+
+		Ricomincio da dove sono arrivato al giorno 7:
+		Per ora voglio implementare il login, quindi devo connettermi al server e inviare :
+		"login(username, password)", nel mio protocollo il rimo dato che scriov è la dim dell
+		intero messaggio, come secondo campo il nome dell'operazione, e poi successivamente 
+		i parametri dell operazione, i vari campi saranno separati da un singolo spazio, ad esempio
+		riguardo il login, la richiesta sara ad esempio
+		
+		23login username password
+		
+		Per quanto riguarda l attach che aggancio alle key, per ora posso considerare di usare solo
+		una stringa, dopo magari meglio usare una classe mia per creare i dati da inviare e poi costruire 
+		una stringa da inviare al client.
+		
+		Riguarrdo il formato del messaggio di risposta, sara come la richiesta, in cui all'inizio sarà 
+		inserita la dimensione del messaggio, poi dopo il nome del "metodo" che ha fatto la richiesta 
+		e poi i parametri della risposta, fra questi pero nella risposata verra inserito un parametro 
+		che indica il successo della richiesta oppure il fallimento, userò una "enumeraziopne" di ack
+		per far capire al client il motivo del fallimento.
+		
+		Note: 1)I blocchi try catch che contengono nella catch una Exception generica dovranno poi essere sistemati 
+		per bene
+		      2)Riguardo la lettura dei dati che il client invia mi trovo davanti a due scelte, o far si
+		      che il thread legga tutti i dati che il client invia per costruire la risposta, oppure 
+		      comlicandomi un po la vita, quello che posso fare è:
+		      	1) Creare un mio attachment in cui inserisco un campo per indicare se all interno i dati sono pronti per
+		      	essere inviati e per indicare al thread se i dati dal channel sono stati letti tutti o meno e inoltre
+		      	inserire ad esempio un asterisco alla fine di ogni messaggio che il server riceve per indicare la
+		      	file del messaggio (anche se comunque puo essere visto con il numero di byte letti).
+		      	Io dico di provare a fare la soluzione non bloccante per farlo inizio implementando il mio attached
+		      	in cui inserisco un campo per indicare che i dati presenti sono completi, un campo per indicare 
+		      	l'inizio della lettura dei dati,  e poi i vari campi per i dati, siccome la stessa richiesta
+		      	puo essere diciamo "completata" in tempi diversi, è necessario che all'interno dell attached vengano
+		      	inserite strutture dati per memorizzare tutto quello che si è letto dalchannel in un determinato 
+		      	momento => devo usare degli array per questo e anche fino a dove sono arrivato a scrivere in questo
+		      	array. 
+		      	
+		      	Nota importante: Devo usare una lock per accedere all utente quando serializzo, tale lock deve essere 
+		      	condivisa fra il thread che accedono ai registrati. 
+		      	
+		      	
+		      	
+		      	
+		      	      
+		
+
+-------------------------------------------------------------------------------------------------------------------
