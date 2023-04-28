@@ -33,7 +33,7 @@ public class ServerWordle{
         Skeleton = (Registrazione) UnicastRemoteObject.exportObject(ObjEsportato, 0);
         RegistroRMI = LocateRegistry.createRegistry(PortExport);
         RegistroRMI.bind("Registrazione", Skeleton);
-        pool.execute(new MakeJson(Registrati, DaSerializzare, PathJson));//lancio il thread che effettua la serializzazione in background
+        pool.execute(new MakeJson(Registrati, DaSerializzare, PathJson, RWlck));//lancio il thread che effettua la serializzazione in background
     }
 
     /**
@@ -46,7 +46,7 @@ public class ServerWordle{
         try (ServerSocketChannel AcceptSocket = ServerSocketChannel.open()) {//clausola try with resource per per chiudere la socket in caso di terminazione
 
             Selector selector = Selector.open();//istanza diuu Selector per poter fare multiplaxing delle connessioni
-            AcceptSocket.bind(new InetSocketAddress(6500));//Porta Temporanea
+            AcceptSocket.bind(new InetSocketAddress(6501));//Porta Temporanea
             AcceptSocket.configureBlocking(false);//setto il canale come non bloccante
             AcceptSocket.register(selector, SelectionKey.OP_ACCEPT);//registro la ServerSocketChannel per operazione di Accept
 
@@ -67,22 +67,32 @@ public class ServerWordle{
                         ServerSocketChannel ListenSocket = (ServerSocketChannel) ReadyKey.channel();//recupero la socket per accettare la connessione
                         SocketChannel channel = ListenSocket.accept();
                         channel.configureBlocking(false);//setto il channel come non bloccante
-                        channel.register(selector, SelectionKey.OP_READ);//registro il channel per operazione di lettura
+                        channel.register(selector, SelectionKey.OP_READ, new Attached());//registro il channel per operazione di lettura
 
                     }
                     else if (ReadyKey.isReadable()) {//caso in cui una operazione di read non ritorna 0
 
                         //qui ora devo lanciare il task che effettua le diverse operazioni, quindi devo creare la clsse
                         //che contiene il metodo run.
-                        
-                        //ATTENZIONE:::: considerare anche il problema della rejected exception
+
+                        //ATTENZIONE:::: considerare anche il problema della rejected exception del threadpool,
+
+                        pool.execute(new Work(ReadyKey, RWlck, selector));
+                        SocketChannel channel = (SocketChannel) ReadyKey.channel();
 
                     }
                     else if(ReadyKey.isWritable()) {//caso in cui una operazione di write non ritorna 0
 
+                        //questo controllo è inutile in quanto i thread registreranno la connessione per la scrittura
+                        //dopo aver creato i dati, per ora lo lascio, poi vediamo
 
-
-
+                        Attached dati = (Attached)ReadyKey.attachment();
+                        if(!dati.isCompleted()){
+                            SocketChannel channel = (SocketChannel) ReadyKey.channel();
+                            channel.register(selector, SelectionKey.OP_READ, ReadyKey.attachment());
+                        }
+                        Thread.sleep(10000);//sleep temporanea per fare i test
+                        System.out.println("svegliato");
                     }
                 }
             }

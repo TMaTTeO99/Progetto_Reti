@@ -123,9 +123,11 @@ public class StartServerWordleMain {
         try {
 
             ServerWordle server = new ServerWordle(PathSerialization, MaxThread, TimeStempWord);
-            Thread.sleep(20000);//dormo per 30 secondi e poi chiudo
-                                      //il servizio rmi e quindi anche il server per ora
-            server.ShutDownRMI();
+            //Thread.sleep(20000);//dormo per 30 secondi e poi chiudo
+            //il servizio rmi e quindi anche il server per ora
+
+            server.StartServer();
+            //server.ShutDownRMI();
         }
         catch (Exception e) {
             if(e instanceof SecurityException) {System.out.println("Fallita Creazione Della Directory Per I File Json");}

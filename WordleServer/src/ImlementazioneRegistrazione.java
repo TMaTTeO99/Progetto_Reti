@@ -47,7 +47,6 @@ public class ImlementazioneRegistrazione extends RemoteServer implements Registr
         try {
             write.lock();
             Registrati.get(username).setStub(stub);
-            System.out.println("L ho inserito");
         }
         catch (Exception e){
             e.printStackTrace();

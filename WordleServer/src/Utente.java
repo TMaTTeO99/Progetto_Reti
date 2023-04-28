@@ -9,7 +9,7 @@ import java.util.Objects;
 
 public class Utente implements Serializable {
 
-    private boolean Login = false; //variabile che indica se l'utente è loggato o meno
+    private boolean login = false; //variabile che indica se l'utente è loggato o meno, Nota: a jackson da noia se scrivo Login
     private String Username = null;
     private String Passswd = null;
     private int Game = 0;//partite giocate
@@ -17,7 +17,7 @@ public class Utente implements Serializable {
     private float WinGamePerc = 0;//percentuale partite vinte
     private int LastConsecutive = 0;//lunghezza ultima striscia positiva
     private int MaxConsecutive = 0;//striscia positiva piu lunga;
-    transient private NotificaClient stub;//variabile per recuperare lo stub passato dal client nella fase di registrazione
+    private NotificaClient stub;//variabile per recuperare lo stub passato dal client nella fase di registrazione
 
     @JsonCreator //annotazione utilizzata per poter deserializzare i file
     public Utente(
@@ -78,6 +78,10 @@ public class Utente implements Serializable {
         return MaxConsecutive;
     }
 
+    public boolean getLogin() {return login;}
+
+    public void setLogin() {login = true;}
+
     public void setMaxConsecutive(int maxConsecutive) {
         MaxConsecutive = maxConsecutive;
     }
@@ -87,9 +91,5 @@ public class Utente implements Serializable {
     public void setStub(NotificaClient s) {stub = s;}
 
     public void RemoveSTub() { stub = null;}//metodo usato per eliminare lo stub prima di serializzare
-
-    public boolean getLogin() {return Login;}
-
-    public void setLogin() {Login = true;}
 
 }

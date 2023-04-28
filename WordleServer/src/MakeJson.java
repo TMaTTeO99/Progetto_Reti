@@ -14,18 +14,21 @@ import java.util.LinkedList;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 //classe usata per costruire il file json per la serializzazione
 public class MakeJson implements Runnable{
 
+    private Lock Lock;//lock per acedere in mutua esclusione agli utenti
     private HashMap<String, Utente> Registrati;//utenti registrati
     private LinkedBlockingDeque<String> UDSlist;//lista che conterra gli user name degli utenti da serializzare
     private String PathJSN;//Stringa che contiene il path di dove scrivere i file json
     private String FileNameJson = "DataStorage.json";//stringa che verra usata per creare i file json
-    public MakeJson(HashMap<String, Utente> Utenti, LinkedBlockingDeque<String> UDSL, String PathJson) {
+    public MakeJson(HashMap<String, Utente> Utenti, LinkedBlockingDeque<String> UDSL, String PathJson, ReentrantReadWriteLock lck) {
         Registrati = Utenti;
         UDSlist = UDSL;
         PathJSN = PathJson;
+        Lock = lck.writeLock();
     }
     private FileWriter CheckAndDeserialize(String name, ObjectMapper map) {
 
@@ -63,6 +66,7 @@ public class MakeJson implements Runnable{
         ObjectMapper map = new ObjectMapper();
         map.enable(SerializationFeature.INDENT_OUTPUT);
         map.disable(SerializationFeature.FAIL_ON_EMPTY_BEANS);
+
         try {
             //ora devo controllare se il file esiste e in tal caso scorrerlo e deserializzare
             if((JsonFile = CheckAndDeserialize(PathJSN.concat("/").concat(FileNameJson), map)) == null) {throw new NullPointerException();}
@@ -81,9 +85,11 @@ public class MakeJson implements Runnable{
                     System.out.println("Il server sta chiudendo quindi esco");//stampa di prova
                     break;
                 }
+                Lock.lock();
                 Utente u = Registrati.get(username);
                 u.RemoveSTub();
                 generator.writeObject(u);
+                Lock.unlock();
             }
             generator.close();
             System.out.println("Interruzione Servizio di salvataggio dati");
