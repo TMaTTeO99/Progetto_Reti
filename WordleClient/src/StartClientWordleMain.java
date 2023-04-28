@@ -1,4 +1,9 @@
+import java.io.BufferedOutputStream;
 import java.io.File;
+import java.io.FileOutputStream;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.net.Socket;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
@@ -32,6 +37,19 @@ public class StartClientWordleMain {
              */
             //ora qua provo a inviare lo stub al server dopo che mi sono registrato ecc
             servizio.sendstub(user, skeleton);
+
+
+            //test per connettermi al server e vedere cosa fa
+            Socket sck = new Socket();
+            sck.connect(new InetSocketAddress("localhost", 6501));
+            String x = new String("11ciao come?");
+            try(BufferedOutputStream ou = new BufferedOutputStream(sck.getOutputStream())){
+                ou.write(x.getBytes());
+                ou.flush();
+            }
+            catch (Exception e) {
+                e.printStackTrace();
+            }
         }
         catch (Exception e) {
             e.printStackTrace();
