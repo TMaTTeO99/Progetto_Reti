@@ -206,10 +206,11 @@ Giorno 8):
 		Per ora voglio implementare il login, quindi devo connettermi al server e inviare :
 		"login(username, password)", nel mio protocollo il rimo dato che scriov è la dim dell
 		intero messaggio, come secondo campo il nome dell'operazione, e poi successivamente 
-		i parametri dell operazione, i vari campi saranno separati da un singolo spazio, ad esempio
+		i parametri dell operazione, i vari campi saranno separati da un singolo spazio, mentre
+		il nome della operazione dai campi sara separata dai ':' ad esempio
 		riguardo il login, la richiesta sara ad esempio
 		
-		23login username password
+		23login:username password
 		
 		Per quanto riguarda l attach che aggancio alle key, per ora posso considerare di usare solo
 		una stringa, dopo magari meglio usare una classe mia per creare i dati da inviare e poi costruire 
@@ -239,12 +240,85 @@ Giorno 8):
 		      	array. 
 		      	
 		      	Nota importante: Devo usare una lock per accedere all utente quando serializzo, tale lock deve essere 
-		      	condivisa fra il thread che accedono ai registrati. 
+		      	condivisa fra il thread che accedono ai registrati.
 		      	
-		      	
-		      	
-		      	
-		      	      
+
+-------------------------------------------------------------------------------------------------------------------
+
+Giornio 9):	
+
+		Ho bisogno di gestire il fatto che un client anche se si logga potrebbe disconnettersi in un qualsiasi momento, 
+		ho visto che quando succede mi espode il server perche per come è adesso vengono lanciati infinitamente i thread 
+		che eseguono work ed esplode tutto, come farre??????: devo controllare sia in fase di scrittura che di lettura cosa mi ritornano
+		la read e la write e muovermi di conseguenza.
+			Note riguardo la registrazione sul selettore:
+				Dentro Attached è presente un campo complited che mi permette poi all'interno del thread
+                     		* che fa lo smistamento delle connessioni di poter vedere se i dati sono stati inviati tutti oppure no,
+                     		* nel casoo in cui i dati che il thread che smista le conn invia siano tutti il channel viene registrato
+                     		* per la readable, altrimenti no.
+                     		
+               Nota: siccome la funzione di parsing delle richieste mi serve in piu punti, creo una classe con metodi statici in modo da poter
+               utilizzare i suoi metodi dove mi pare (MyMethodClass.java), per ora è solo una finezza pero quindi lascio stare.
+               
+               Nota: riguaro il metodo di logout, siccome tale metodo richiede di inserire il nome dell utente che deve effettuare
+               il logout, quello che potrebbe succede è che un utente inserisca il nome di un altro utente, allora quello che devo fare
+               è inserire all interno della classe utente una variabgile di instanza che al momento di login associ a quell utente
+               la sua connessione, la sua key oppure il suo attach oppure il suo channel, in modo che se il client chiede di effettuare il
+               logout se non inserisce il nuo nome e quindi indicare che deve effettuare il logout l utente associato alla conn
+               che ha effettuato la richiesta => venga sollevato un errore.
+               
+               Ritornando al login invece, va implementato, ricordandosi che quando un client si logga si iscrive al servizio di notifiche
+               quindi anche lato client devo cominciare a scrivere bene
+                    
 		
+		Nota: per i thread secondari, per farlio terminare potrei settarli come demoni in modo tale che una volta terminati tutti i
+		thread non demoni il programma si chiude lo stesso.
+			
+		Nota: In work -1 indica ch l'username non è fra i registrati, 0 indica login con successo (usero 0 anche per le altre operazioni)
+		0 operazione completata numeri negativi operazione fallita e per ogni numero negativo un significato 
+
+-------------------------------------------------------------------------------------------------------------------
+
+Giorno 10): ho riosolto un po di problemi pero ora non capisco perche non mi entra nel ramo iswriteable, da fixare:
+
+Giorno 10.1) :
+		
+		
+		provo a fixare il problema dell iswriteable: per farlo posso provare a registrare il canale sul selettore come writable nel 
+		thread che gestisce le conn non dai thread, e uso un campo in attach per vedere se i dati dentro attach sono 
+		pronti o no, inoltre l attach è condiviso fra thread, quindi devo accedervi in mutua esclusione => uso le lock
+		ma uso la trylock per non far si che il gestore dei channel debba aspettare i thread worker 
+
+		devo implementare correttamente la muta esclusione sulle selectedkeys, per farlo mi serve una struttura dati
+		in cui inserisco la chiave presa dall iteratore e anche una lock, cosi posso accedere alla chiave in modo esclusivo
+		sia dal thread che regola i channel sia dai worker senza rallentare tutto e il resto lasciarlo cosi, questo perche altrimentu
+		mi da problemi il selettore
+		Non ho idea di come fare, pero posso usare un altra strateggia, 
+		Faccio in modo che la classe work implementi callable in modo da poter recuperare i dati dopo che li ha prodotti 
+		
+		con un oggetto feature, in piu associo ad ogni chiave un id, per identificare la connessione e ad ogni thread che sta
+		elaborando i dati, associo tale id, in questo modo pero per ogni richiestail thread deve completarla tutta.
+		Dopo che il thread ha finito quindi recupero il dato e se la connessione è pronta per la scrittura e se l id della 
+		connessione coincide con l id dell dato prodotto dai thread in questo modo i thread leggono dal canale e basta e 
+		producono il dato => non dovrei avere problemi con il selettore                                  
+		
+
+-------------------------------------------------------------------------------------------------------------------
+
+Giorno 11) : Il meccanismo che volevo implementare non mi piace, ora faccio in modo che se un channel è legibile => leggo tutti i dati
+	     e preparo direttamente la risposta da un solo thread, altrimenti diventa ingestibile e non ha nemmeno molto senso.
+	    In pratica quello che devo fare è: quando la connessione è pronta per la lettura, faccio una prima operazione di lettura nel
+	    thread che gestisce le connessioni cercando di leggere la dimensione, se non ritorna -1 allora passo quella dimensione ai worker e 
+	    gli faccio farre il resto, altrimenti elimino la connessione dal selettore. 
+	    
+	    Per ora dovrebbe andare, ho sistemato la chiusura della connessione lato client, ho fatto in modo di non far bloccare 
+	    il selettore, ho pero dovuto far si che i worker debbano servire ognuno una richiesta alla volta pero ho 
+	    eliminato le lock quindi bene o male a bene, ora c'è da gestire il fatto che se si prova a loggare un utente 
+	    che non è registrato c'è il motodo del server che tenta di prendere dal client lo stub ma viene sollevata un eccezzione
+	    questo si puo gestire facilmente. 
+	    Per ora mi fermoi qua che devo fdare IA poi continuo....
+	    
+	     
+
 
 -------------------------------------------------------------------------------------------------------------------
