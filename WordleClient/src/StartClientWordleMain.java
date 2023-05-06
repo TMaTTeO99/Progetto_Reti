@@ -1,9 +1,8 @@
-import java.io.BufferedOutputStream;
-import java.io.File;
-import java.io.FileOutputStream;
+import java.io.*;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.nio.charset.StandardCharsets;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
@@ -22,39 +21,81 @@ public class StartClientWordleMain {
     public static void main(String [] args) {
 
         try {
-            Scanner in = new Scanner(System.in);
-            ImplementazioneNotificaClient notifica = new ImplementazioneNotificaClient();//oggetto da esportare
-            NotificaClient skeleton = (NotificaClient) UnicastRemoteObject.exportObject(notifica, 0);
 
-            Registrazione servizio = (Registrazione)LocateRegistry.getRegistry(portRMI).lookup("Registrazione");
-            String user = in.next();
-            String pass = in.next();
-            System.out.println(servizio.registra(user, pass));
             /**
-             * A questo punto il client non termina perhce rimane esportato l'ggetto
-             * per effettuare la notifica, naturalmente dovra essere esportato quando
-             * il client fara la login e eliminata l'esportazione in seguito a una logout
+             * Faccio un shell interattiva rudimentale solo per cominciare a provare le funzionalita piano piano
              */
-            //ora qua provo a inviare lo stub al server dopo che mi sono registrato ecc
-            servizio.sendstub(user, skeleton);
+            ImplementazioneNotificaClient notifica = null;
+            Registrazione servizio = null;
+            String user = null;
+            String pass = null;
+            Scanner in = new Scanner(System.in);
+            int scelta = 0;
+            while(scelta != -1){
+                System.out.println("INSERIRE OPZIONE DESIDERATA: ");
+                System.out.println("1 per effettuare registrazione");
+                System.out.println("2 per effettuare login");
+                System.out.println("-1 per uscire");
+                scelta = in.nextInt();
+                if(scelta == 1){
+                    servizio = (Registrazione)LocateRegistry.getRegistry(portRMI).lookup("Registrazione");
+                    user = in.next();
+                    pass = in.next();
+                    System.out.println(servizio.registra(user, pass));
+                }
+                else if(scelta == 2) {
 
+                    user = in.next();
 
-            //test per connettermi al server e vedere cosa fa
-            Socket sck = new Socket();
-            sck.connect(new InetSocketAddress("localhost", 6501));
-            String x = new String("11ciao come?");
-            try(BufferedOutputStream ou = new BufferedOutputStream(sck.getOutputStream())){
-                ou.write(x.getBytes());
-                ou.flush();
-            }
-            catch (Exception e) {
-                e.printStackTrace();
+                    servizio = (Registrazione)LocateRegistry.getRegistry(portRMI).lookup("Registrazione");
+
+                    //test per connettermi al server e vedere cosa fa
+                    Socket sck = new Socket();
+                    try {//1025 porta corretta per questo client
+                        sck.connect(new InetSocketAddress("localhost", 6501));
+                    }
+                    catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                    byte [] tmp = new byte[100];
+                    ByteArrayInputStream BuffIn = new ByteArrayInputStream(tmp);
+                    try (DataOutputStream ou = new DataOutputStream(new BufferedOutputStream(sck.getOutputStream()));
+                         DataInputStream inn = new DataInputStream(new BufferedInputStream(sck.getInputStream()))) {
+
+                        ou.writeInt(("login:Matteo Torchia".length())*2);
+                        ou.writeChars("login:Matteo Torchia");
+                        ou.flush();
+                        System.out.print(inn.readInt());
+                        System.out.print(inn.readChar());
+                        System.out.print(inn.readChar());
+                        System.out.print(inn.readChar());
+                        System.out.print(inn.readChar());
+                        System.out.print(inn.readChar());
+                        System.out.print(inn.readChar());
+                        System.out.println(inn.readInt());
+
+                    }
+                    catch (Exception e ) {e.printStackTrace();}
+
+                    notifica = new ImplementazioneNotificaClient();//oggetto da esportare
+                    NotificaClient skeleton = (NotificaClient) UnicastRemoteObject.exportObject(notifica, 0);
+                    /**
+                     * A questo punto il client non termina perhce rimane esportato l'ggetto
+                     * per effettuare la notifica, naturalmente dovra essere esportato quando
+                     * il client fara la login e eliminata l'esportazione in seguito a una logout
+                     */
+                    //ora qua provo a inviare lo stub al server dopo che mi sono registrato ecc
+                    servizio.sendstub(user, skeleton);
+
+                }
+                else {
+                    UnicastRemoteObject.unexportObject(notifica, true);
+                }
             }
         }
         catch (Exception e) {
             e.printStackTrace();
         }
-
 
     }
 
