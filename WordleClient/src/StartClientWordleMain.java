@@ -46,7 +46,7 @@ public class StartClientWordleMain {
                 else if(scelta == 2) {
 
                     user = in.next();
-
+                    pass = in.next();
                     servizio = (Registrazione)LocateRegistry.getRegistry(portRMI).lookup("Registrazione");
 
                     //test per connettermi al server e vedere cosa fa
@@ -62,8 +62,8 @@ public class StartClientWordleMain {
                     try (DataOutputStream ou = new DataOutputStream(new BufferedOutputStream(sck.getOutputStream()));
                          DataInputStream inn = new DataInputStream(new BufferedInputStream(sck.getInputStream()))) {
 
-                        ou.writeInt(("login:Matteo Torchia".length())*2);
-                        ou.writeChars("login:Matteo Torchia");
+                        ou.writeInt((("login:"+ user + " " + pass).length())*2);
+                        ou.writeChars("login:" + user + " " + pass);
                         ou.flush();
                         System.out.print(inn.readInt());
                         System.out.print(inn.readChar());
@@ -71,21 +71,31 @@ public class StartClientWordleMain {
                         System.out.print(inn.readChar());
                         System.out.print(inn.readChar());
                         System.out.print(inn.readChar());
-                        System.out.print(inn.readChar());
-                        System.out.println(inn.readInt());
+                        System.out.println(inn.readChar());
 
+                        switch(inn.readInt()) {
+                            case 0 :
+                                System.out.println("Login effettuato");
+                                System.out.println("Benvenuto");
+                                notifica = new ImplementazioneNotificaClient();//oggetto da esportare
+                                NotificaClient skeleton = (NotificaClient) UnicastRemoteObject.exportObject(notifica, 0);
+                                /**
+                                 * A questo punto il client non termina perhce rimane esportato l'ggetto
+                                 * per effettuare la notifica, naturalmente dovra essere esportato quando
+                                 * il client fara la login e eliminata l'esportazione in seguito a una logout
+                                 */
+                                //ora qua provo a inviare lo stub al server dopo che mi sono registrato ecc
+                                servizio.sendstub(user, skeleton);
+                                break;
+                            case -1:
+                                System.out.println("Errore. Per partecipare al gioco bisogna prima essere iscritti");
+                                break;
+                            case -2:
+                                System.out.println("Errore. Password inserita non corretta");
+                                break;
+                        }
                     }
                     catch (Exception e ) {e.printStackTrace();}
-
-                    notifica = new ImplementazioneNotificaClient();//oggetto da esportare
-                    NotificaClient skeleton = (NotificaClient) UnicastRemoteObject.exportObject(notifica, 0);
-                    /**
-                     * A questo punto il client non termina perhce rimane esportato l'ggetto
-                     * per effettuare la notifica, naturalmente dovra essere esportato quando
-                     * il client fara la login e eliminata l'esportazione in seguito a una logout
-                     */
-                    //ora qua provo a inviare lo stub al server dopo che mi sono registrato ecc
-                    servizio.sendstub(user, skeleton);
 
                 }
                 else {
