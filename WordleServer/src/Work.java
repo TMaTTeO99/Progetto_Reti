@@ -1,76 +1,105 @@
+import java.io.*;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
 import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
+import java.util.StringTokenizer;
+import java.util.concurrent.Callable;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
-public class Work implements Runnable{
+public class Work implements Callable<PkjData> {
 
     private static final int SIZE_SIZE = 4;
     private SelectionKey Key;//variabile utilizzata per reperire e settare i dati per le comunicazioni come ad es il channell e l attach
-    private ReentrantReadWriteLock RWlck;
     private Selector Selettore;
-    private Lock write;
-    public Work(SelectionKey k, ReentrantReadWriteLock lock, Selector s) {
+    private Lock write;//lock usata per accedere alla lista degli utenti registarti e cambiare i campi di un utente in base all operazione
+    private HashMap<String, Utente> Registrati;
+    private int id;//intero che identifica la connessione
+    private PkjData Dati;
+    private ByteBuffer LenMexBuffer;
+    public Work(SelectionKey k, ReentrantReadWriteLock lock, Selector s, HashMap<String, Utente> R, Integer ID, PkjData dati, ByteBuffer len) {
         Key = k;
-        RWlck = lock;
         Selettore = s;
+        Registrati = R;
+        write = lock.writeLock();
+        id = ID;
+        Dati = dati;
+        LenMexBuffer = len;
     }
-    public void run() {
+    public PkjData call() {
 
         //per implementare la soluzione non bloccante devo per prima cosa recuperare l attached e il channel
+
         SocketChannel channel = (SocketChannel) Key.channel();
-        Attached dati = (Attached)Key.attachment();
+
         try {
 
-            dati.getLock().lock();//acquisisco la mutua esclusione sulle variabili dell attached
+            LenMexBuffer.flip();//resetto position per poter leggere dal ByteBuffer
+            Dati.allocRequest(LenMexBuffer.getInt());//alloco il vettore che conterrà la richiesta dentro attached
 
-            if(!dati.isStartRead()){//caso in cui non ho iniziato a leggere i dati che il client ha inviato
+            ByteBuffer RequestBuff = ByteBuffer.wrap(Dati.getRequest());
+            while(channel.read(RequestBuff) != Dati.getRequest().length);
+            //a questo punto quindi devo continuare a leggere da dovee avevo ripreso che è inidcato da dati.getIdxRequest()
 
-                dati.setStartRead(true);//setto StartRead cosi la prossima volta che comincio a leggere entro nell ramo else
-
-                //array di 4 byte per recuperare la dim del messaggio ricevuto
-                byte [] LenMexByte = new byte[SIZE_SIZE];
-                ByteBuffer LenMexBuffer = ByteBuffer.wrap(LenMexByte);
-
-                channel.read(LenMexBuffer);//leggo la len della richiesta
-                LenMexBuffer.flip();//resetto position per poter leggere dal ByteBuffer
-                dati.allocRequest(LenMexBuffer.getInt());//alloco il vettore che conterrà la richiesta dentro attached
-
-                dati.WriteRequest(channel);
-                channel.register(Selettore, SelectionKey.OP_READ, dati);
-
-            }
-            else {//caso in cui ho cominciato gia a leggere dei dati e devo continuare
-
-                //a questo punto devo controllare prima se ho finito i dati da leggere (quelli che il client ha inviato)
-                if(dati.getIdxRequest() != dati.getRequest().length) {//caso in cui non ho letto tutta la request
-
-                    //a questo punto quindi devo continuare a leggere da dovee avevo ripreso che è inidcato da dati.getIdxRequest()
-                    dati.WriteRequest(channel);
-                    channel.register(Selettore, SelectionKey.OP_READ, dati);
-                }
-                else {//caso in cui ho letto tutta la request => devo preparare la risposta e fare le diverse operazioni
-
-                    //ora provo a testare
-                    System.out.println(new String(dati.getRequest(), StandardCharsets.UTF_16) + " qui");
-                    /**
-                     * A questo punto devo leggere i dati ricevuti e in base alla richiesta fare le diverse operazioni,
-                     * dopo di che posso registrare il channel per la scrittura per dare la risposta al client
-                     */
-
-
-                    //channel.register(Selettore, SelectionKey.OP_WRITE, dati);
-
-                }
-            }
+            ParseRequest(Dati);
         }
         catch (Exception e) {e.printStackTrace();}
-        finally {
-            dati.getLock().unlock();//rilascio la mutua esclusione sulle variabili dell attached
-        }
+        return Dati;
+    }
 
+    //metodi privati per la gestione e il completamento delle richieste
+
+    private void ParseRequest(PkjData dati) {
+
+        //per ora è un metodo temporaneo che va scritto molto meglio, voglio solo testare un po di cose
+
+        StringTokenizer Tok = new StringTokenizer(new String(dati.getRequest(), StandardCharsets.UTF_16), ":");
+        String Method = Tok.nextToken();//recupero l'opeerazione che il client ha richiesto
+
+        /**
+         * Nota: qui posso usare delle classi per ogni risposta da dare per rendere il codice piu leggibile
+         * Creare delle classi per ogni metodo e quindi usare i loro oggetti oppure metodi statici per
+         * preparare la risposta, per ora lascio com'è solo per testare le idee
+         */
+        switch(Method) {
+            case "login" :
+                write.lock();
+                String username = Tok.nextToken(" ").replace(":", "");//recupero username
+                String passwd = Tok.nextToken(" ");//recupero passwd
+
+                //preparo la risposta per il client, la risposta ha lo stesso formato della richiesta
+                int lendati = "login:".length();//lunghezza dei dati
+                dati.allocAnswer(lendati + 8 );//lunghezza dei dati + 4 byte per contenere la lunghezza del messaggio e l'intero finale che indica lo stato dell operazione
+
+                ByteArrayOutputStream SupportOut = new ByteArrayOutputStream();
+                try (DataOutputStream OutWriter = new DataOutputStream(SupportOut)){
+
+                    OutWriter.writeInt(lendati + 8);
+                    OutWriter.writeChars("login:");
+
+                    if(Registrati.containsKey(username)){//controllo che l'utente inserito sia registratoì
+
+                        if(Registrati.get(username).getPassswd().equals(passwd)) {
+                            Registrati.get(username).setLogin(true);
+                            OutWriter.writeInt(0);
+                        }
+                        else OutWriter.writeInt(-2);//-2 indica che l utente non ha inserito correttamente la passwd
+                    }
+                    else {
+                        OutWriter.writeInt(-1);// -1 indica utente non registrato
+                    }
+                    dati.SetAnswer(SupportOut.toByteArray());
+                }
+                catch (Exception e) {e.printStackTrace();}
+                finally {
+                    write.unlock();
+                }
+                break;
+            case "logout":
+                break;
+        }
     }
 }

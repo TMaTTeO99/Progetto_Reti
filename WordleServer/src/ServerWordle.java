@@ -1,4 +1,7 @@
+import java.io.ByteArrayInputStream;
+import java.io.DataInputStream;
 import java.net.InetSocketAddress;
+import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
@@ -12,6 +15,7 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 public class ServerWordle{
+    private static final int SIZE_SIZE = 4;//variabile per indicare il numeero dio byte di un int, serve per legere la dimensione
     private int PortExport = 6500; // WARNINGGG::: <--per ora uso questa porta per testare
     private Registry RegistroRMI;
     private Registrazione Skeleton;
@@ -21,7 +25,9 @@ public class ServerWordle{
     private HashMap<String, Utente> Registrati; // Lista che conterrà gli utenti registrati
     private ImlementazioneRegistrazione ObjEsportato;//variabile per gestire la condition variable per il thread che scrive su json
     private LinkedBlockingDeque<String> DaSerializzare;//lista di supporto usata per capire quali utenti devono essere serializzati
-                                             //ad ogni iscrizione
+                                                       //ad ogni iscrizione
+
+    private HashMap<Integer, KeyData> LstDati;//HashmMap usata per recuperare i dati prodotti dai worker
     public ServerWordle(String PathJson , int Nthread, long TimeStempWord) throws Exception{
 
         DaSerializzare = new LinkedBlockingDeque<>();
@@ -34,6 +40,7 @@ public class ServerWordle{
         RegistroRMI = LocateRegistry.createRegistry(PortExport);
         RegistroRMI.bind("Registrazione", Skeleton);
         pool.execute(new MakeJson(Registrati, DaSerializzare, PathJson, RWlck));//lancio il thread che effettua la serializzazione in background
+        LstDati = new HashMap<>();
     }
 
     /**
@@ -49,6 +56,7 @@ public class ServerWordle{
             AcceptSocket.bind(new InetSocketAddress(6501));//Porta Temporanea
             AcceptSocket.configureBlocking(false);//setto il canale come non bloccante
             AcceptSocket.register(selector, SelectionKey.OP_ACCEPT);//registro la ServerSocketChannel per operazione di Accept
+            Integer ID_Channel = 0;//intero per identificare la connessione
 
             while(true) { // per ora lascio while(true), in un secondo momento userò una var per la gestione della terminazione
 
@@ -62,39 +70,55 @@ public class ServerWordle{
                     SelectionKey ReadyKey = IteratorKey.next();//recupero la chiave su cui è pronta l'operazione
                     IteratorKey.remove();//rimuvo la chiave dall iteratore per non avere "inconsistenza"
 
+
                     if(ReadyKey.isAcceptable()) {//caso in un operazione di accept non ritorna null
 
                         ServerSocketChannel ListenSocket = (ServerSocketChannel) ReadyKey.channel();//recupero la socket per accettare la connessione
                         SocketChannel channel = ListenSocket.accept();
                         channel.configureBlocking(false);//setto il channel come non bloccante
-                        channel.register(selector, SelectionKey.OP_READ, new Attached());//registro il channel per operazione di lettura
+                        channel.register(selector, SelectionKey.OP_READ, ID_Channel);//registro il channel per operazione di lettura
 
                     }
                     else if (ReadyKey.isReadable()) {//caso in cui una operazione di read non ritorna 0
 
-                        //qui ora devo lanciare il task che effettua le diverse operazioni, quindi devo creare la clsse
-                        //che contiene il metodo run.
-
                         //ATTENZIONE:::: considerare anche il problema della rejected exception del threadpool,
 
-                        pool.execute(new Work(ReadyKey, RWlck, selector));
-                        SocketChannel channel = (SocketChannel) ReadyKey.channel();
+
+                        SocketChannel channel = (SocketChannel)ReadyKey.channel();
+                        byte [] LenMexByte = new byte[SIZE_SIZE];
+                        ByteBuffer LenMexBuffer = ByteBuffer.wrap(LenMexByte);
+
+                        if(channel.read(LenMexBuffer) == -1) {//leggo la len della richiesta e se non leggo nulla => il client ha chiuso la connessione
+                            ReadyKey.cancel();               //=> cancello il channel dal selettore
+                        }
+                        else {
+                            Future<PkjData> result = pool.submit(new Work(ReadyKey, RWlck, selector, Registrati, (Integer) ReadyKey.attachment(), new PkjData(), LenMexBuffer));
+                            LstDati.put((Integer) ReadyKey.attachment(), new KeyData(ReadyKey, result));
+                            ReadyKey.interestOps(SelectionKey.OP_WRITE);
+                        }
 
                     }
                     else if(ReadyKey.isWritable()) {//caso in cui una operazione di write non ritorna 0
 
-                        //questo controllo è inutile in quanto i thread registreranno la connessione per la scrittura
-                        //dopo aver creato i dati, per ora lo lascio, poi vediamo
+                        SocketChannel channel = (SocketChannel) ReadyKey.channel();//recupero il canale
+                        Future<PkjData> DataFuture = LstDati.get((Integer) ReadyKey.attachment()).getDati();
 
-                        Attached dati = (Attached)ReadyKey.attachment();
-                        if(!dati.isCompleted()){
-                            SocketChannel channel = (SocketChannel) ReadyKey.channel();
-                            channel.register(selector, SelectionKey.OP_READ, ReadyKey.attachment());
+                        if(DataFuture.isDone()) {//se l'oggetto future è stato completato
+
+                            PkjData dati = DataFuture.get();
+                            try {//provo a scrivere i dati
+                                if(channel.write(ByteBuffer.wrap(dati.getAnswer())) == dati.getIdxAnswer()) {
+                                    LstDati.remove(ReadyKey.attachment());//rimuovo dalla struttura dati le informazioni
+                                    ReadyKey.interestOps(SelectionKey.OP_READ);
+                                }
+                            }
+                            catch (Exception e) {//se viene sollevata un eccezione perche il client ha chiuso la connessione elimino il channel selettore
+                                ReadyKey.cancel();
+                            }
                         }
-                        Thread.sleep(10000);//sleep temporanea per fare i test
-                        System.out.println("svegliato");
                     }
                 }
+                ID_Channel++;
             }
         }
         catch (Exception e){e.printStackTrace();}
@@ -145,4 +169,5 @@ public class ServerWordle{
         }
         PrintRegistrati();
     }
+
 }

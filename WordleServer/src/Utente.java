@@ -80,7 +80,7 @@ public class Utente implements Serializable {
 
     public boolean getLogin() {return login;}
 
-    public void setLogin() {login = true;}
+    public void setLogin(boolean value) {login = value;}
 
     public void setMaxConsecutive(int maxConsecutive) {
         MaxConsecutive = maxConsecutive;
