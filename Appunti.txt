@@ -318,7 +318,47 @@ Giorno 11) : Il meccanismo che volevo implementare non mi piace, ora faccio in m
 	    questo si puo gestire facilmente. 
 	    Per ora mi fermoi qua che devo fdare IA poi continuo....
 	    
-	     
+	    
+
+-------------------------------------------------------------------------------------------------------------------
+
+Giorno 12) Sistemo solo alcune cose semplici (Rifiniture), 
+		Nota: quando dovro mandare una notifica ad un client per un qualsiasi motivi, dovro controllare lato server 
+		che il client sia loggato prima di cercare lo stuib del cliente e inviare la notifica 
+
+-------------------------------------------------------------------------------------------------------------------
+
+Giorno 13)	Ricomincio :
+		Sto riflrttendo sulla serializzazione, la serializzazione dell utente, quando deve essere fatta??
+		Perche ogni qiual volta che la struttura dati degli utenti viene modificata, biosogna mantenere nel file
+		json i dati in modo consistente, quindi a questo punto devo decidere bene quando tale serializzazione debba
+		essere fatta, io credo che il modo migliore sia quando un utente fa il logout oppure periodicamnete
+		inoltre gestire i dati del file json è abbastanza dura, anche perche è difficile modificare
+		un singolo utente all interno del json, quindi quello che mi conviene fare e ricostruire periodicamente
+		il file json, fare un backup periodico, è impraticabile farlo di continuo, in questo modo evito di rallentare il gioco
+		per la sincronizzazione ma farlo solo periodicamente, inoltre forse conviene usare due strutture dati per gli utenti, 
+		in base a cosa devo fare, ad esempio, se devo registrare un utente non ci sarebbe bisogno di rallentare 
+		chi sta giocando, quindi per fare questo o uso due strutture dati, oppure provo a usare la concurrenthashmap 
+		in modo da poter accedere in mutua esclusione ai singoli buckets della struttra per questa cosa va prima studiata e capita
+		bene, se uso una concurrentHashmap quello che devo fare è: inizializzare la mappa con un numero di capacita iniziale
+		un workload standard.
+		Altra considerazione da fare, riguardo la struttura dati che viene condivisa fra thread, tale struttura dati puo avere problemi di
+		concorrenza quando?? il punto è che nella funzione dei worker, io non accedo mai da piu thread allo stesso utente, in
+		caso succedesse ad esempio per il login, non avrei comunque problemi se 2 utenti provano a logagrsi con 2 
+		passwd diverse, non centra con la concorrenza, inoltre, riguardo la logout, per evitare che un utente possa inserire
+		l username di un altro utente e fargli fare la logout, va inserito un campo nella classe utente per specificare
+		su quale ID_CHANNEL l utente si è loggato, cosi faccio questo controllo nella logout e risolvo il problema cosi puo
+		effettuare la logout solo un utente che è loggato e che ha effettuato il login con la stessa socket che usa per fare 
+		la logout.
+		Per oggi non ho scritto nulla sul codice, ho fatto solo queste considerazioni, da domani mi ci metto.........
+		
+		
+		 
+
+
+
 
 
 -------------------------------------------------------------------------------------------------------------------
+
+
