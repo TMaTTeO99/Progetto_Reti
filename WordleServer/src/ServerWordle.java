@@ -19,10 +19,8 @@ public class ServerWordle{
     private int PortExport = 6500; // WARNINGGG::: <--per ora uso questa porta per testare
     private Registry RegistroRMI;
     private Registrazione Skeleton;
-    private ReentrantReadWriteLock RWlck;//read Write lock in modo da poter avere piu thread che leggono senza bloccarsi dal hashmap dei registrati
-    private Lock read;//verra usata per leggere gli utenti registrati e fare i vari controlli
     private ExecutorService pool;
-    private HashMap<String, Utente> Registrati; // Lista che conterrà gli utenti registrati
+    private ConcurrentHashMap<String, Utente> Registrati; // Lista che conterrà gli utenti registrati
     private ImlementazioneRegistrazione ObjEsportato;//variabile per gestire la condition variable per il thread che scrive su json
     private LinkedBlockingDeque<String> DaSerializzare;//lista di supporto usata per capire quali utenti devono essere serializzati
                                                        //ad ogni iscrizione
@@ -30,16 +28,17 @@ public class ServerWordle{
     private HashMap<Integer, KeyData> LstDati;//HashmMap usata per recuperare i dati prodotti dai worker
     public ServerWordle(String PathJson , int Nthread, long TimeStempWord) throws Exception{
 
+
+
         DaSerializzare = new LinkedBlockingDeque<>();
         pool = (ThreadPoolExecutor) Executors.newFixedThreadPool(Nthread);//pool di thread per eseguire i diversi task
-        Registrati = new HashMap<>(); //creo il set degli utenti registrati
-        RWlck = new ReentrantReadWriteLock();//inizializzo la read/write lock
-        read = RWlck.readLock();
-        ObjEsportato = new ImlementazioneRegistrazione(Registrati, RWlck, DaSerializzare);//creo l' oggetto da esportare
+        Registrati = new ConcurrentHashMap<>(); //creo il set degli utenti registrati con concurrenthashmap, per ora lascio i parametri di default
+
+        ObjEsportato = new ImlementazioneRegistrazione(Registrati, DaSerializzare);//creo l' oggetto da esportare
         Skeleton = (Registrazione) UnicastRemoteObject.exportObject(ObjEsportato, 0);
         RegistroRMI = LocateRegistry.createRegistry(PortExport);
         RegistroRMI.bind("Registrazione", Skeleton);
-        pool.execute(new MakeJson(Registrati, DaSerializzare, PathJson, RWlck));//lancio il thread che effettua la serializzazione in background
+        pool.execute(new MakeJson(Registrati, DaSerializzare, PathJson));//lancio il thread che effettua la serializzazione in background
         LstDati = new HashMap<>();
     }
 
@@ -83,7 +82,6 @@ public class ServerWordle{
 
                         //ATTENZIONE:::: considerare anche il problema della rejected exception del threadpool,
 
-
                         SocketChannel channel = (SocketChannel)ReadyKey.channel();
                         byte [] LenMexByte = new byte[SIZE_SIZE];
                         ByteBuffer LenMexBuffer = ByteBuffer.wrap(LenMexByte);
@@ -92,14 +90,13 @@ public class ServerWordle{
                             ReadyKey.cancel();               //=> cancello il channel dal selettore
                         }
                         else {
-                            Future<PkjData> result = pool.submit(new Work(ReadyKey, RWlck, selector, Registrati, (Integer) ReadyKey.attachment(), new PkjData(), LenMexBuffer));
+                            Future<PkjData> result = pool.submit(new Work(ReadyKey, selector, Registrati, (Integer) ReadyKey.attachment(), new PkjData(), LenMexBuffer));
                             LstDati.put((Integer) ReadyKey.attachment(), new KeyData(ReadyKey, result));
                             ReadyKey.interestOps(SelectionKey.OP_WRITE);
                         }
 
                     }
                     else if(ReadyKey.isWritable()) {//caso in cui una operazione di write non ritorna 0
-
                         SocketChannel channel = (SocketChannel) ReadyKey.channel();//recupero il canale
                         Future<PkjData> DataFuture = LstDati.get((Integer) ReadyKey.attachment()).getDati();
 

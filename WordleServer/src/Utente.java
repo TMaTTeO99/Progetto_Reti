@@ -9,6 +9,7 @@ import java.util.Objects;
 
 public class Utente implements Serializable {
 
+    private int ID_CHANNEL = -1;
     private boolean login = false; //variabile che indica se l'utente è loggato o meno, Nota: a jackson da noia se scrivo Login
     private String Username = null;
     private String Passswd = null;
@@ -92,4 +93,11 @@ public class Utente implements Serializable {
 
     public void RemoveSTub() { stub = null;}//metodo usato per eliminare lo stub prima di serializzare
 
+    public int getID_CHANNEL() {
+        return ID_CHANNEL;
+    }
+
+    public void setID_CHANNEL(int ID) {
+        ID_CHANNEL = ID;
+    }
 }

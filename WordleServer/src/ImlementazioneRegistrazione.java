@@ -1,6 +1,7 @@
 import java.rmi.RemoteException;
 import java.rmi.server.RemoteServer;
 import java.util.HashMap;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
@@ -8,12 +9,11 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 public class ImlementazioneRegistrazione extends RemoteServer implements Registrazione {
 
 
-    private Lock write;
-    private HashMap<String, Utente> Registrati;
+    //private Lock write;
+    private ConcurrentHashMap<String, Utente> Registrati;
     private LinkedBlockingDeque<String> DaSerializzare;
-    public ImlementazioneRegistrazione(HashMap<String, Utente> R, ReentrantReadWriteLock Lck, LinkedBlockingDeque<String> Lst) {
+    public ImlementazioneRegistrazione(ConcurrentHashMap<String, Utente> R, LinkedBlockingDeque<String> Lst) {
         Registrati = R;
-        write = Lck.writeLock();
         DaSerializzare = Lst;
     }
 
@@ -27,32 +27,18 @@ public class ImlementazioneRegistrazione extends RemoteServer implements Registr
         if(username.length() == 0 || passwd.length() == 0 || username.equals("STOP_THREAD")) return -1;
 
         try {
-            write.lock();
-            Utente u = new Utente(username, passwd);
-            if(Registrati.containsKey(username)){return 0;}//caso in cui l'utente è gia registrato
-            Registrati.put(username, u);
-            DaSerializzare.put(username);
-            return 1;
+            if(Registrati.putIfAbsent(username, new Utente(username, passwd)) == null) {
+                DaSerializzare.put(username);
+                return 1;
+            }
+            return 0;
         }
         catch (Exception e){
             e.printStackTrace();
             return 1;
-        }
-        finally {
-            write.unlock();
         }
     }
     public void sendstub(String username, NotificaClient stub) throws RemoteException {
-
-        try {
-            write.lock();
-            Registrati.get(username).setStub(stub);
-        }
-        catch (Exception e){
-            e.printStackTrace();
-        }
-        finally {
-            write.unlock();
-        }
+        Registrati.get(username).setStub(stub);
     }
 }
