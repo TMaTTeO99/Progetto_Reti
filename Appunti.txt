@@ -342,23 +342,48 @@ Giorno 13)	Ricomincio :
 		in modo da poter accedere in mutua esclusione ai singoli buckets della struttra per questa cosa va prima studiata e capita
 		bene, se uso una concurrentHashmap quello che devo fare è: inizializzare la mappa con un numero di capacita iniziale
 		un workload standard.
-		Altra considerazione da fare, riguardo la struttura dati che viene condivisa fra thread, tale struttura dati puo avere problemi di
-		concorrenza quando?? il punto è che nella funzione dei worker, io non accedo mai da piu thread allo stesso utente, in
+		Altra considerazione da fare, riguardo la struttura dati che viene condivisa fra thread, tale struttura dati puo avere
+		 problemi di
+		 concorrenza quando?? il punto è che nella funzione dei worker, io non accedo mai da piu thread allo stesso utente, in
 		caso succedesse ad esempio per il login, non avrei comunque problemi se 2 utenti provano a logagrsi con 2 
 		passwd diverse, non centra con la concorrenza, inoltre, riguardo la logout, per evitare che un utente possa inserire
 		l username di un altro utente e fargli fare la logout, va inserito un campo nella classe utente per specificare
 		su quale ID_CHANNEL l utente si è loggato, cosi faccio questo controllo nella logout e risolvo il problema cosi puo
 		effettuare la logout solo un utente che è loggato e che ha effettuato il login con la stessa socket che usa per fare 
 		la logout.
-		Per oggi non ho scritto nulla sul codice, ho fatto solo queste considerazioni, da domani mi ci metto.........
+		Per oggi non ho scritto nulla sul codice, ho fatto solo queste considerazioni, da domani mi ci metto.........	
 		
 		
-		 
+-------------------------------------------------------------------------------------------------------------------
+
+
+Giorno 14)	Voglio provare a usare la concurrenthashmap, in questo modo DEVO eliminare RWlck dove la uso, comincio dalla 
+		Implementazione registrati
+		1)Modifico la struttura dati registrati, per ora lascio i parametri di default con livello di concorrenza == 16
+			visto che io uso una macchina di 8 gb di ram => 16 thread massimi, poi in base alla macchina che si usa 
+			si puo incrementare questo paramentro creando una struttura dati con tale parametro, usero il file
+			di config per farlo e va scritto nella relazione.
+			Per ora la lascio senza nulla perche voglio vedere prima se funziona
+			
+		2) Modifico il makejson, 
+		Sembra che la concurrenthashmap funzioni, ora comincio a implementare il logout
+		
+		Logout: Nota: per ora è solo rudimentale, pero poi faro in modo che il logout come opzione venga visualizzata 
+		solo dopo aver effettuato il login e quindi aver stabilito la conn con il server, 
+		Nota: ho un problema riguardo la chiusura della connessione lato server, cioe quando bisogna chiudere la
+		connessione della socket lato server, credo che il thread cche gestisce i channel debba chiudere la 
+		connessione con il client
+		Nota: ho dimenticato di considerare il fatto che un utente possa provarre a effettuare la ligin anche dopo essere gia stato 
+		loggato, va implementato anche questo controllo
+		Sembra che il problema che mi stavo ponendo non c'è, da capire bene come funziona la cancel della key, il fatto è che ora 
+		non va piu nel ramo readable perche lato client nn chiudo la connessioneeee okok ho capitooooo.
+		Ora pero rimane il fatto che faccioattesa attiva per la scrittura, questa cosa potrebbe essere migliorata facendo in modo 
+		che siano i worker a scrivere la risposta al client direttamente...
+		Riguardo la logout invece va bene sembra funzionareeeeeee daje roma dajeee    		
 
 
 
 
 
 -------------------------------------------------------------------------------------------------------------------
-
 
