@@ -381,7 +381,39 @@ Giorno 14)	Voglio provare a usare la concurrenthashmap, in questo modo DEVO elim
 		che siano i worker a scrivere la risposta al client direttamente...
 		Riguardo la logout invece va bene sembra funzionareeeeeee daje roma dajeee    		
 
+-------------------------------------------------------------------------------------------------------------------
 
+Giorno 15)	Ricomincio da dove ero arrivato ieri: 
+		Adesso stavo pensando al fatto che dopo aver letto, finche i worker non hanno finito di elaborare la risposta, il thread
+		che gestisce le conn va in loop, non si ferma sulla select perche il channel è pronto per la scrittura ma i worker
+		ancora non hanno preparato la risposta corretta.
+		
+		******************************IMPORTANTEEEEE********************************
+		
+		Ricordando che va sistemata la serializzazione devo serializzare periodicamente non solo alla fase di registrazione
+		
+		******************************IMPORTANTEEEEE********************************
+		
+		Ora comincio a implementare le robe per il gioco vero e proprio, comincio dalle strutture dati lato server
+		Per prima cosa il gioco prende la parola da un vocabolario fornito, tale vocabolario va letto da e caricato in memoria, 
+		comincio quindi dalla fase di lettura del bocabolario, prima pero devo capire come questo vocabolario debba essere usato
+		In quaole struttura dati memorizzo le parole??? credo in una hashmap in modo da poter accedere al valore
+		in tempo 0, inoltre devo sistemare la roba riguardo i dati di config come la porta ecc
+		
+		
+-------------------------------------------------------------------------------------------------------------------
+
+Giorno 16)	Oggi provo a implementare la GUI e di conseguenza a sistemare il client in modo da poter testare il programma per bene 
+		anche da terminale perche per ora da terminale non funziona bene e mi serve che funzioni perche devo testare con piu client
+		
+		Per ora ho capito come creare una GUI, adesso divido il client in due parti:
+		Userò un campo che viene passato da riga di comando per selezionare la modalita con cui far partire il client,
+		in modo da poter testare correttamente il programma per i miei test.
+		Ora provo a implementare correttamente la gui per come deve essere:
+		Ho implementato il frame per effettuare login e registrazione, ora devo trasferire la parte di back-end :
+			NOTA: Ancora lato client non ho implementato la fase di configurazione leggendo dal file, per
+			ora vado avanti, poi dovro fare in modo che il client legga le info e le trasferisca al modulo della gui
+			corretto
 
 
 
