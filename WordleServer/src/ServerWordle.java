@@ -11,12 +11,9 @@ import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.*;
 import java.util.concurrent.*;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 public class ServerWordle{
     private static final int SIZE_SIZE = 4;//variabile per indicare il numeero dio byte di un int, serve per legere la dimensione
-    private int PortExport = 6500; // WARNINGGG::: <--per ora uso questa porta per testare
     private Registry RegistroRMI;
     private Registrazione Skeleton;
     private ExecutorService pool;
@@ -26,7 +23,7 @@ public class ServerWordle{
                                                        //ad ogni iscrizione
 
     private HashMap<Integer, KeyData> LstDati;//HashmMap usata per recuperare i dati prodotti dai worker
-    public ServerWordle(String PathJson , int Nthread, long TimeStempWord) throws Exception{
+    public ServerWordle(String PathJson , int Nthread, long TimeStempWord, int PortExport) throws Exception{
 
 
 
@@ -72,6 +69,7 @@ public class ServerWordle{
 
                     if(ReadyKey.isAcceptable()) {//caso in un operazione di accept non ritorna null
 
+                        System.out.println("Ho accettato");
                         ServerSocketChannel ListenSocket = (ServerSocketChannel) ReadyKey.channel();//recupero la socket per accettare la connessione
                         SocketChannel channel = ListenSocket.accept();
                         channel.configureBlocking(false);//setto il channel come non bloccante
@@ -80,12 +78,16 @@ public class ServerWordle{
                     }
                     else if (ReadyKey.isReadable()) {//caso in cui una operazione di read non ritorna 0
 
+                        System.out.println("readable");
                         //ATTENZIONE:::: considerare anche il problema della rejected exception del threadpool,
 
                         SocketChannel channel = (SocketChannel)ReadyKey.channel();
                         byte [] LenMexByte = new byte[SIZE_SIZE];
                         ByteBuffer LenMexBuffer = ByteBuffer.wrap(LenMexByte);
 
+
+                        //nota: in questo caso in cui il client si sia sconnesso va effettuato il logout
+                        // di tale client
                         if(channel.read(LenMexBuffer) == -1) {//leggo la len della richiesta e se non leggo nulla => il client ha chiuso la connessione
                             ReadyKey.cancel();               //=> cancello il channel dal selettore
                         }
@@ -97,6 +99,7 @@ public class ServerWordle{
 
                     }
                     else if(ReadyKey.isWritable()) {//caso in cui una operazione di write non ritorna 0
+                        System.out.println("wriatable");
                         SocketChannel channel = (SocketChannel) ReadyKey.channel();//recupero il canale
                         Future<PkjData> DataFuture = LstDati.get((Integer) ReadyKey.attachment()).getDati();
 
@@ -104,6 +107,7 @@ public class ServerWordle{
 
                             PkjData dati = DataFuture.get();
                             try {//provo a scrivere i dati
+                                System.out.println("Scrivo");
                                 if(channel.write(ByteBuffer.wrap(dati.getAnswer())) == dati.getIdxAnswer()) {
                                     LstDati.remove(ReadyKey.attachment());//rimuovo dalla struttura dati le informazioni
                                     ReadyKey.interestOps(SelectionKey.OP_READ);

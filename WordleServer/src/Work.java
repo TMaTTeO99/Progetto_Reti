@@ -85,9 +85,12 @@ public class Work implements Callable<PkjData> {
 
                     if((u = Registrati.get(username)) != null) {
                         if(u.getPassswd().equals(passwd)) {
-                            u.setLogin(true);
-                            u.setID_CHANNEL((Integer) Key.attachment());
-                            OutWriter.writeInt(0);
+                            if(u.getLogin()) {OutWriter.writeInt(-3);}//utente gia loggato
+                            else {//utente non ancora loggato
+                                u.setLogin(true);
+                                u.setID_CHANNEL((Integer) Key.attachment());
+                                OutWriter.writeInt(0);
+                            }
                         }
                         else OutWriter.writeInt(-2);//-2 indica che l utente non ha inserito correttamente la passwd
                     }

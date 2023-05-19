@@ -3,6 +3,9 @@
 //server ad ogni riavvio del server
 
 import java.io.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Set;
 import java.util.StringTokenizer;
 import java.util.concurrent.TimeUnit;
 
@@ -19,6 +22,8 @@ public class StartServerWordleMain {
     private static long TimeStempWord = DayInMS;
     private static String ConfigureFileName = "config.txt"; //nome del file contenente le info di configurazione
     private static String PathSerialization;
+    private static String PathVocabolario;
+    private static int PortExport; // il valore che  assumerà questa var deve essere lo sesso lato client nel suo file dio config
     /**
      * WORNIGGGGGGG!!!!!!!!:
      * tale path dovra essere modificato prima della consegna in base a come verranno messe le cartelle
@@ -56,6 +61,12 @@ public class StartServerWordleMain {
                     case "pathjson" :
                         PathSerialization = tok.nextToken();
                         break;
+                    case "PortExport":
+                        PortExport = Integer.parseInt(tok.nextToken());
+                        break;
+                    case "PathVocabolario":
+                        PathVocabolario = tok.nextToken();
+                        break;
                 }
             }
             catch (Exception e) {
@@ -84,6 +95,22 @@ public class StartServerWordleMain {
             }
             catch (Exception e) {e.printStackTrace();}
         }
+    }
+    //metodo statico privato per recuperare le parole dal vocabolaRrio
+    private static ArrayList<String > getVocabolario() {
+
+        ArrayList<String > tmp = new ArrayList<>();
+        File pathWord = new File(PathVocabolario);
+
+        try (BufferedReader in = new BufferedReader(new FileReader(pathWord))){
+            String word = null;
+            while((word = in.readLine()) != null) {
+                tmp.add(word);
+            }
+        }
+        catch (Exception e) {e.printStackTrace();}
+        return tmp;
+
     }
     public static void main(String [] args) {
 
@@ -120,9 +147,19 @@ public class StartServerWordleMain {
         //a questo punto ho recuperato le prima info di configurazione
         //tali info le passo al server per l'elaborazione
         System.out.println(PathSerialization);
-        try {
 
-            ServerWordle server = new ServerWordle(PathSerialization, MaxThread, TimeStempWord);
+        //prima di istanziare il server leggo il vocabolario e lo inserisco in una struttura dati opportuna
+        ArrayList<String> vocabolario = getVocabolario();
+        try {
+            long time1 = System.currentTimeMillis();
+
+            for(int i = 0 ; i < vocabolario.size(); i++){
+                if(vocabolario.get(i) == "zyzzogeton") {System.out.println("ws");}
+            }
+            long time2 = System.currentTimeMillis();
+            System.out.println(time2-time1);
+
+            ServerWordle server = new ServerWordle(PathSerialization, MaxThread, TimeStempWord, PortExport);
             //Thread.sleep(20000);//dormo per 30 secondi e poi chiudo
             //il servizio rmi e quindi anche il server per ora
 
