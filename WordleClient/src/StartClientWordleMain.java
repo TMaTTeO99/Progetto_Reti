@@ -12,25 +12,29 @@ public class StartClientWordleMain {
 
 
     /**
-     * Per ora è solo un client di prova per vedere se lato server avviene correttamente la registrazione
-     * -------------------------------------
-     * Comincio con l'implementazione del servizio di notifica offerto dal server, devo quindi costruire le interfacce lato
-     * client e lato server
+     * Comincio con l implementazione corretta del client in modo da poter testare correttamente il server
+     *
      */
     private static final int portRMI = 6500;
     public static void main(String [] args) {
 
+
         try {
 
             /**
-             * Faccio un shell interattiva rudimentale solo per cominciare a provare le funzionalita piano piano
+             *  A questo punto, non elimino questa parte gia scritta ma la commento, pprossimamente faro in modo di poter lanciare
+             *  il client in 2 mod con la gui e senza in modo da poter testare l app correttamente
+             *
              */
+            StartGui gui = new StartGui();
+
             ImplementazioneNotificaClient notifica = null;
             Registrazione servizio = null;
             String user = null;
             String pass = null;
             Scanner in = new Scanner(System.in);
             Socket sck = null;
+            int login = 0;
             int scelta = 0;
             while(scelta != -1){
                 System.out.println("INSERIRE OPZIONE DESIDERATA: ");
@@ -40,6 +44,7 @@ public class StartClientWordleMain {
                 System.out.println("-1 per uscire");
                 scelta = in.nextInt();
                 if(scelta == 1){
+                    //gia implementata nella gui
                     servizio = (Registrazione)LocateRegistry.getRegistry(portRMI).lookup("Registrazione");
                     user = in.next();
                     pass = in.next();
@@ -48,23 +53,25 @@ public class StartClientWordleMain {
                 }
                 else if(scelta == 2) {
 
-                    user = in.next();
-                    pass = in.next();
-                    servizio = (Registrazione)LocateRegistry.getRegistry(portRMI).lookup("Registrazione");
+                    if(login != 1) {
+                        login = 1;
+                        user = in.next();
+                        pass = in.next();
+                        servizio = (Registrazione)LocateRegistry.getRegistry(portRMI).lookup("Registrazione");
 
-                    //test per connettermi al server e vedere cosa fa
-                    sck = new Socket();
-                    try {//1025 porta corretta per questo client
-                        sck.connect(new InetSocketAddress("localhost", 6501));
-                    }
-                    catch (Exception e) {
-                        e.printStackTrace();
-                    }
-                    byte [] tmp = new byte[100];
-                    ByteArrayInputStream BuffIn = new ByteArrayInputStream(tmp);
-                    //try () {
-                    DataOutputStream ou = new DataOutputStream(new BufferedOutputStream(sck.getOutputStream()));
-                    DataInputStream inn = new DataInputStream(new BufferedInputStream(sck.getInputStream()));
+                        //test per connettermi al server e vedere cosa fa
+                        sck = new Socket();
+                        try {//1025 porta corretta per questo client
+                            sck.connect(new InetSocketAddress("localhost", 6501));
+                        }
+                        catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                        byte [] tmp = new byte[100];
+                        ByteArrayInputStream BuffIn = new ByteArrayInputStream(tmp);
+                        //try () {
+                        DataOutputStream ou = new DataOutputStream(new BufferedOutputStream(sck.getOutputStream()));
+                        DataInputStream inn = new DataInputStream(new BufferedInputStream(sck.getInputStream()));
                         ou.writeInt((("login:"+ user + " " + pass).length())*2);
                         ou.writeChars("login:" + user + " " + pass);
                         ou.flush();
@@ -97,18 +104,18 @@ public class StartClientWordleMain {
                                 System.out.println("Errore. Password inserita non corretta");
                                 break;
                         }
-                    //}
-                    //catch (Exception e ) {e.printStackTrace();}
+                    }
+                    else System.out.println("Hai gia effettuato il login");
 
                 }
                 else if(scelta == 3) {
                     if(sck != null) {
-
+                        login = 0;
                         user = in.next();
                         byte [] tmp = new byte[100];
                         ByteArrayInputStream BuffIn = new ByteArrayInputStream(tmp);
-                        try (DataOutputStream ou = new DataOutputStream(new BufferedOutputStream(sck.getOutputStream()));
-                             DataInputStream inn = new DataInputStream(new BufferedInputStream(sck.getInputStream()))) {
+                        DataOutputStream ou = new DataOutputStream(new BufferedOutputStream(sck.getOutputStream()));
+                        DataInputStream inn = new DataInputStream(new BufferedInputStream(sck.getInputStream()));
 
                             ou.writeInt((("logout:"+ user).length())*2);
                             ou.writeChars("logout:" + user);
@@ -136,8 +143,6 @@ public class StartClientWordleMain {
                                     System.out.println("Errore. Username inserito non corretto");
                                     break;
                             }
-                        }
-                        catch (Exception e ) {e.printStackTrace();}
                     }
                     else System.out.println("Errore, Impossibile effettuare il logout se prima non si è effettuato il login");
                 }
