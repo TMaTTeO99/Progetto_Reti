@@ -1,10 +1,7 @@
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 import java.net.InetSocketAddress;
 import java.net.Socket;
-import java.rmi.server.UnicastRemoteObject;
 
 public class StartGui {
 
@@ -39,14 +36,9 @@ public class StartGui {
         catch (Exception ee) {
             ee.printStackTrace();
         }
-
-
     }
 
-
-
-
-    //metodi utilizzati per creare l'interfaccia grafica
+    //metodi utilizzati per creare i panel da inserire nel panel main
     private JPanel getPanelLogin(JFrame frame) {
 
         JPanel panel = new JPanel();

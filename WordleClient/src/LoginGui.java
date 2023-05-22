@@ -49,19 +49,16 @@ public class LoginGui implements ActionListener {
 
             switch(inn.readInt()) {
                 case 0 :
-                    //definizione di interfaccia anonima::: da capire bene come funzionano in caso la prof lo chiedesse
+                    //definisco un interfaccia anonima con un metodo actionPerformed in modo da poter chiudere il frame
+                    //quando si effettua il login del client
                     JOptionPane.showMessageDialog(null, "Login completato");
                     Timer timer = new Timer(0, new ActionListener() {
                         public void actionPerformed(ActionEvent e) {
                             CurrentFrame.dispose(); // Chiude il frame
                         }
                     });
-                    GameGui gg = new GameGui(socket, notifica);
-                    timer.start();
-                    //qui a questo punto invece di stampare il messaggio di login completato, posso avviare l interfaccia per
-                    // eseguire le altre operazioni del gioco
-
-                    //JOptionPane.showMessageDialog(null, "Login completato");
+                    GameGui gg = new GameGui(socket, notifica);//avvio il frame di gioco
+                    timer.start();//chiudo il frame iniziale
                     /**
                      * A questo punto il client non termina perhce rimane esportato l'ggetto
                      * per effettuare la notifica, naturalmente dovra essere esportato quando
