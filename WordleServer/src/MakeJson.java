@@ -25,6 +25,7 @@ public class MakeJson implements Runnable{
     private String PathJSN;//Stringa che contiene il path di dove scrivere i file json
     private String FileNameJson = "DataStorage.json";//stringa che verra usata per creare i file json
     public MakeJson(ConcurrentHashMap<String, Utente> Utenti, LinkedBlockingDeque<String> UDSL, String PathJson) {
+
         Registrati = Utenti;
         UDSlist = UDSL;
         PathJSN = PathJson;

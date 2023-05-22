@@ -11,10 +11,16 @@ public class PkjData {
     private int IdxRequest = 0;//indice all di dove sono arrivato a scrivere dentro Request
     private byte [] Answer;//Variabile in cui memorizzare la risposta al client
     private int IdxAnswer = 0;//indice all di dove sono arrivato a scrivere dentro Answer
-    /**
-     * Bisogna completare la classe con le stutture ddti necessarie per contenere i dati e i vari metodo per accedervi
-     * Per ora provo solo getCompleted/setCompleted per testare la nonblockingmode
-     */
+
+    private String usname;//variabile usata per poter accedere alla struttura dati dei registrati
+                          //e modificare il campo login a false
+                          // quando il client chiude la connessione senza effettuare il logout
+
+
+
+    //metodi set e get
+    public String getUsname() {return usname;}
+    public void setUsname(String s) {usname = s;}
     public void allocRequest(int ln) {Request = new byte[ln];}
     public byte [] getRequest() {return Request;}
     public void setIdxRequest(int idx) {IdxRequest = idx;}

@@ -20,7 +20,7 @@ public class Utente implements Serializable {
     private int MaxConsecutive = 0;//striscia positiva piu lunga;
     private NotificaClient stub;//variabile per recuperare lo stub passato dal client nella fase di registrazione
 
-    @JsonCreator //annotazione utilizzata per poter deserializzare i file
+    @JsonCreator //annotazioni utilizzate per poter deserializzare i file
     public Utente(
             @JsonProperty("Username") String u,
             @JsonProperty("Passswd")String p) {

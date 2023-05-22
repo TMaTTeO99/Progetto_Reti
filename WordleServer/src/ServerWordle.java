@@ -23,9 +23,10 @@ public class ServerWordle{
                                                        //ad ogni iscrizione
 
     private HashMap<Integer, KeyData> LstDati;//HashmMap usata per recuperare i dati prodotti dai worker
+    private SessioneWordle gioco; //oggetto che rappresenta una sessione di gioco
     public ServerWordle(String PathJson , int Nthread, long TimeStempWord, int PortExport) throws Exception{
 
-
+        //qui devo lanciarre il thread che crea il gioco e recuperare l'oggetto SessioneWordle
 
         DaSerializzare = new LinkedBlockingDeque<>();
         pool = (ThreadPoolExecutor) Executors.newFixedThreadPool(Nthread);//pool di thread per eseguire i diversi task
@@ -37,6 +38,7 @@ public class ServerWordle{
         RegistroRMI.bind("Registrazione", Skeleton);
         pool.execute(new MakeJson(Registrati, DaSerializzare, PathJson));//lancio il thread che effettua la serializzazione in background
         LstDati = new HashMap<>();
+        //per ora faccio solo una prova della sessione di gioco poi dovro implementare un thread chen
     }
 
     /**
@@ -89,10 +91,24 @@ public class ServerWordle{
                         //nota: in questo caso in cui il client si sia sconnesso va effettuato il logout
                         // di tale client
                         if(channel.read(LenMexBuffer) == -1) {//leggo la len della richiesta e se non leggo nulla => il client ha chiuso la connessione
-                            ReadyKey.cancel();               //=> cancello il channel dal selettore
+                                                           //=> cancello il channel dal selettore
+
+                            //questo è il caso in cui il client ha chiuso la conn in modo bruto, a questo punto
+                            //lato server devo effettuare il logout del client e eliminare lo stub dal
+                            //client cosi da non inviare piu notifiche al client
+
+                            KeyData dati = LstDati.get((Integer) ReadyKey.attachment());
+                            if(dati != null) {
+                                Future<PkjData> FuturePkj = dati.getDati();
+                                if(FuturePkj.isDone()){
+                                    PkjData Pkj = FuturePkj.get();
+                                    Registrati.get(Pkj.getUsname()).setLogin(false);
+                                }
+                            }
+                            ReadyKey.cancel();
                         }
                         else {
-                            Future<PkjData> result = pool.submit(new Work(ReadyKey, selector, Registrati, (Integer) ReadyKey.attachment(), new PkjData(), LenMexBuffer));
+                            Future<PkjData> result = pool.submit(new Work(ReadyKey, selector, Registrati, (Integer) ReadyKey.attachment(), new PkjData(), LenMexBuffer, gioco));
                             LstDati.put((Integer) ReadyKey.attachment(), new KeyData(ReadyKey, result));
                             ReadyKey.interestOps(SelectionKey.OP_WRITE);
                         }
@@ -109,7 +125,7 @@ public class ServerWordle{
                             try {//provo a scrivere i dati
                                 System.out.println("Scrivo");
                                 if(channel.write(ByteBuffer.wrap(dati.getAnswer())) == dati.getIdxAnswer()) {
-                                    LstDati.remove(ReadyKey.attachment());//rimuovo dalla struttura dati le informazioni
+                                    // Per ora commento questo LstDati.remove(ReadyKey.attachment());//rimuovo dalla struttura dati le informazioni
                                     ReadyKey.interestOps(SelectionKey.OP_READ);
                                 }
                             }

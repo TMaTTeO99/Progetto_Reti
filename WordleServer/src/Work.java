@@ -20,13 +20,15 @@ public class Work implements Callable<PkjData> {
     private int id;//intero che identifica la connessione
     private PkjData Dati;
     private ByteBuffer LenMexBuffer;
-    public Work(SelectionKey k, Selector s, ConcurrentHashMap<String, Utente> R, Integer ID, PkjData dati, ByteBuffer len) {
+    private SessioneWordle Gioco;
+    public Work(SelectionKey k, Selector s, ConcurrentHashMap<String, Utente> R, Integer ID, PkjData dati, ByteBuffer len, SessioneWordle g) {
         Key = k;
         Selettore = s;
         Registrati = R;
         id = ID;
         Dati = dati;
         LenMexBuffer = len;
+        Gioco = g;
     }
     public PkjData call() {
 
@@ -73,6 +75,9 @@ public class Work implements Callable<PkjData> {
                 username = Tok.nextToken(" ").replace(":", "");//recupero username
                 passwd = Tok.nextToken(" ");//recupero passwd
 
+                dati.setUsname(username);//inserisco l'username nel pacchetto in modo che il thread che
+                                         //gestisce le connessioni possa effettuare il logout in caso
+                                         //il client chiuda la conn all improvviso
                 //preparo la risposta per il client, la risposta ha lo stesso formato della richiesta
                 lendati = "login:".length();//lunghezza dei dati
                 dati.allocAnswer(lendati + 8 );//lunghezza dei dati + 4 byte per contenere la lunghezza del messaggio e l'intero finale che indica lo stato dell operazione
@@ -103,7 +108,7 @@ public class Work implements Callable<PkjData> {
             case "logout":
 
                 username = Tok.nextToken(" ").replace(":", "");//recupero username
-
+                dati.setUsname(username);//analogo al ramo di login
                 //preparo la risposta per il client, la risposta ha lo stesso formato della richiesta
                 lendati = "logout:".length();//lunghezza dei dati
                 dati.allocAnswer(lendati + 8 );//lunghezza dei dati + 4 byte per contenere la lunghezza del messaggio e l'intero finale che indica lo stato dell operazione
@@ -132,6 +137,10 @@ public class Work implements Callable<PkjData> {
                 }
                 catch (Exception e) {e.printStackTrace();}
                 //-----------------------------------------------------
+                break;
+            case "playWORDLE"://caso in cui un utente richiede di iniziare una partita
+
+
 
                 break;
         }
