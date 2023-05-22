@@ -419,3 +419,88 @@ Giorno 16)	Oggi provo a implementare la GUI e di conseguenza a sistemare il clie
 
 -------------------------------------------------------------------------------------------------------------------
 
+
+Giorno 17) 	Riguardo la prima interfaccia che si apre all avvio del programma, potrei inserire una descrizione del gioco nello spazio
+		vuoto che c'è sotto le opzioni di login e registrazione ma è una cosa che farò dopo magari, ora mi concentro sull andare 
+		avanti:
+		Lato server devo ricordarmi di togliere lo stub e di modificare il fla di login, quando il client effettua il logout oppure 		chiude la connessione per qualsiasi altro motivo, per farlo il thread che gestisce le connessioni dovrebbe sapere il nome 
+		del client che ha chiuso la connessione, tale thread non è in possesso di tale info ma posso farla inserire ai
+		worker quando effettuano l'operazione di login nella struttura dati di tipo future, Sembra funzionare,
+		Continuo lato client con l operazione di logout ecc
+		
+		Nota: Attenzione alle specifiche del progetto, controllare le stringhe vuote
+		
+		Ora dopo  aver implementato acnhe la fase di logout, comincio lato server a implementare le strutture dati per iniziare a 
+		giocare, per ora implemento nel client in modo barbaro con interfaccia a caratteri per testare, poi implemento 
+		l'interfaccia grafica.
+		
+		Comincio lato server a ragionare riguardo al gioco: Bisogna implementare una struttura dati che mantiene la 
+		parola del giorno, ogni utente prima di partecipare al gioco è necessario che usi il metodo playWORDLE() dopo
+		aver effettuato il login, scrivo un po di opzioni:
+		1) Implementare un unica struttura dati non contenuta ad esempio all interno degli utenti registrati, bisogna
+		pero trovare il modo di mantenere in tale struttura le info riguardo gli utenti che partecipano al gioco ecc
+		Si puo fare in modo che ogni tot di tempo (quello indicato nel file di configurazione) vanga creato un oggetto di 
+		tipo gioco e che venga mantenuto in memoria (in caso di chiusura del server deve anche essere serializzato)
+		La struttura datio gioco deve mantenere oltre alle ovvie info tipo parola e metodi per poter lavorare con la parola:
+		
+			1) Chi ha iniziato a partecipare al gioco e i tentativi effettuati, devo capire come memorizzare tali info
+			   e gestirle in modo concorrente, motrei usare un altra concurrenthashmap in modo da non dover sincronizzare tutta la
+			   struttura dati, oppure potrei usare una blockingqueue di coppie <String (Username), Integer (tentativi)>
+			   Devo inoltre capire bene anche come implementare il vocabolario, se usare un arraylist o un hashmap, usare
+			   un arraylist sarebbe potenziaolmente molto costoso, anche se comunque il numero di parole è costante, 
+			   potrei usare un hashmap ma potrei occupare troppo con tutta queste hashmap, penso che usero un arraylist di stringhe
+			   
+			   Devo capire pero come faccio a far si che ogni tot di tempo venga generata una nuova parola, dovrei in teoria
+			   dedicare un thread a fare questa operazione, per farlo pero  devo capire come faccio a fargli capire che
+			   il timer è scaduto e quindi svegliarsi, perche il server potrebbe anche spegnersi e in tal caso
+			   come faccio a sapere quanto tempo è passato dall ultima parola estratta??
+			   Quello che mi viene in mente è che potrei usare il file di configurazione o il file json,
+			   cioe, ad ogni chiusura del server salvare sul file la data è l ora del ultima parola generata, in questo
+			   modo al nuovo avvio posso recuperare tale info e fare la differenza fra il tempo attuale e quello 
+			   di questa info, riguardo invece la generazione della parola in run, ad esempio se il server non è spento 
+			   e passa il tempo per generare la nuova parola, come posso fare?? Dovrei lanciare un thread che esegue 
+			   una sleep lunga tanto quanto il tempo nel file di config e poi generare la nuova parola quindi il nuovo gioco
+			   posso fare in modo che sia un thread demone efinezze del genere, pero cosi comunque ho un thread in piu da 
+			   far lavorare e quindi ulteriori context switch, domani comincio, 
+			   
+			   NOTA: devo fare il file di config anche per il client e aggiungere al server la porta d ausare con la socket 
+			         
+
+-------------------------------------------------------------------------------------------------------------------
+
+Giorno 18)	Riprendo da dove ero arrivato ieri:  Comincio con l' implementazione del gioco	
+		Nota: La serializzazione di SessioneWordle dati deve essere effettuata come ultima operazione in modo da 
+		poter poi recuperare dal file json l'oggetto. 
+		Utilizzo un'altra concurrenthashmap per poter gestire la concorrenza, tale concurrenthashmap sazlverà gli username
+		degli utenti che hanno cominciato a giocare come key e userà come valore :
+			Per ora il numero di tentativi effettuati di indovinare la parola, pero potrei usar eanche una struttura dati
+			apposita in caso dovessero servire altre info, NOTA: per quanto riguarda le operazioni che richiedono gli
+			eventuali client, per ogni operazione, oltre alle info che sono richieste dai metodi della specifica 
+			dovranno anche inviare (senza che l'utente debba inserire nulla) anche l username perche al server
+			serve tale info per accedere alle strutture dati, questo è possobile farlo perhce gli utenti quando devono
+			giocare devono fare il login, quindi hanno necessita di scrivere il loro username che mantengo in mem e che usero 
+			per fare questo:
+			Riguardo il metodo playWORDLE il client non inserisce nessuna info ma come ho detto il client invia l username
+			
+			PROBLEMAAAAAAAAAA: come faccio a far si che ci sia sempre un thread in background che crea un oggetto di
+			tipo gioco e tale oggetto possa essere usato in altre classi senza essere ritornato dal metodo run??
+			Il metodo run non puo ritornare perche deve stare in attesa di poter creare allo scadere del timer il nuovo
+			gioco, quibdi come devo fare???????
+			Soluzione: Implementare il metodo run e metodo get per far ritornare l oggeto
+			
+			Nota : i thread che non sono da lavoro posso lanciarli normalmente con un oggetto thread e non con il threadpool
+			perche quest ultimo ha un numero di thread limitato, questa cosa la devo cambiare
+			
+			All interno del file di config inserisco il campo lasttimewordle che indica l ultima volta in cui
+			è stata lanciata la parola del gioco 
+			Nota: per ora il timestamp che indica ogni quanto la parola deve essere prodotta conta giorni e ore,
+			posso inserire anche i minuti per rendere piu precisa l operazione
+			
+			       
+				
+			
+
+
+
+-------------------------------------------------------------------------------------------------------------------
+
