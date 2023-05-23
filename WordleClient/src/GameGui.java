@@ -4,6 +4,7 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.*;
 import java.net.Socket;
+import java.rmi.server.UnicastRemoteObject;
 
 public class GameGui {
 
@@ -12,10 +13,12 @@ public class GameGui {
     private ImplementazioneNotificaClient notifica;
     private JTextField userLogout;//TextField per il tasto di logout
     private JFrame frame; //Frame principale della sessione di gioco
-    public GameGui(Socket sck, ImplementazioneNotificaClient notifica) {
+    private String username;
+    public GameGui(Socket sck, ImplementazioneNotificaClient ntf, String usr) {
 
         socket = sck;
-        this.notifica = notifica;
+        notifica = ntf;
+        username = usr;
 
         //costruzione dal frame
         frame = new JFrame();
@@ -27,11 +30,12 @@ public class GameGui {
         JPanel mainPanel = new JPanel();
         mainPanel.setLayout(new BoxLayout(mainPanel, BoxLayout.LINE_AXIS));
         JPanel panelLogout = getPanelLogout();
+        JPanel panelPlayStart = getPanelPlayStart();
         LogoutMethod(panelLogout);
-
+        PlayGameMethod(panelPlayStart);
 
         mainPanel.add(panelLogout);
-
+        mainPanel.add(panelPlayStart);
 
 
 
@@ -43,13 +47,56 @@ public class GameGui {
     }
 
     //metodi per il lavoro dei button presenti nei panel
+    private void PlayGameMethod(JPanel panelPlayStart) {
 
+        JButton play = new JButton("Gioca");
+
+        ActionListener listenerPlay = new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                byte [] tmp = new byte[100];
+                ByteArrayInputStream BuffIn = new ByteArrayInputStream(tmp);
+                try {
+                    DataOutputStream ou = new DataOutputStream(new BufferedOutputStream(socket.getOutputStream()));
+                    DataInputStream inn = new DataInputStream(new BufferedInputStream(socket.getInputStream()));
+
+                    ou.writeInt((("playWORDLE:"+ username).length())*2);
+                    ou.writeChars("playWORDLE:" + username);
+                    ou.flush();
+                    System.out.print(inn.readInt());
+                    System.out.print(inn.readChar());
+                    System.out.print(inn.readChar());
+                    System.out.print(inn.readChar());
+                    System.out.print(inn.readChar());
+                    System.out.print(inn.readChar());
+                    System.out.print(inn.readChar());
+                    System.out.print(inn.readChar());
+                    System.out.print(inn.readChar());
+                    System.out.print(inn.readChar());
+                    System.out.print(inn.readChar());
+                    System.out.println(inn.readChar());
+
+                    switch(inn.readInt()) {
+                        case 0 :
+                            JOptionPane.showMessageDialog(null, "Operazione completata. Adesso è possibile provare a indovinare una porola");
+                            break;
+                        case -1:
+                            JOptionPane.showMessageDialog(null, "Tentativi esauriti per questa sessione. Riprovare a giocare in una nuova sessione");
+                            break;
+                    }
+                }
+                catch (Exception ee) {ee.printStackTrace();}
+            }
+        };
+        play.addActionListener(listenerPlay);
+        panelPlayStart.add(play);
+
+    }
     private void LogoutMethod(JPanel logoutPanel) {
 
         JButton logout = new JButton("Esci");
 
-        //anche in questo caso uso classe astratta, molto utili, da capire fino in fondo
-        ActionListener listener = new ActionListener() {
+        //WORNINGGGGG:::::anche in questo caso uso classe astratta, molto utili, da capire fino in fondo
+        ActionListener listenerLogout = new ActionListener() {
             public void actionPerformed(ActionEvent e) {
                 String user = new String(userLogout.getText());
                 byte [] tmp = new byte[100];
@@ -77,11 +124,12 @@ public class GameGui {
                                     frame.dispose(); // Chiude il frame
                                 }
                             });
+                            UnicastRemoteObject.unexportObject(notifica, true);
                             StartGui gg = new StartGui();//avvio il frame di gioco
                             timer.start();//chiudo il frame iniziale
                             break;
                         case -1:
-                            JOptionPane.showMessageDialog(null, "Errore. Per effettuare il logout bisogna prima essere iscritti");
+                            JOptionPane.showMessageDialog(null, "Errore. Username inserito non corretto");
                             break;
                         case -2:
                             JOptionPane.showMessageDialog(null, "Errore. Per effettuare il logout bisogna prima aver effettuato il login");
@@ -94,7 +142,7 @@ public class GameGui {
                 catch (Exception ee) {ee.printStackTrace();}
             }
         };
-        logout.addActionListener(listener);
+        logout.addActionListener(listenerLogout);
         logoutPanel.add(logout);
 
     }
@@ -113,6 +161,15 @@ public class GameGui {
         return panel;
 
     }
-//UnicastRemoteObject.unexportObject(notifica, true); esporto l'oggetto notifica alla fine del metodo in questo modo il client non riceverà piu notifiche
+    private JPanel getPanelPlayStart() {
+        JPanel panel = new JPanel();
+
+        panel.setLayout(new FlowLayout());
+        panel.add(new JLabel("StartSession:"));
+
+        return panel;
+    }
+
+
 
 }

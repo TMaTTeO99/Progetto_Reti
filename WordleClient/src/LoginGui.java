@@ -57,7 +57,7 @@ public class LoginGui implements ActionListener {
                             CurrentFrame.dispose(); // Chiude il frame
                         }
                     });
-                    GameGui gg = new GameGui(socket, notifica);//avvio il frame di gioco
+                    GameGui gg = new GameGui(socket, notifica, user);//avvio il frame di gioco
                     timer.start();//chiudo il frame iniziale
                     /**
                      * A questo punto il client non termina perhce rimane esportato l'ggetto
