@@ -1,5 +1,6 @@
 import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
+import java.io.File;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
@@ -11,6 +12,10 @@ import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 public class ServerWordle{
     private static final int SIZE_SIZE = 4;//variabile per indicare il numeero dio byte di un int, serve per legere la dimensione
@@ -23,10 +28,27 @@ public class ServerWordle{
                                                        //ad ogni iscrizione
 
     private HashMap<Integer, KeyData> LstDati;//HashmMap usata per recuperare i dati prodotti dai worker
-    private SessioneWordle gioco; //oggetto che rappresenta una sessione di gioco
-    public ServerWordle(String PathJson , int Nthread, long TimeStempWord, int PortExport) throws Exception{
 
-        //qui devo lanciarre il thread che crea il gioco e recuperare l'oggetto SessioneWordle
+    private SessioneWordle Game; //oggetto che rappresenta una sessione di gioco
+
+    // utilizzo una lock e una cioondition variable perchè all'interno del costruttore lancio il thread che costruisce la
+    // sessione periodica del gioco, a questo punto quindi devo poter recuperare l oggetto SessioneWordle, allora
+    // devo effettuare la sincronizzazione fra il thread che esegue la classe ServerWordle e quello che esergue il metodo
+    // run della classe OpenGame
+    private ReentrantReadWriteLock RWlockWORD = new ReentrantReadWriteLock();
+    private Lock ReadWordLock = RWlockWORD.readLock();
+    private Lock WriteWordLock = RWlockWORD.writeLock();
+    //private Condition CondGame = non so ancora se mi serve domani valuto
+
+    //private ArrayList<SessioneWordle> GameQueue = new ArrayList<>();
+    public ServerWordle(String PathJson , int Nthread, long TimeStempWord, int PortExport, long LTW, File ConfigureFile, ArrayList<String> Vocabolario) throws Exception{
+
+        Game = new SessioneWordle();
+        //lancio il thread che periodicamente creerà una nuova sessione di gioco
+        Thread t = new Thread(new OpenGame(TimeStempWord, LTW, Vocabolario, ConfigureFile, Game, WriteWordLock/*, CondGame*/));
+        t.start();
+
+        //sezione da sincronizzare perche devo essere sicuro di recuperare l oggetto SessioneGame
 
         DaSerializzare = new LinkedBlockingDeque<>();
         pool = (ThreadPoolExecutor) Executors.newFixedThreadPool(Nthread);//pool di thread per eseguire i diversi task
@@ -39,6 +61,7 @@ public class ServerWordle{
         pool.execute(new MakeJson(Registrati, DaSerializzare, PathJson));//lancio il thread che effettua la serializzazione in background
         LstDati = new HashMap<>();
         //per ora faccio solo una prova della sessione di gioco poi dovro implementare un thread chen
+
     }
 
     /**
@@ -102,13 +125,14 @@ public class ServerWordle{
                                 Future<PkjData> FuturePkj = dati.getDati();
                                 if(FuturePkj.isDone()){
                                     PkjData Pkj = FuturePkj.get();
-                                    Registrati.get(Pkj.getUsname()).setLogin(false);
+                                    Utente u = Registrati.get(Pkj.getUsname());
+                                    if(u != null)u.setLogin(false);
                                 }
                             }
                             ReadyKey.cancel();
                         }
                         else {
-                            Future<PkjData> result = pool.submit(new Work(ReadyKey, selector, Registrati, (Integer) ReadyKey.attachment(), new PkjData(), LenMexBuffer, gioco));
+                            Future<PkjData> result = pool.submit(new Work(ReadyKey, selector, Registrati, (Integer) ReadyKey.attachment(), new PkjData(), LenMexBuffer, Game, ReadWordLock));
                             LstDati.put((Integer) ReadyKey.attachment(), new KeyData(ReadyKey, result));
                             ReadyKey.interestOps(SelectionKey.OP_WRITE);
                         }

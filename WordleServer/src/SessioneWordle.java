@@ -14,10 +14,7 @@ public class SessioneWordle implements Serializable {
     private ConcurrentHashMap<String, Integer> Tentativi;
 
     @JsonCreator
-    public SessioneWordle(@JsonProperty("word") String w) {
-        Tentativi = new ConcurrentHashMap<>();
-        word = w;
-    }
+    public SessioneWordle() {Tentativi = new ConcurrentHashMap<>();}
 
     //metodi get e set
     public void setWord(String w) {word = w;}
@@ -25,7 +22,7 @@ public class SessioneWordle implements Serializable {
     public boolean setTentativi(String username) {
 
         if(Tentativi.get(username) == null) {
-            Tentativi.put(username, 1);
+            Tentativi.put(username, 0);
         }
         else {
             if(Tentativi.get(username) < 12) {
@@ -35,4 +32,5 @@ public class SessioneWordle implements Serializable {
         }
         return true;
     }
+    public void ResetTentativi() {Tentativi = new ConcurrentHashMap<>();}
 }

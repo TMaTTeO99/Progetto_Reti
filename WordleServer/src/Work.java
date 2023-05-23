@@ -21,7 +21,8 @@ public class Work implements Callable<PkjData> {
     private PkjData Dati;
     private ByteBuffer LenMexBuffer;
     private SessioneWordle Gioco;
-    public Work(SelectionKey k, Selector s, ConcurrentHashMap<String, Utente> R, Integer ID, PkjData dati, ByteBuffer len, SessioneWordle g) {
+    private Lock ReadWordLock;
+    public Work(SelectionKey k, Selector s, ConcurrentHashMap<String, Utente> R, Integer ID, PkjData dati, ByteBuffer len, SessioneWordle g, Lock RWLock) {
         Key = k;
         Selettore = s;
         Registrati = R;
@@ -29,6 +30,7 @@ public class Work implements Callable<PkjData> {
         Dati = dati;
         LenMexBuffer = len;
         Gioco = g;
+        ReadWordLock = RWLock;
     }
     public PkjData call() {
 
@@ -48,6 +50,7 @@ public class Work implements Callable<PkjData> {
             ParseRequest(Dati);
         }
         catch (Exception e) {e.printStackTrace();}
+
         return Dati;
     }
 
@@ -139,9 +142,27 @@ public class Work implements Callable<PkjData> {
                 //-----------------------------------------------------
                 break;
             case "playWORDLE"://caso in cui un utente richiede di iniziare una partita
+                username = Tok.nextToken(" ").replace(":", "");//recupero username
+                dati.setUsname(username);//analogo al ramo di login
 
+                lendati = "playWORDLE:".length();//lunghezza dei dati
+                dati.allocAnswer(lendati + 8 );//lunghezza dei dati + 4 byte per contenere la lunghezza del messaggio e l'intero finale che indica lo stato dell operazione
 
+                //---------------------------------------------------------------
+                SupportOut = new ByteArrayOutputStream();
+                try (DataOutputStream OutWriter = new DataOutputStream(SupportOut)){
 
+                    OutWriter.writeInt(lendati + 8);
+                    OutWriter.writeChars("playWORDLE:");
+                    ReadWordLock.lock();
+                    if(Gioco.setTentativi(username)) {
+                        OutWriter.writeInt(0);//0 indica che l utente puo cominciare a giocare
+                    }
+                    else OutWriter.writeInt(-1);// -1 indica che l utente ha terminato i tentativi per questa sessione di gioco
+                    dati.SetAnswer(SupportOut.toByteArray());
+                }
+                catch (Exception e) {e.printStackTrace();}
+                finally {ReadWordLock.unlock();}
                 break;
         }
     }

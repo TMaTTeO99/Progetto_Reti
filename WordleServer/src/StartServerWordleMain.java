@@ -15,8 +15,12 @@ import java.util.concurrent.TimeUnit;
  */
 public class StartServerWordleMain {
 
+    private static long LastTimeWord;//var utilizzata per poter recuperare il tempo in millisecondi dell ultima volta in cui una parola è stata estratta
     private static final long DayInMS = 86400000;//conversione di un giorno in millisecondi
     private static final long OraInMS = 3600000; //conversione di 24 ore in millisecondi
+    private static final long MinInMS = 60000; //conversione di 1 minuto in millisecondi
+    private static final long SecInMS = 1000;
+
     private static int MaxThread = 5;//di default assegno un numero di thread cosi in caso di errore nel file di config
                                      //iol server comunque puo lavorare
     private static long TimeStempWord = DayInMS;
@@ -36,12 +40,14 @@ public class StartServerWordleMain {
     //metodo privato per convertire il tempo indicato all'interno del file di config in millisecondi
     private static long ToMLS(String arg) {
 
-        //il formato della stringa arg è: giorni ore
+        //il formato della stringa arg è: giorni ore minuti secondi
         long tm = 0;
 
         StringTokenizer tok = new StringTokenizer(arg, " ");
         tm += DayInMS * Integer.parseInt(tok.nextToken());
         tm += OraInMS * Integer.parseInt(tok.nextToken());
+        tm += MinInMS * Integer.parseInt(tok.nextToken());
+        tm += SecInMS * Integer.parseInt(tok.nextToken());
 
         return tm;
     }
@@ -66,6 +72,9 @@ public class StartServerWordleMain {
                         break;
                     case "PathVocabolario":
                         PathVocabolario = tok.nextToken();
+                        break;
+                    case "lastWord":
+                        LastTimeWord = Long.parseLong(tok.nextToken());
                         break;
                 }
             }
@@ -151,15 +160,8 @@ public class StartServerWordleMain {
         //prima di istanziare il server leggo il vocabolario e lo inserisco in una struttura dati opportuna
         ArrayList<String> vocabolario = getVocabolario();
         try {
-            long time1 = System.currentTimeMillis();
 
-            for(int i = 0 ; i < vocabolario.size(); i++){
-                if(vocabolario.get(i) == "zyzzogeton") {System.out.println("ws");}
-            }
-            long time2 = System.currentTimeMillis();
-            System.out.println(time2-time1);
-
-            ServerWordle server = new ServerWordle(PathSerialization, MaxThread, TimeStempWord, PortExport);
+            ServerWordle server = new ServerWordle(PathSerialization, MaxThread, TimeStempWord, PortExport, LastTimeWord, ConfigureFile, vocabolario);
             //Thread.sleep(20000);//dormo per 30 secondi e poi chiudo
             //il servizio rmi e quindi anche il server per ora
 

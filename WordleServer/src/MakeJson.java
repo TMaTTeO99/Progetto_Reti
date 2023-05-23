@@ -78,6 +78,7 @@ public class MakeJson implements Runnable{
 
             while(!Thread.interrupted()) {
 
+
                 String username = UDSlist.takeFirst();
 
                 //condizione di controllo della stringa per la terminazione del thread
