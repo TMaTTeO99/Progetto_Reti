@@ -486,7 +486,7 @@ Giorno 18)	Riprendo da dove ero arrivato ieri:  Comincio con l' implementazione 
 			tipo gioco e tale oggetto possa essere usato in altre classi senza essere ritornato dal metodo run??
 			Il metodo run non puo ritornare perche deve stare in attesa di poter creare allo scadere del timer il nuovo
 			gioco, quibdi come devo fare???????
-			Soluzione: Implementare il metodo run e metodo get per far ritornare l oggeto
+			Soluzione: Implementare il metodo run e metodo get per far ritornare l oggetto
 			
 			Nota : i thread che non sono da lavoro posso lanciarli normalmente con un oggetto thread e non con il threadpool
 			perche quest ultimo ha un numero di thread limitato, questa cosa la devo cambiare
@@ -494,13 +494,26 @@ Giorno 18)	Riprendo da dove ero arrivato ieri:  Comincio con l' implementazione 
 			All interno del file di config inserisco il campo lasttimewordle che indica l ultima volta in cui
 			è stata lanciata la parola del gioco 
 			Nota: per ora il timestamp che indica ogni quanto la parola deve essere prodotta conta giorni e ore,
-			posso inserire anche i minuti per rendere piu precisa l operazione
+			posso inserire anche i minuti per rendere piu precisa l operazione:
 			
 			       
 				
-			
-
-
 
 -------------------------------------------------------------------------------------------------------------------
+Giorno 19)
+		Per fare la roba con html mi sembra troppo esagerato e mi prende un po troppo tempo, per ora provo cosi e vedo come va
+		nel caso ci ripenso in un secondo momento, 
+		Riprendo da dove ero arrivato ieri:
+		
+		Nota: la parola deve essere spawnata ogni volta che scade il eimestamp messo nel paramentro di config
+		
+		NOTA IMPORTANTISSIMA:::: RIguardo sessionewordle, la word e la concurrenthashmap tentativi sono protetti dalla
+		readwritelock in scrittura perche c'è il thread che periodicamente aggiorna la sessione, riguardo i singoli thread che 
+		accedono ai packets della concurrenthashmap invece essendo una concurrenthashmap non ho bisogno di usare lock, in questo modo
+		siccome nei worker uso la readlock non ho problemi quando sono i worker ad entare in concorrenza, perche tutti
+		possono leggere dalla sessione senza bloccarsi e poi ci pensa la concurrenthashmap a fare la mutua esclusione
+		sui backets
+		
+-------------------------------------------------------------------------------------------------------------------
+
 
