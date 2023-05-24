@@ -26,8 +26,8 @@ public class StartClientWordleMain {
              *  il client in 2 mod con la gui e senza in modo da poter testare l app correttamente
              *
              */
-            StartGui gui = new StartGui();
-
+            //StartGui gui = new StartGui();
+            StartGame game = new StartGame();
             ImplementazioneNotificaClient notifica = null;
             Registrazione servizio = null;
             String user = null;

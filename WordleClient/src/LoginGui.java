@@ -31,8 +31,8 @@ public class LoginGui implements ActionListener {
 
         String user = uname.getText();
         String pass = new String(passwd.getText());
-        byte [] tmp = new byte[100];
-        ByteArrayInputStream BuffIn = new ByteArrayInputStream(tmp);
+        //byte [] tmp = new byte[100];
+        //ByteArrayInputStream BuffIn = new ByteArrayInputStream(tmp);
         try {
             DataOutputStream ou = new DataOutputStream(new BufferedOutputStream(socket.getOutputStream()));
             DataInputStream inn = new DataInputStream(new BufferedInputStream(socket.getInputStream()));

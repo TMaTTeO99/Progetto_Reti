@@ -79,7 +79,10 @@ public class GameGui {
                         case 0 :
                             JOptionPane.showMessageDialog(null, "Operazione completata. Adesso è possibile provare a indovinare una porola");
                             break;
-                        case -1:
+                        case -1 :
+                            JOptionPane.showMessageDialog(null, "Richiesta di giocare gia effettuata. Inserire la guess wordle");
+                            break;
+                        case -2 :
                             JOptionPane.showMessageDialog(null, "Tentativi esauriti per questa sessione. Riprovare a giocare in una nuova sessione");
                             break;
                     }
