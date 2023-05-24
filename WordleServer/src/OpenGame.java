@@ -41,7 +41,7 @@ public class OpenGame implements Runnable{
                 lasttime = System.currentTimeMillis();
                 lock.lock();
                 Game.setWord(Vocabolario.get(randword.nextInt(Vocabolario.size())));
-                Game.ResetTentativi();
+                Game.setTentativi();
                 lock.unlock();
                 System.out.println("Game creato");
 

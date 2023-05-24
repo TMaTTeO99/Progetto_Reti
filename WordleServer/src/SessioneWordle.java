@@ -11,7 +11,7 @@ public class SessioneWordle implements Serializable {
 
     private String word; //parola di una sessione di gioco
 
-    private ConcurrentHashMap<String, Integer> Tentativi;
+    private ConcurrentHashMap<String, InfoSessioneUtente> Tentativi;
 
     @JsonCreator
     public SessioneWordle() {Tentativi = new ConcurrentHashMap<>();}
@@ -19,18 +19,17 @@ public class SessioneWordle implements Serializable {
     //metodi get e set
     public void setWord(String w) {word = w;}
     public String getWord() {return word;}
-    public boolean setTentativi(String username) {
+    public int setGame(String username) {
 
         if(Tentativi.get(username) == null) {
-            Tentativi.put(username, 0);
+            Tentativi.put(username, new InfoSessioneUtente(0, false));
         }
         else {
-            if(Tentativi.get(username) < 12) {
-                Tentativi.put(username, Tentativi.get(username) + 1);
-            }
-            else return false;
+            InfoSessioneUtente infoU = Tentativi.get(username);
+            if(infoU.getTentativi() < 12 && !infoU.getResult()) {return 1;}//1 indica che l utente ha gia inviato la richiesta di playWORDLE
+            else {return -1;}//-1 indica che l utente ha gia partecipato al gioco
         }
-        return true;
+        return 0;//0 indica richiesta di playWORDLE andata a buon fine
     }
-    public void ResetTentativi() {Tentativi = new ConcurrentHashMap<>();}
+    public void setTentativi() {Tentativi = new ConcurrentHashMap<>();}
 }

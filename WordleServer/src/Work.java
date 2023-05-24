@@ -108,7 +108,7 @@ public class Work implements Callable<PkjData> {
                 }
                 catch (Exception e) {e.printStackTrace();}
                 break;
-            case "logout":
+            case "logout" :
 
                 username = Tok.nextToken(" ").replace(":", "");//recupero username
                 dati.setUsname(username);//analogo al ramo di login
@@ -141,7 +141,7 @@ public class Work implements Callable<PkjData> {
                 catch (Exception e) {e.printStackTrace();}
                 //-----------------------------------------------------
                 break;
-            case "playWORDLE"://caso in cui un utente richiede di iniziare una partita
+            case "playWORDLE" ://caso in cui un utente richiede di iniziare una partita
                 username = Tok.nextToken(" ").replace(":", "");//recupero username
                 dati.setUsname(username);//analogo al ramo di login
 
@@ -155,14 +155,19 @@ public class Work implements Callable<PkjData> {
                     OutWriter.writeInt(lendati + 8);
                     OutWriter.writeChars("playWORDLE:");
                     ReadWordLock.lock();
-                    if(Gioco.setTentativi(username)) {
+                    int result = Gioco.setGame(username);
+                    if(result == 0) {
                         OutWriter.writeInt(0);//0 indica che l utente puo cominciare a giocare
                     }
-                    else OutWriter.writeInt(-1);// -1 indica che l utente ha terminato i tentativi per questa sessione di gioco
+                    else if(result == 1) OutWriter.writeInt(-1);// -1 indica che l utente aveva gia chiesto un operazione di playWORDLE
+                    else OutWriter.writeInt(-2);//-2 indica che l utente ha gia giocato al gioco
+
                     dati.SetAnswer(SupportOut.toByteArray());
                 }
                 catch (Exception e) {e.printStackTrace();}
                 finally {ReadWordLock.unlock();}
+                break;
+            case "" :
                 break;
         }
     }
