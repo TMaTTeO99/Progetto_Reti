@@ -516,4 +516,29 @@ Giorno 19)
 		
 -------------------------------------------------------------------------------------------------------------------
 
+Giorno 20) 	Ho sistemato un po di problemi che mi sono rimasti ieri, ora comincio con il gioco vero e proprio:
+		Per cercare di risolvere il fatto che usando la GUI mi si accende la ventola del pc, per effettuare delle ottimizzazioni
+		quindi, chat gpt dice che le operazioni complesse come connessioni o calcoli dei dati vanno fatte in thread separati
+		: (Utilizza thread separati per operazioni intensive: Se hai operazioni che richiedono molto tempo o sono computazionalmente 
+		intensive (ad esempio, operazioni di rete o elaborazione di dati), eseguile su thread separati. In questo modo, puoi evitare di 
+		bloccare l'Event Dispatch Thread (EDT) principale che gestisce l'interfaccia utente. Puoi utilizzare classi come SwingWorker o 
+		java.util.concurrent.ExecutorService per eseguire queste operazioni su thread separati.)
+
+		Quindi creo una classe (un task) che prendera un intero per il costruttore per far si che posso distinguere le operazioni diverse 
+		che deve fare il client senza dover creare trante classi quante sono le operazioni: voglio vedere se usare thread separati 
+		funziona oppure no
+		
+		-----------------******************************************---------------------
+		NOTA IMPORTANTEEEE: lato server invece di usare il mainthread per scrivere le risposte ai client
+		posso lanciare dei thread che cercheranno di estrapolare gli oggetti di tipo feature dalla hashmap e si fermeranno finche
+		non hanno finito, in questo modo evito di fare attesa attiva sul mainthread del selettore, questa cosa provo a farla 
+		stasera, non dovrebbe essere complicato 
+		Sto sistemando l interfaccia grafica del Client, sembra che ora inizi a funzionare correttamente, per ora sono riuscito
+		a sistemare il frame di login, devo continuare con il resto
+
+
+
+
+-------------------------------------------------------------------------------------------------------------------
+
 
