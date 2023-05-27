@@ -35,7 +35,7 @@ public class ImlementazioneRegistrazione extends RemoteServer implements Registr
         }
         catch (Exception e){
             e.printStackTrace();
-            return 1;
+            return 2;
         }
     }
     public void sendstub(String username, NotificaClient stub) throws RemoteException {

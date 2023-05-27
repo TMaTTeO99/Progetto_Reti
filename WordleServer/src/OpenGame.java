@@ -5,6 +5,7 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 
+//classe che conterra un metodo run per poter periodicamente creare un nuova parola
 public class OpenGame implements Runnable{
 
     private long time;//tempo che intercorre fra la publicazione di una parola e la successiva
@@ -15,9 +16,10 @@ public class OpenGame implements Runnable{
     private ArrayList<String> Vocabolario;//parola del gioco
     private File ConfigureFile;//file di configurazione che deve essere aggiornato alla chiusura del server per inserire il timestamp
                                //Dell ultima volta in cui è stata estratta una parola
-    private SessioneWordle Game;
+    private SessioneWordle Game;//variabile che rappresenta il gioco
     private Lock lock;
-    private Condition cond;
+
+    //private Condition cond; //Da eliminare
     public OpenGame(long t, long lt, ArrayList<String> Vcb, File ConfFile, SessioneWordle gm, Lock lck/*, Condition cnd*/) {
         lasttime = lt;
         time = t;
@@ -38,9 +40,13 @@ public class OpenGame implements Runnable{
                 if((currenttime - lasttime) < time) {
                     Thread.sleep(time - (currenttime - lasttime));
                 }
-                lasttime = System.currentTimeMillis();
                 lock.lock();
                 Game.setWord(Vocabolario.get(randword.nextInt(Vocabolario.size())));
+                Game.setLastTime(lasttime);
+                Game.setNextTime(time);
+                lasttime = System.currentTimeMillis();
+                currenttime = System.currentTimeMillis();
+                Game.setCurrentTime(currenttime);
                 Game.setTentativi();
                 lock.unlock();
                 System.out.println("Game creato");
@@ -50,7 +56,7 @@ public class OpenGame implements Runnable{
         }
         //qui quando tale thread verrà interrotto dovro aggiornare il file di configurazione con
         //lasttime attuale, la prima volta che il server sara lanciato sara 0,
-        //quindi devo fare un metodo per effettuare questo aggiornamento, lo implemento dopo, per ora provo a vedere come funziona tutto
+        //quindi devo fare un metodo per effettuare questo aggiornamento
         System.out.println("esco");
     }
 }

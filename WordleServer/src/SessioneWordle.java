@@ -10,7 +10,9 @@ import java.util.concurrent.ConcurrentHashMap;
 public class SessioneWordle implements Serializable {
 
     private String word; //parola di una sessione di gioco
-
+    private long lastTime;//variabile per tenere traccia del tempo dell ultima volta che è stata scelta una parola per il gioco
+    private long currentTime;//variabile per tenere traccia del tempo della parola corrente del gioco
+    private long nextTime;//variabile che indica dopo quanto tempo verra creata la nuova parola
     private ConcurrentHashMap<String, InfoSessioneUtente> Tentativi;
 
     @JsonCreator
@@ -32,4 +34,27 @@ public class SessioneWordle implements Serializable {
         return 0;//0 indica richiesta di playWORDLE andata a buon fine
     }
     public void setTentativi() {Tentativi = new ConcurrentHashMap<>();}
+    public int Tentativo(String username) {
+
+        InfoSessioneUtente info = Tentativi.get(username);
+
+        if(info == null)return -1;//caso in cui l utente non ha selezionato il comando playWORDLE
+        if(info.getTentativi() < 12 && !info.getResult()) {
+            info.increaseTentativi();
+            return 0;
+        }
+        if(info.getTentativi() >= 12) return -2;//caso in cui l utente ha gia giocato e ha terminato i tentativi
+
+        return -3; //ha vinto la partita precedentemente
+    }
+    public void setWinner(String UserName) {
+        InfoSessioneUtente tmp = Tentativi.get(UserName);
+        tmp.setResultGame(true);
+    }
+    public void setLastTime(long time) {lastTime = time;}
+    public long getLastTime() {return lastTime;}
+    public void setCurrentTime(long Time) {currentTime = Time;}
+    public long getCurrentTime() {return currentTime;}
+    public void setNextTime(long Time) {nextTime = Time;}
+    public long getNextTime() {return nextTime;}
 }

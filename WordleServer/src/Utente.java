@@ -13,7 +13,7 @@ public class Utente implements Serializable {
     private boolean login = false; //variabile che indica se l'utente è loggato o meno, Nota: a jackson da noia se scrivo Login
     private String Username = null;
     private String Passswd = null;
-    private int Game = 0;//partite giocate
+    private int Games = 0;//partite giocate
     private int WinGame = 0;//partite vinte
     private float WinGamePerc = 0;//percentuale partite vinte
     private int LastConsecutive = 0;//lunghezza ultima striscia positiva
@@ -44,11 +44,11 @@ public class Utente implements Serializable {
     }
 
     public int getGame() {
-        return Game;
+        return Games;
     }
 
     public void setGame(int game) {
-        Game = game;
+        Games = game;
     }
 
     public int getWinGame() {

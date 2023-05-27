@@ -38,6 +38,7 @@ public class ServerWordle{
     private ReentrantReadWriteLock RWlockWORD = new ReentrantReadWriteLock();
     private Lock ReadWordLock = RWlockWORD.readLock();
     private Lock WriteWordLock = RWlockWORD.writeLock();
+    private ArrayList<String> Words;
     //private Condition CondGame = non so ancora se mi serve domani valuto
 
     //private ArrayList<SessioneWordle> GameQueue = new ArrayList<>();
@@ -47,7 +48,7 @@ public class ServerWordle{
         //lancio il thread che periodicamente creerà una nuova sessione di gioco
         Thread t = new Thread(new OpenGame(TimeStempWord, LTW, Vocabolario, ConfigureFile, Game, WriteWordLock/*, CondGame*/));
         t.start();
-
+        Words = Vocabolario;
         //sezione da sincronizzare perche devo essere sicuro di recuperare l oggetto SessioneGame
 
         DaSerializzare = new LinkedBlockingDeque<>();
@@ -60,7 +61,7 @@ public class ServerWordle{
         RegistroRMI.bind("Registrazione", Skeleton);
         pool.execute(new MakeJson(Registrati, DaSerializzare, PathJson));//lancio il thread che effettua la serializzazione in background
         LstDati = new HashMap<>();
-        //per ora faccio solo una prova della sessione di gioco poi dovro implementare un thread chen
+
 
     }
 
@@ -94,7 +95,7 @@ public class ServerWordle{
 
                     if(ReadyKey.isAcceptable()) {//caso in un operazione di accept non ritorna null
 
-                        System.out.println("Ho accettato");
+                        //System.out.println("Ho accettato");
                         ServerSocketChannel ListenSocket = (ServerSocketChannel) ReadyKey.channel();//recupero la socket per accettare la connessione
                         SocketChannel channel = ListenSocket.accept();
                         channel.configureBlocking(false);//setto il channel come non bloccante
@@ -103,7 +104,7 @@ public class ServerWordle{
                     }
                     else if (ReadyKey.isReadable()) {//caso in cui una operazione di read non ritorna 0
 
-                        System.out.println("readable");
+                        //System.out.println("readable");
                         //ATTENZIONE:::: considerare anche il problema della rejected exception del threadpool,
 
                         SocketChannel channel = (SocketChannel)ReadyKey.channel();
@@ -132,16 +133,18 @@ public class ServerWordle{
                             ReadyKey.cancel();
                         }
                         else {
-                            Future<PkjData> result = pool.submit(new Work(ReadyKey, selector, Registrati, (Integer) ReadyKey.attachment(), new PkjData(), LenMexBuffer, Game, ReadWordLock));
+                            Future<PkjData> result = pool.submit(new Work(ReadyKey, selector, Registrati, (Integer) ReadyKey.attachment(), new PkjData(),  LenMexBuffer, Words, Game, ReadWordLock));
                             LstDati.put((Integer) ReadyKey.attachment(), new KeyData(ReadyKey, result));
                             ReadyKey.interestOps(SelectionKey.OP_WRITE);
                         }
 
                     }
                     else if(ReadyKey.isWritable()) {//caso in cui una operazione di write non ritorna 0
-                        System.out.println("wriatable");
+
+                        //System.out.println("wriatable");
                         SocketChannel channel = (SocketChannel) ReadyKey.channel();//recupero il canale
                         Future<PkjData> DataFuture = LstDati.get((Integer) ReadyKey.attachment()).getDati();
+
 
                         if(DataFuture.isDone()) {//se l'oggetto future è stato completato
 
