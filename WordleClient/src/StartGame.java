@@ -10,15 +10,21 @@ import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.server.UnicastRemoteObject;
+import java.util.Date;
 import java.util.concurrent.ExecutionException;
 
 public class StartGame extends JFrame {
 
     private Socket socket;
-    private JPanel panelLogin;
-    private JPanel panelRegistra;
-    private JPanel panelLogout;
-    private JPanel panelPlay;
+    private JTextField UserTEXTLogin;
+    private JPasswordField UserTEXTpasslogin;
+    private JTextField TExtFieldUserLogout;
+    private JTextField TextFieldUserRegistra;
+    private JTextField TextFieldPassRegistra;
+    private JTextField TextFieldWordSendWord;
+    private JLabel NextWordLable;
+    private Date DataNextWord = new Date(0);
+    private String usernamelogin;
     private NotificaClient skeleton;
     private ImplementazioneNotificaClient notifica;
     public StartGame() {
@@ -53,23 +59,15 @@ public class StartGame extends JFrame {
                         int returnvalue = 1;
                         //----------------------------------------------******************************
                         // Questo pezzo di codice lo devo inserire in un metodo
-                        JTextField textField = null;
-                        JPasswordField passwordField = null;
-                        Component[] components = panelLogin.getComponents();
-                        for (Component component : components) {
-                            if (component instanceof JTextField) {textField = (JTextField) component;}
-                            if(component instanceof JPasswordField){passwordField =  (JPasswordField) component;}
 
-                            if(textField != null && passwordField != null){break;}
-                        }
-                        String user = textField.getText();
-                        String pass = new String(passwordField.getText());
+                        usernamelogin = UserTEXTLogin.getText();
+                        String pass = new String(UserTEXTpasslogin.getText());
 
                         try {
                             DataOutputStream ou = new DataOutputStream(new BufferedOutputStream(socket.getOutputStream()));
                             DataInputStream inn = new DataInputStream(new BufferedInputStream(socket.getInputStream()));
-                            ou.writeInt((("login:"+ user + " " + pass).length())*2);
-                            ou.writeChars("login:" + user + " " + pass);
+                            ou.writeInt((("login:"+ usernamelogin + " " + pass).length())*2);
+                            ou.writeChars("login:" + usernamelogin + " " + pass);
                             ou.flush();
                             System.out.print(inn.readInt());
                             System.out.print(inn.readChar());
@@ -78,15 +76,14 @@ public class StartGame extends JFrame {
                             System.out.print(inn.readChar());
                             System.out.print(inn.readChar());
                             System.out.println(inn.readChar());
-                            int val = inn.readInt();
-                            System.out.println(val);
-                            switch(val) {
+
+                            switch(inn.readInt()) {
                                 case 0 :
                                     //ora qua provo a inviare lo stub al server dopo che mi sono registrato ecc
                                     notifica = new ImplementazioneNotificaClient();
                                     skeleton = (NotificaClient) UnicastRemoteObject.exportObject(notifica, 0);
                                     Registrazione servizio = (Registrazione) LocateRegistry.getRegistry(6500).lookup("Registrazione");;
-                                    servizio.sendstub(user, skeleton);
+                                    servizio.sendstub(usernamelogin, skeleton);
                                     returnvalue = 1;
                                     break;
                                 case -1:
@@ -111,34 +108,28 @@ public class StartGame extends JFrame {
                             // Ottieni il risultato della richiesta dal server
 
                             Integer response = get();  // o false
-
                             switch (response) {
                                 case 1 :
                                     // Chiudo il frame corrente e apro il nuovo frame
                                     dispose();
+
                                     JFrame Frame = new JFrame("Wordle Game");
                                     Frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
                                     Frame.setLocation(new Point(200, 200));
 
                                     JPanel mainPanel = new JPanel();
-                                    mainPanel.setLayout(new BoxLayout(mainPanel, BoxLayout.LINE_AXIS));
+                                    mainPanel.setLayout(new FlowLayout(FlowLayout.LEFT, 100, 20));
 
                                     JButton Logout = new JButton("Logout");
                                     JButton Gioca = new JButton("Gioca");
+                                    JButton SendWord = new JButton("Send");
 
                                     // Aggiungi gli ascoltatori di azioni ai JButton
                                     Logout.addActionListener(new ActionListener() {
                                         @Override
                                         public void actionPerformed(ActionEvent e) {
-                                            JTextField textField = null;
-                                            Component[] components = panelLogin.getComponents();
-                                            for (Component component : components) {
-                                                if (component instanceof JTextField) {
-                                                    textField = (JTextField) component;
-                                                    break;
-                                                }
-                                            }
-                                            String user = textField.getText();
+
+                                            String user = TExtFieldUserLogout.getText();
                                             try {
                                                 DataOutputStream ou = new DataOutputStream(new BufferedOutputStream(socket.getOutputStream()));
                                                 DataInputStream inn = new DataInputStream(new BufferedInputStream(socket.getInputStream()));
@@ -159,7 +150,7 @@ public class StartGame extends JFrame {
                                                     case 0 :
                                                         UnicastRemoteObject.unexportObject(notifica, true);
                                                         Frame.dispose();
-                                                        execute();
+                                                        new StartGame();
                                                         break;
                                                     case -1:
                                                         JOptionPane.showMessageDialog(null, "Errore. Username inserito non corretto");
@@ -179,18 +170,123 @@ public class StartGame extends JFrame {
                                     Gioca.addActionListener(new ActionListener() {
                                         @Override
                                         public void actionPerformed(ActionEvent e) {
-                                            // Avvia il thread per gestire la richiesta 4
-                                            // Resto del codice...
+                                            try {
+                                                DataOutputStream ou = new DataOutputStream(new BufferedOutputStream(socket.getOutputStream()));
+                                                DataInputStream inn = new DataInputStream(new BufferedInputStream(socket.getInputStream()));
+
+                                                ou.writeInt((("playWORDLE:"+ usernamelogin).length())*2);
+                                                ou.writeChars("playWORDLE:" + usernamelogin);
+                                                ou.flush();
+                                                System.out.print(inn.readInt());
+                                                System.out.print(inn.readChar());
+                                                System.out.print(inn.readChar());
+                                                System.out.print(inn.readChar());
+                                                System.out.print(inn.readChar());
+                                                System.out.print(inn.readChar());
+                                                System.out.print(inn.readChar());
+                                                System.out.print(inn.readChar());
+                                                System.out.print(inn.readChar());
+                                                System.out.print(inn.readChar());
+                                                System.out.print(inn.readChar());
+                                                System.out.println(inn.readChar());
+
+                                                switch(inn.readInt()) {
+                                                    case 0 :
+                                                        //ora qui devo fare in modo da poter visualizzare a schermo data e ora della prossima parola
+                                                        DataNextWord = new Date(System.currentTimeMillis() + inn.readLong());
+                                                        NextWordLable.setText(""+DataNextWord);
+
+                                                        JOptionPane.showMessageDialog(null, "Operazione completata. Adesso è possibile provare a indovinare una porola");
+                                                        break;
+                                                    case -1 :
+                                                        JOptionPane.showMessageDialog(null, "Richiesta di giocare gia effettuata. Inserire la guess word");
+                                                        break;
+                                                    case -2 :
+                                                        JOptionPane.showMessageDialog(null, "Tentativi esauriti per questa sessione. Riprovare a giocare in una nuova sessione");
+                                                        break;
+                                                }
+                                            }
+                                            catch (Exception ee) {ee.printStackTrace();}
+                                        }
+                                    });
+                                    SendWord.addActionListener(new ActionListener() {
+                                        @Override
+                                        public void actionPerformed(ActionEvent e) {
+
+                                            String word = TextFieldWordSendWord.getText();
+                                            if(word.length() == 0) {
+                                                JOptionPane.showMessageDialog(null, "Errore. Inserire parola");
+                                            }
+                                            else {
+                                                try {
+                                                    DataOutputStream ou = new DataOutputStream(new BufferedOutputStream(socket.getOutputStream()));
+                                                    DataInputStream inn = new DataInputStream(new BufferedInputStream(socket.getInputStream()));
+
+                                                    ou.writeInt((("sendWord:" + usernamelogin + " " + word).length())*2);
+                                                    ou.writeChars("sendWord:" + usernamelogin + " " + word);
+                                                    ou.flush();
+
+                                                    int len = inn.readInt();
+                                                    System.out.print(inn.readChar());
+                                                    System.out.print(inn.readChar());
+                                                    System.out.print(inn.readChar());
+                                                    System.out.print(inn.readChar());
+                                                    System.out.print(inn.readChar());
+                                                    System.out.print(inn.readChar());
+                                                    System.out.print(inn.readChar());
+                                                    System.out.print(inn.readChar());
+                                                    System.out.println(inn.readChar());
+                                                    int result = inn.readInt();
+                                                    System.out.println(result);
+                                                    switch(result) {
+                                                        case 1 :
+                                                            //qui ora leggo finche il # di letture - la len di "sendWord" - letture che faccio ora > 0
+
+                                                            //sezione da inserire in un metodo privato per essere piu legibile
+                                                            //_--------------------------_//
+                                                            int read = 0;
+                                                            char [] suggestions = new char[10];
+
+                                                            while(read < 10) {
+                                                                suggestions[read] = inn.readChar();
+                                                                read++;
+                                                            }
+                                                            String sug = new String(suggestions);
+                                                            System.out.println(sug);
+                                                            //_--------------------------_//
+
+                                                            //a questo punto quello che devo fare è visualizzare i suggerimenti in forma grafica
+                                                            JPanel suggestionPanle = MakeSuggestionsPanel(sug, word);
+                                                            JOptionPane.showMessageDialog(null, suggestionPanle, "Suggerimenti", JOptionPane.PLAIN_MESSAGE);
+
+
+                                                            break;
+                                                        case 0 ://caso in cui la parola è stata indovinata
+
+                                                            break;
+                                                        case -1:
+                                                            JOptionPane.showMessageDialog(null, "Errore. Prima di inviare una parola è necessario chiedere di giocare con il tasto gioca");
+                                                            break;
+                                                        case -2:
+                                                            JOptionPane.showMessageDialog(null, "Tentativi esauriti. Aspettare la prossima ");
+                                                            break;
+                                                        case -3:
+                                                            break;
+                                                    }
+                                                }
+                                                catch (Exception ee) {ee.printStackTrace();}
+                                            }
                                         }
                                     });
 
-                                    makePanelLogout(Logout);
-                                    makePanelPlayStart(Gioca);
 
-                                    mainPanel.add(panelLogout);
-                                    mainPanel.add(panelPlay);
+
+                                    mainPanel.add(makePanelLogout(Logout));
+                                    mainPanel.add(makePanelPlayStart(Gioca));
+                                    mainPanel.add(makePanelSend(SendWord));
+
                                     Frame.add(mainPanel);
-                                    Frame.setSize(200, 200);
+                                    Frame.setSize(1000, 500);
                                     Frame.setVisible(true);
                                     break;
                                 case -1 :
@@ -212,7 +308,6 @@ public class StartGame extends JFrame {
 
                 // Avvia il worker
                 worker.execute();
-
             }
         });
 
@@ -224,21 +319,12 @@ public class StartGame extends JFrame {
                     @Override
                     protected Integer doInBackground() throws Exception {
                         try {
-                            JTextField textField = null;
-                            JPasswordField passwordField = null;
-                            Component[] components = panelLogin.getComponents();
-                            for (Component component : components) {
-                                if (component instanceof JTextField) {textField = (JTextField) component;}
-                                if(component instanceof JPasswordField){passwordField =  (JPasswordField) component;}
 
-                                if(textField != null && passwordField != null) break;
-                            }
-                            String user = textField.getText();
-                            String pass = new String(passwordField.getText());
+                            String user = TextFieldUserRegistra.getText();
+                            String pass = new String(TextFieldPassRegistra.getText());
                             Registrazione servizio = (Registrazione) LocateRegistry.getRegistry(6500).lookup("Registrazione");
-                            if(servizio.registra(user, pass) == 0) return 1;
 
-                            return -1;
+                            return servizio.registra(user, pass);
                         }
                         catch (Exception exce) {exce.printStackTrace();}
                         return null;
@@ -251,10 +337,16 @@ public class StartGame extends JFrame {
                             int response = get();  // o false
                             switch (response) {
                                 case 1 :
-                                    JOptionPane.showMessageDialog(null, "Username gia utilizzato");
+                                    JOptionPane.showMessageDialog(null, "Registrazione completata");
                                     break;
                                 case -1:
-                                    JOptionPane.showMessageDialog(null, "Registrazione completata con successo");
+                                    JOptionPane.showMessageDialog(null, "Errore nei dati inseriti");
+                                    break;
+                                case 0:
+                                    JOptionPane.showMessageDialog(null, "Username gia utilizzato");
+                                    break;
+                                case 2:
+                                    JOptionPane.showMessageDialog(null, "Errore");
                                     break;
                             }
 
@@ -270,66 +362,114 @@ public class StartGame extends JFrame {
         });
 
         // Aggiungo i pulsanti al frame
-        makePanelLogin(Login);
-        makePanelRegistrazione(Registra);
-        mainPanel.add(panelLogin);
-        mainPanel.add(panelRegistra);
+
+
+
+        mainPanel.add(makePanelLogin(Login));
+        mainPanel.add(makePanelRegistrazione(Registra));
         add(mainPanel);
         setSize(new Dimension(1000, 500));
         setVisible(true);
 
     }
     //metodi utilizzati per creare i panel da inserire nel panel main
-    private void makePanelLogin(JButton log) {
+    private JPanel makePanelLogin(JButton log) {
 
-        panelLogin = new JPanel();
-        JTextField user = new JTextField(10);
-        JTextField pass = new JPasswordField(10);
+        JPanel panelLogin = new JPanel();
+        UserTEXTLogin = new JTextField(10);
+        UserTEXTpasslogin = new JPasswordField(10);
 
         panelLogin.setLayout(new FlowLayout());
         panelLogin.add(new JLabel("Login:"));
         panelLogin.add(new JLabel("Username"));
-        panelLogin.add(user);
+        panelLogin.add(UserTEXTLogin);
         panelLogin.add(new JLabel("Password"));
-        panelLogin.add(pass);
+        panelLogin.add(UserTEXTpasslogin);
         panelLogin.add(log);
 
+        return panelLogin;
     }
-    private void makePanelRegistrazione(JButton reg) {
+    private JPanel makePanelRegistrazione(JButton reg) {
 
-        panelRegistra = new JPanel();
-        JTextField user = new JTextField(10);
-        JTextField pass = new JPasswordField(10);
+        JPanel panelRegistra = new JPanel();
+        TextFieldUserRegistra = new JTextField(10);
+        TextFieldPassRegistra = new JPasswordField(10);
 
         panelRegistra.setLayout(new FlowLayout());
         panelRegistra.add(new JLabel("Registrazione:"));
         panelRegistra.add(new JLabel("Username"));
-        panelRegistra.add(user);
+        panelRegistra.add(TextFieldUserRegistra);
         panelRegistra.add(new JLabel("Password"));
-        panelRegistra.add(pass);
+        panelRegistra.add(TextFieldPassRegistra);
         panelRegistra.add(reg);
-
+        return panelRegistra;
     }
-    private void makePanelLogout(JButton log) {
+    private JPanel makePanelLogout(JButton log) {
 
-        panelLogout = new JPanel();
-        JTextField user = new JTextField(10);
+        JPanel panelLogout = new JPanel();
+        TExtFieldUserLogout = new JTextField(10);
 
-        panelLogout.setLayout(new FlowLayout());
-        panelLogout.add(new JLabel("Logout:"));
-        panelLogout.add(new JLabel("Username"));
-        panelLogout.add(user);
+        panelLogout.setLayout(new BoxLayout(panelLogout, BoxLayout.Y_AXIS));
+        panelLogout.add(new JLabel("Logout"));
+        panelLogout.add(new JLabel(" "));
+        panelLogout.add(new JLabel("Nome Utente: " + usernamelogin));//in caso un utente non ricordasse con quale username si è loggato
+        panelLogout.add(new JLabel("Username:"));
+        panelLogout.add(TExtFieldUserLogout);
         panelLogout.add(log);
 
+        return panelLogout;
 
     }
-    private void makePanelPlayStart(JButton play) {
-        panelPlay = new JPanel();
+    private JPanel makePanelSend(JButton log) {
 
-        panelPlay.setLayout(new FlowLayout());
+        JPanel panelSend = new JPanel();
+        TextFieldWordSendWord = new JTextField(10);
+
+        panelSend.setLayout(new BoxLayout(panelSend, BoxLayout.Y_AXIS));
+        panelSend.add(new JLabel("Send word"));
+        panelSend.add(new JLabel(" "));
+        panelSend.add(new JLabel("Word:"));
+        panelSend.add(TextFieldWordSendWord);
+        panelSend.add(log);
+
+        return panelSend;
+
+    }
+    private JPanel makePanelPlayStart(JButton play) {
+
+        JPanel panelPlay = new JPanel();
+        //NextWordLable =
+        panelPlay.setLayout(new BoxLayout(panelPlay, BoxLayout.Y_AXIS));
+        panelPlay.add((new JLabel("Data e ora prossima parola prodotta: ")));
+        panelPlay.add((new JLabel(" ")));
+        panelPlay.add((NextWordLable = new JLabel("Unknown")));
         panelPlay.add(new JLabel("StartSession:"));
         panelPlay.add(play);
 
+        return panelPlay;
+    }
+    public JPanel MakeSuggestionsPanel(String suggestions, String word) {
+
+        JPanel panel = new JPanel(new GridLayout(1, suggestions.length()));
+
+        for(int i = 0; i<10; i++) {//suggestions è lunga 10
+            JLabel label = new JLabel(String.valueOf(word.charAt(i)), SwingConstants.CENTER);
+            label.setOpaque(true);
+
+            switch (String.valueOf(suggestions.charAt(i))) {
+                case "+" :
+                    label.setBackground(Color.GREEN);
+                    break;
+                case "x" :
+                    label.setBackground(Color.GRAY);
+                    break;
+                case "?" :
+                    label.setBackground(Color.YELLOW);
+                    break;
+            }
+            panel.add(label);
+        }
+        return panel;
     }
     /*public static void main(String[] args) {
         SwingUtilities.invokeLater(new Runnable() {
