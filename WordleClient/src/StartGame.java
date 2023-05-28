@@ -262,15 +262,22 @@ public class StartGame extends JFrame {
 
                                                             break;
                                                         case 0 ://caso in cui la parola è stata indovinata
+                                                                // In questo caso lato server dovro inserire la
+                                                                // traduzione della parola che qui andra letta
 
+                                                            JOptionPane.showMessageDialog(null, "Vittoria");
                                                             break;
                                                         case -1:
                                                             JOptionPane.showMessageDialog(null, "Errore. Prima di inviare una parola è necessario chiedere di giocare con il tasto gioca");
                                                             break;
                                                         case -2:
-                                                            JOptionPane.showMessageDialog(null, "Tentativi esauriti. Aspettare la prossima ");
+                                                            JOptionPane.showMessageDialog(null, "Tentativi esauriti. Aspettare la prossima parola");
                                                             break;
                                                         case -3:
+                                                            JOptionPane.showMessageDialog(null, "Parola gia indovinata. Aspettare la prossima parola");
+                                                            break;
+                                                        case -4 :
+                                                            JOptionPane.showMessageDialog(null, "Parola inesistente all interno del gioco. Il tentativo non verrà considerato");
                                                             break;
                                                     }
                                                 }

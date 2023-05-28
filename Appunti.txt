@@ -536,9 +536,111 @@ Giorno 20) 	Ho sistemato un po di problemi che mi sono rimasti ieri, ora cominci
 		Sto sistemando l interfaccia grafica del Client, sembra che ora inizi a funzionare correttamente, per ora sono riuscito
 		a sistemare il frame di login, devo continuare con il resto
 
+-------------------------------------------------------------------------------------------------------------------------------------------
+
+Giorno 21)	Riprendo da dove ero arrivao ieri: 
+			Correzzione del GUI lato client.
+			Adesso dopo che ho sistemato la gui lato client.
+			Ora continuo con la costruzione del gioco:
+			
+			All interno del ramo che riguarda l indovinare la parola nei worker lato server, sono arrivato al punto
+			in cui devo inviare i suggerimenti all utente, per farlo quello che voglio fare è inviare una stringa
+			al client sempre con "len""nomemetodo:" e poi dopo subito dopo i ":" inserire uno dopo l altro 
+			i caratteri speciali che vengono suggeriti dalla traccia per indicare se le lettere della parola
+			sono presenti nella parola del gioco oppure, se lo sono se sono nella posizione giusta ecc....
+			(esempio grigio:’X’, verde: ‘+’, giallo: ‘?’, si ricorda che il significato dei colori è:
+				   grigio:’X’: lettere non appartenenti alla parola
+				   verde: ‘+’: lettere appartenenti alla parola in posizione corretta
+				   giallo: ‘?’: lettere appartenenti alla parola in posizione sbagliata
+				   
+			Ora devo :
+			0)implementare come creare la risposta per il client : Fatto
+			1) Devo fare in modo da visualizzare lato client le risposte ricevute:
+				Riguardo gli errori faccio il popup semplice
+				NOTA: Riguardo l error edi tentativi esauriti o di parola gia vinta, devo fare il modo
+				che il server invii i dati che indicano quando la prossima parola sarà disponibile per giocare,
+				Quindi devo effettuare il calcolo nel server e inviare tale dato al client, per recuperare dai worker
+				il timestamp di quando la parola viene generata, inserisco all interno di SessioneWordle un campo 
+				in modo che quando viene generata la nuova parola venga aggiornato tale campo e un campo per tenere traccia
+				dell ultima volta che è stata generata la parola in modo da poter effettuare il calcolo 
+				corretto di quando sarà creata la nuova parola e inviare tale info al client 
+				
+				timecurrente ----------
+				time last    --------
+				timeword     ------------
+				FATTO
+				 
+			2) aggiornare le statistiche dell utente 
+			3) aggiustare la serializzazione degli utente e delle nuove strutture dati
+			4) costruire la GUI per inviare la richiesta al server 
+			5) colorare la gui dove ricevo la risposta, inoltre in caso il client indovini la
+			parola c'è anche da chiedere il servizio di traduzione e poi Fatto a meta, manca il servizio di traduzione
+			
+			
+
+
+-------------------------------------------------------------------------------------------------------------------------------------------
+
+
+Giorno 22)	Continuo con il discorso precedente :
+
+		Nota: Devo saistemare un po l estetica generale del codice, come ad esdempio nella classe work, cercare di 
+			sistemare i rami che eseguono i worker in base alla richiesta, inoltre potrei anche modificare
+			il thread main che smista i channel in quanto, siccome una lettura comunque la devo fare per vedere se il client ha
+			chiuso o no la connessione, tanto vale leggere tutto e passare tutto ai worker, quest ultimi poi 
+			procedono per la elaborazione, poi inoltre potrei fare in modo che siano loro stessi a rispondere 
+			ai client e non far ciclare a vuoto il mainthread che attende la connessione writeable, eliminando completamente
+			il caso iswriteable dal thread main:
+			Comincio con questa trategia:::
+			Comincio con le modifiche nel thread main e nel worker: Fatto, sembra funzionare correttamente.
+			
+			Ora voglio rendere il codice dei worker piu legibile, quello che voglio fare è prima della 
+			funzione parsrequest: l ho migliorato ma posso ancora fare di meglio, per ora lascio cosi
+			poi ci do un altro sguardo perche si puo fare meglio.
+			
+			Ora ricomincio ad andare avanti:
+			 Nota: c'è ancora un problema nell algo che crea i suggerimenti, forse l ho sistemato, ma controllare sempreeee
+			 Prima di riprendere ad andare avanti devo sistemare i messaggi di errore che il client riceve in seguito
+			 al provare a indovinare una parola: credo di aver coperto tutti i casi.
+			 
+			 Nota:::::: 
+			 c'è ancora da implementare lato server la traduzione della parola e poi l invio al client, lato 
+			 client nel ramo in cui il client riceve l intero di vittoria devo continuare a leggere per recuperare la parola
+			 e poi stampare 	
+			
+			NOTA: Riguardo i miglioramenti che si possono fare all interno della classe word, quello che voglio
+			fare è usare un unico metodo per scrivere la corretta risposta:
+				Io ho diciamo 3 classi di risposte:
+					1) Risposte che contengono solo "nome metodo":"intero"
+					2) Risposte che contengono  metodo":"intero" "sugerimenti"
+					3) Risposte che contengono  metodo":"intero" "long"
+					
+					Voglio riuscire a usare un metodo in grado di capire quale risposta creare :
+					
+					
+					
+					 
+			
+			1)aggiornare le statistiche dell utente: 
+				Ho diverse variabili da aggiornare:
+				
+				1)private int Games = 0;//partite giocate :Fatto
+    				2)private int WinGame = 0;//partite vinte :Fatto
+    				3)private float WinGamePerc = 0;//percentuale partite vinte : Fatto
+    				
+    				DA CONTINUARE DA QUI::::
+    				4)private int LastConsecutive = 0;//lunghezza ultima striscia positiva 
+    				5)private int MaxConsecutive = 0;//striscia positiva piu lunga;
+				
+			1) Quando decido che lato server venga considerata giocata una partita dal client?????
+			Credo che possa considerarsi giocata appena il client decide di cliccare il tasto gioca, cioe manda al server una
+			richiesta di playWORDLE.
+			Nota:: per vedere se funzionano gli aggiornamenti delle statistiche, quello che bisogna fare è o implementare
+			subito ora i comandi delle richieste delle statistiche, oppure sistemare la serializzazione, quello che creo io è
+			che ora dopo aver implementato gli oaggiornamenti delle statistiche, bisogna cominciare a pensare a sistemare
+			per bene la serializzazione
 
 
 
--------------------------------------------------------------------------------------------------------------------
 
-
+-------------------------------------------------------------------------------------------------------------------------------------------

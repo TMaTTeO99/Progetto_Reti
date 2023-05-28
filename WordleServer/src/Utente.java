@@ -51,6 +51,8 @@ public class Utente implements Serializable {
         Games = game;
     }
 
+    public void increasesGame() {Games += 1;}
+
     public int getWinGame() {
         return WinGame;
     }
@@ -58,6 +60,8 @@ public class Utente implements Serializable {
     public void setWinGame(int winGame) {
         WinGame = winGame;
     }
+
+    public void increasesWinGame() {WinGame += 1;}
 
     public float getWinGamePerc() {
         return WinGamePerc;
@@ -73,6 +77,11 @@ public class Utente implements Serializable {
 
     public void setLastConsecutive(int lastConsecutive) {
         LastConsecutive = lastConsecutive;
+    }
+
+    public void updateLastConsecutive() {
+        LastConsecutive += 1;
+        if(LastConsecutive > MaxConsecutive) MaxConsecutive = LastConsecutive;
     }
 
     public int getMaxConsecutive() {
@@ -100,4 +109,6 @@ public class Utente implements Serializable {
     public void setID_CHANNEL(int ID) {
         ID_CHANNEL = ID;
     }
+
+    public void UpdatePercWingame() {WinGamePerc = (float) ((Games /100) * WinGame);}
 }

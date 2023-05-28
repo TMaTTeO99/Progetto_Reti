@@ -93,72 +93,21 @@ public class ServerWordle{
                     IteratorKey.remove();//rimuvo la chiave dall iteratore per non avere "inconsistenza"
 
 
-                    if(ReadyKey.isAcceptable()) {//caso in un operazione di accept non ritorna null
+                    if(ReadyKey.isAcceptable() && ReadyKey.isValid()) {//caso in un operazione di accept non ritorna null
 
-                        //System.out.println("Ho accettato");
                         ServerSocketChannel ListenSocket = (ServerSocketChannel) ReadyKey.channel();//recupero la socket per accettare la connessione
                         SocketChannel channel = ListenSocket.accept();
                         channel.configureBlocking(false);//setto il channel come non bloccante
                         channel.register(selector, SelectionKey.OP_READ, ID_Channel);//registro il channel per operazione di lettura
 
                     }
-                    else if (ReadyKey.isReadable()) {//caso in cui una operazione di read non ritorna 0
+                    else if (ReadyKey.isReadable() && ReadyKey.isValid()) {//caso in cui una operazione di read non ritorna 0
 
-                        //System.out.println("readable");
                         //ATTENZIONE:::: considerare anche il problema della rejected exception del threadpool,
 
-                        SocketChannel channel = (SocketChannel)ReadyKey.channel();
-                        byte [] LenMexByte = new byte[SIZE_SIZE];
-                        ByteBuffer LenMexBuffer = ByteBuffer.wrap(LenMexByte);
-
-
-                        //nota: in questo caso in cui il client si sia sconnesso va effettuato il logout
-                        // di tale client
-                        if(channel.read(LenMexBuffer) == -1) {//leggo la len della richiesta e se non leggo nulla => il client ha chiuso la connessione
-                                                           //=> cancello il channel dal selettore
-
-                            //questo è il caso in cui il client ha chiuso la conn in modo bruto, a questo punto
-                            //lato server devo effettuare il logout del client e eliminare lo stub dal
-                            //client cosi da non inviare piu notifiche al client
-
-                            KeyData dati = LstDati.get((Integer) ReadyKey.attachment());
-                            if(dati != null) {
-                                Future<PkjData> FuturePkj = dati.getDati();
-                                if(FuturePkj.isDone()){
-                                    PkjData Pkj = FuturePkj.get();
-                                    Utente u = Registrati.get(Pkj.getUsname());
-                                    if(u != null)u.setLogin(false);
-                                }
-                            }
-                            ReadyKey.cancel();
-                        }
-                        else {
-                            Future<PkjData> result = pool.submit(new Work(ReadyKey, selector, Registrati, (Integer) ReadyKey.attachment(), new PkjData(),  LenMexBuffer, Words, Game, ReadWordLock));
-                            LstDati.put((Integer) ReadyKey.attachment(), new KeyData(ReadyKey, result));
-                            ReadyKey.interestOps(SelectionKey.OP_WRITE);
-                        }
-
-                    }
-                    else if(ReadyKey.isWritable()) {//caso in cui una operazione di write non ritorna 0
-
-                        //System.out.println("wriatable");
-                        SocketChannel channel = (SocketChannel) ReadyKey.channel();//recupero il canale
-                        Future<PkjData> DataFuture = LstDati.get((Integer) ReadyKey.attachment()).getDati();
-
-
-                        if(DataFuture.isDone()) {//se l'oggetto future è stato completato
-
-                            PkjData dati = DataFuture.get();
-                            try {//provo a scrivere i dati
-                                System.out.println("Scrivo");
-                                if(channel.write(ByteBuffer.wrap(dati.getAnswer())) == dati.getIdxAnswer()) {
-                                    // Per ora commento questo LstDati.remove(ReadyKey.attachment());//rimuovo dalla struttura dati le informazioni
-                                    ReadyKey.interestOps(SelectionKey.OP_READ);
-                                }
-                            }
-                            catch (Exception e) {//se viene sollevata un eccezione perche il client ha chiuso la connessione elimino il channel selettore
-                                ReadyKey.cancel();
-                            }
+                        PkjData dati = null;
+                        if((dati = ReadRequest(ReadyKey)) != null) {//se la lettura della richiesta è andata a buon fine lancio i worker
+                            pool.execute(new Work(ReadyKey, Registrati, dati, Words, Game, ReadWordLock));
                         }
                     }
                 }
@@ -214,4 +163,35 @@ public class ServerWordle{
         PrintRegistrati();
     }
 
+    //metodo utilizzato per leggere i dati che arrivano dalla richiesta
+    private PkjData ReadRequest(SelectionKey key) {
+
+        SocketChannel channel = (SocketChannel)key.channel();//recupero il channel
+        byte [] LenMexByte = new byte[SIZE_SIZE];//alloc un byte[] per contenere len dei dati che sono arrivati
+        ByteBuffer LenMexBuffer = ByteBuffer.wrap(LenMexByte);//uso un ByteBuffer per poter leggere tale dimensione
+        PkjData Dati = new PkjData();//creo un pacchetto dati che conterrà la richiesta
+        int flag = 0;//flag per controllare che mentre leggo i dati il client nnon chiudi la connessione
+
+
+        //controllo che il client non abbia chiuso la connessione per un qualsiasi motivo
+        try {
+            //se il client ha chiuso la connessione cancello la chiave dal selettore
+            if(channel.read(LenMexBuffer) == -1) {
+                key.cancel();
+                return null;//ritorno null quando il client ha chiuso la connessione e quindi non devo produrre risposte
+            }
+            //altrimenti recupero i dati
+            LenMexBuffer.flip();//resetto position per poter leggere dal ByteBuffer
+            Dati.allocRequest(LenMexBuffer.getInt());//alloco il vettore che conterrà la richiesta
+
+            ByteBuffer RequestBuff = ByteBuffer.wrap(Dati.getRequest());//uso un ByteBuffer per leggere la richiesta
+
+            //leggo e controllo che durante la lettura il client non chiudi la connessione
+            while((flag = channel.read(RequestBuff)) != Dati.getRequest().length && flag != -1);
+            if(flag == -1) return null;//se il client chiude la connessione ritorno null
+        }
+        catch (Exception e) {e.printStackTrace();}
+
+        return Dati;
+    }
 }
