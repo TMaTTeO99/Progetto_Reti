@@ -15,6 +15,7 @@ import java.util.concurrent.TimeUnit;
  */
 public class StartServerWordleMain {
 
+    private static String URLtranslate;//Stringa usata poer contenere l url del servizio di traduzione
     private static long LastTimeWord;//var utilizzata per poter recuperare il tempo in millisecondi dell ultima volta in cui una parola è stata estratta
     private static final long DayInMS = 86400000;//conversione di un giorno in millisecondi
     private static final long OraInMS = 3600000; //conversione di 24 ore in millisecondi
@@ -54,7 +55,7 @@ public class StartServerWordleMain {
     //metodo privato per effettuare il pars di ogni linea letta dal file di configurazione
     private static void ParsCLine(String ln) {
 
-        StringTokenizer tok = new StringTokenizer(ln, ":");
+        StringTokenizer tok = new StringTokenizer(ln, "=");
         while(tok.hasMoreTokens()) {
             try {
                 switch(tok.nextToken()) {
@@ -75,6 +76,9 @@ public class StartServerWordleMain {
                         break;
                     case "lastWord":
                         LastTimeWord = Long.parseLong(tok.nextToken());
+                        break;
+                    case "URL":
+                        URLtranslate = tok.nextToken();
                         break;
                 }
             }
@@ -160,8 +164,8 @@ public class StartServerWordleMain {
         //prima di istanziare il server leggo il vocabolario e lo inserisco in una struttura dati opportuna
         ArrayList<String> vocabolario = getVocabolario();
         try {
-
-            ServerWordle server = new ServerWordle(PathSerialization, MaxThread, TimeStempWord, PortExport, LastTimeWord, ConfigureFile, vocabolario);
+            System.out.println(URLtranslate);
+            ServerWordle server = new ServerWordle(PathSerialization, MaxThread, TimeStempWord, PortExport, LastTimeWord, ConfigureFile, vocabolario, URLtranslate);
             //Thread.sleep(20000);//dormo per 30 secondi e poi chiudo
             //il servizio rmi e quindi anche il server per ora
 

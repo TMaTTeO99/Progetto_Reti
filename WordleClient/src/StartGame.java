@@ -238,34 +238,32 @@ public class StartGame extends JFrame {
                                                     System.out.println(inn.readChar());
                                                     int result = inn.readInt();
                                                     System.out.println(result);
+                                                    String wordTradotta = null;
                                                     switch(result) {
-                                                        case 1 :
-                                                            //qui ora leggo finche il # di letture - la len di "sendWord" - letture che faccio ora > 0
+                                                        case 2 ://caso in cui ho sfruttato l ultimo tentativo e ho perso
+                                                                //devo recuperare la parola tradotta
 
-                                                            //sezione da inserire in un metodo privato per essere piu legibile
-                                                            //_--------------------------_//
-                                                            int read = 0;
-                                                            char [] suggestions = new char[10];
+                                                            wordTradotta = ReadData(inn, inn.readInt());
+                                                            JOptionPane.showMessageDialog(null, "Tentativi terminati\n Traduzione: " + wordTradotta);
 
-                                                            while(read < 10) {
-                                                                suggestions[read] = inn.readChar();
-                                                                read++;
-                                                            }
-                                                            String sug = new String(suggestions);
-                                                            System.out.println(sug);
-                                                            //_--------------------------_//
+
+                                                            break;
+                                                        case 1 ://caso in cui devo ricevere i suggerimenti
+
+                                                            String sug = ReadData(inn, inn.readInt());//recupero i suggerimenti
 
                                                             //a questo punto quello che devo fare è visualizzare i suggerimenti in forma grafica
                                                             JPanel suggestionPanle = MakeSuggestionsPanel(sug, word);
                                                             JOptionPane.showMessageDialog(null, suggestionPanle, "Suggerimenti", JOptionPane.PLAIN_MESSAGE);
-
 
                                                             break;
                                                         case 0 ://caso in cui la parola è stata indovinata
                                                                 // In questo caso lato server dovro inserire la
                                                                 // traduzione della parola che qui andra letta
 
-                                                            JOptionPane.showMessageDialog(null, "Vittoria");
+                                                            wordTradotta = ReadData(inn, inn.readInt());
+                                                            JOptionPane.showMessageDialog(null, "Vittoria\nTraduzione: " + wordTradotta);
+
                                                             break;
                                                         case -1:
                                                             JOptionPane.showMessageDialog(null, "Errore. Prima di inviare una parola è necessario chiedere di giocare con il tasto gioca");
@@ -477,6 +475,23 @@ public class StartGame extends JFrame {
             panel.add(label);
         }
         return panel;
+    }
+    private String ReadData(DataInputStream inn, int len) {
+
+        //provo a modificare questo metodo
+        int read = 0;
+        char [] data = new char[len];
+        try {
+            while(read < len) {
+                data[read] = inn.readChar();
+                read++;
+            }
+        }
+        catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+        return new String(data);
     }
     /*public static void main(String[] args) {
         SwingUtilities.invokeLater(new Runnable() {

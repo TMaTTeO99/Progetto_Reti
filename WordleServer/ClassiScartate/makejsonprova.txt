@@ -1,0 +1,133 @@
+public void run() {
+
+        FileWriter JsonFile = null;
+        File TestDire = new File(PathJSN);
+        if(!TestDire.exists()) { //caso in cui la dir non esiste => la creo
+            TestDire.mkdir();
+        }
+
+        JsonGenerator generator = null;
+        ObjectMapper map = new ObjectMapper();
+        map.enable(SerializationFeature.INDENT_OUTPUT);
+        map.disable(SerializationFeature.FAIL_ON_EMPTY_BEANS);
+
+        try {
+            //ora devo controllare se il file esiste e in tal caso scorrerlo e deserializzare
+            if((JsonFile = CheckAndDeserialize(PathJSN.concat("/").concat(FileNameJson), map)) == null) {throw new NullPointerException();}
+
+            JsonFactory factory = new JsonFactory();
+            generator = factory.createGenerator(JsonFile);
+            generator.setCodec(map);
+            generator.useDefaultPrettyPrinter();
+
+            while(!Thread.interrupted()) {
+
+
+                DataToSerialize dato = UDSlist.takeFirst();
+                char flag = dato.getFlag();//recupero il campo flag che indica che tipo di dato sto ricevendo
+
+                switch (flag) {
+
+                    case 'N' : //caso in cui il lista sarà presente l username di un utente
+                              //in questo caso quindi quando ricevo 'N' indica username di
+                              //utente che deve essere serializzato dall inizio
+                        Utente u = Registrati.get(dato.getDato());
+                        u.RemoveSTub();
+                        generator.writeObject(u);
+
+                        break;
+                    case 'U' ://caso in cui il lista sarà presente l username di un utente
+                             //in questo caso quindi quando ricevo 'U' indica un utente che
+                             //deve essere aggiornato
+
+                        //qui ora devo implementare l algo di aggiornamento dei dati del singolo utente
+                        //pero lo scrivo qua in brutta, poi creo un metodo per bene
+                        JsonParser pars = factory.createParser(new File(PathJSN.concat("/").concat(FileNameJson)));//creo un parser
+                        pars.setCodec(map);//setto la decodifica per il parser tramite l ObjectMapper
+                        Utente utente = (Utente)dato.getDato();//recupero l utente dall oggetto estratto dalla lista
+                        String username = utente.getUsername();//recupero l username
+
+                        while(pars.nextToken() != null) {//scorro il file json
+
+                            pars.nextToken();//salto l'inizio del oggetto
+                            pars.nextToken();//seleziono il primo field
+                            String currField = pars.getCurrentName();//recupero il campo corrente dell oggetto
+                            System.out.println(currField + " <--- field");
+
+                            if(currField.equals("username")) {//quando trovo l username
+
+                                System.out.println("HO TROVATO IL FILED USERNAME");
+                                System.out.println(pars.getText() + " Valore di username");
+                                if(pars.getText().equals(username)) {//se sono all interno dell oggetto cercato
+
+                                    System.out.println("l username è "+ username);
+                                    //devo crear eun nuovo oggetto di tipo JsonGenerator
+                                    JsonGenerator updateGenerator = factory.createGenerator(new FileWriter(PathJSN.concat("/").concat("prova.json")));
+                                    updateGenerator.copyCurrentEvent(pars);//recupero il contenuto del file json originale che sto parsando
+                                    updateGenerator.useDefaultPrettyPrinter();
+
+                                    //a questo punto devo aggiornare campo per campo
+                                    while(pars.nextToken() != JsonToken.END_OBJECT) {//scorro il resto dell oggetto
+
+                                        System.out.println("ENTRO NEL SECONDO WHILE");
+                                        currField = pars.getCurrentName();//considero il campo corrente
+                                        pars.nextToken();//considero il valore del campo
+                                        switch (currField) {
+
+                                            case "game":
+                                                System.out.println("PRIMA DELLA TEORICA SCRITTURA");
+                                                updateGenerator.writeNumber(utente.getGame());
+                                                break;
+
+                                            case "winGame":
+                                                updateGenerator.writeNumber(utente.getWinGame());
+                                                break;
+
+                                            case "winGamePerc":
+                                                updateGenerator.writeNumber(utente.getWinGamePerc());
+                                                break;
+
+                                            case "lastConsecutive":
+                                                updateGenerator.writeNumber(utente.getLastConsecutive());
+                                                break;
+
+                                            case "maxConsecutive":
+                                                updateGenerator.writeNumber(utente.getMaxConsecutive());
+                                                break;
+                                        }
+                                    }
+                                }
+                                else while(pars.nextToken() != JsonToken.END_OBJECT){
+                                    //pars.nextToken(); //salto il resto dei field dell oggetto
+                                    System.out.println("CICLATE");
+                                }
+                            }
+                        }
+                        break;
+                    case 'C' : // 'C' indica che bisogna serializzare la classifica
+
+                        //cymaphytic
+
+                        break;
+                    case 'I' : // 'I' indica che bisogna serializzare l istanza attuale del gioco
+
+
+
+                        break;
+                }
+                //condizione di controllo della stringa per la terminazione del thread
+                if(flag == 'S') {//condizione di terminazione del thread che serializza S sta per stop
+                    System.out.println("Il server sta chiudendo quindi esco");//stampa di prova
+                    break;
+                }
+            }
+            generator.close();
+            System.out.println("Interruzione Servizio di salvataggio dati");
+        }
+        catch (Exception e) {
+            e.printStackTrace();
+            if(e instanceof InterruptedException) {System.out.println("Interruzione Servizio di salvataggio dati");}
+            else if(e instanceof IOException) {System.out.println("Errore nella scrittura del file json");}
+            else if(e instanceof NullPointerException) {System.out.println("Errore nella lettura del file json");}
+        }
+    }

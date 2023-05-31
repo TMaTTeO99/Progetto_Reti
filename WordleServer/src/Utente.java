@@ -18,6 +18,7 @@ public class Utente implements Serializable {
     private float WinGamePerc = 0;//percentuale partite vinte
     private int LastConsecutive = 0;//lunghezza ultima striscia positiva
     private int MaxConsecutive = 0;//striscia positiva piu lunga;
+    private float GuesDistribuition = 0;
     private NotificaClient stub;//variabile per recuperare lo stub passato dal client nella fase di registrazione
 
     @JsonCreator //annotazioni utilizzate per poter deserializzare i file
@@ -79,10 +80,6 @@ public class Utente implements Serializable {
         LastConsecutive = lastConsecutive;
     }
 
-    public void updateLastConsecutive() {
-        LastConsecutive += 1;
-        if(LastConsecutive > MaxConsecutive) MaxConsecutive = LastConsecutive;
-    }
 
     public int getMaxConsecutive() {
         return MaxConsecutive;
@@ -91,6 +88,10 @@ public class Utente implements Serializable {
     public boolean getLogin() {return login;}
 
     public void setLogin(boolean value) {login = value;}
+
+    public float getGuesDistribuition() {return GuesDistribuition;}
+
+    public void setGuesDistribuition(float guesDistribuition) {GuesDistribuition = guesDistribuition;}
 
     public void setMaxConsecutive(int maxConsecutive) {
         MaxConsecutive = maxConsecutive;
@@ -110,5 +111,15 @@ public class Utente implements Serializable {
         ID_CHANNEL = ID;
     }
 
-    public void UpdatePercWingame() {WinGamePerc = (float) ((Games /100) * WinGame);}
+    public void UpdatePercWingame() {WinGamePerc = ( ((float) Games / (float) 100) * WinGame);}
+
+    public void updateLastConsecutive(boolean flag) {
+
+        if(flag) {//flag == true => il metodo viene chiamato quando il client ha vinto la partita
+            LastConsecutive += 1;
+            if(LastConsecutive > MaxConsecutive) MaxConsecutive = LastConsecutive;
+        }
+        else {LastConsecutive = 0;}//caso  in cui il client ha finito i tentativi senza indovinare la parola allora si interrompe la striscia positiva
+    }
+
 }

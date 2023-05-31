@@ -1,4 +1,10 @@
+import com.fasterxml.jackson.core.JsonFactory;
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.json.JsonMapper;
+
 import java.io.*;
+import java.net.*;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.SocketChannel;
@@ -6,6 +12,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.StringTokenizer;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.locks.Lock;
 
 public class Work implements Runnable {
@@ -16,13 +23,17 @@ public class Work implements Runnable {
     private SessioneWordle Gioco;
     private Lock ReadWordLock;
     private ArrayList<String> Words;
-    public Work(SelectionKey k, ConcurrentHashMap<String, Utente> R, PkjData dati, ArrayList<String> Vocabolario, SessioneWordle g, Lock RWLock) {
+    private LinkedBlockingDeque<DataToSerialize> DaSerializzare;
+    private String URLtransale; //stringa che rappresenta l URL per il servizio di traduzione
+    public Work(SelectionKey k, ConcurrentHashMap<String, Utente> R, PkjData dati, ArrayList<String> Vocabolario, SessioneWordle g, Lock RWLock, LinkedBlockingDeque<DataToSerialize> daserializzare, String URL) {
         Key = k;
         Registrati = R;
         Dati = dati;
         Gioco = g;
         ReadWordLock = RWLock;
         Words = Vocabolario;
+        DaSerializzare = daserializzare;
+        URLtransale = URL;
     }
     public void run() {
 
@@ -89,17 +100,17 @@ public class Work implements Runnable {
                 switch (FlagResult) {
                     case -1 ://caso in cui l utente non ha selezionato il comando playWORDLE
 
-                        WriteErrorOrWinOrSuggestionMessage(dati, "sendWord:", -1, null);
+                        WriteErrorOrWinOrSuggestionMessage(dati, "sendWord:", -1, "");
                         break;
                     case -2 ://caso in cui l utente ha gia giocato e ha terminato i tentativi
 
                         //qui prima di inviare il messaggio devo interrompere la striscia positiva di partite vinte
-
-                        WriteErrorOrWinOrSuggestionMessage(dati, "sendWord:", -2, null);
+                        Registrati.get(username).updateLastConsecutive(false);
+                        WriteErrorOrWinOrSuggestionMessage(dati, "sendWord:", -2, "");
                         break;
                     case -3 ://ha vinto la partita precedentemente
 
-                        WriteErrorOrWinOrSuggestionMessage(dati, "sendWord:", -3, null);
+                        WriteErrorOrWinOrSuggestionMessage(dati, "sendWord:", -3, "");
                         break;
                 }
             }
@@ -108,8 +119,10 @@ public class Work implements Runnable {
                 ReadWordLock.lock();
                 String GameWord = Gioco.getWord();
                 ReadWordLock.unlock();
+                String wordTradotta = null;
 
                 if(GameWord.equals(word)) {//caso in cui il client ha indovinato la parola
+
                     Gioco.setWinner(username);//setto i campi  per indicare che per quel utente la parola è stata indovinata
 
                     Utente tmpu = Registrati.get(username);//recupero utente
@@ -117,25 +130,43 @@ public class Work implements Runnable {
                     //aumento il numero di partite vinte dal utente
                     tmpu.increasesWinGame();
 
-                    //ricalcolo la percentual edi partite vinte
+                    //ricalcolo la percentuale di partite vinte
                     tmpu.UpdatePercWingame();
 
-                    //aumento striscia positiva di vittorie
-                    tmpu.updateLastConsecutive();
+                    //recupero i tentativi della partita
+                    int tentativiUtente = Gioco.gettentativiUtente(username);
 
+                    //ricalcolo la distribuzione
+                    tmpu.setGuesDistribuition(tmpu.getGuesDistribuition() + ((float)tentativiUtente / (float) tmpu.getWinGame()));
+
+                    //aumento striscia positiva di vittorie
+                    tmpu.updateLastConsecutive(true);
+
+                    try {DaSerializzare.put(new DataToSerialize<>(null, 'U'));}
+                    catch (Exception e) {e.printStackTrace();}
+
+                    //prima di inviare il messaggio al client, quello che devo fare e accedere al servizio di traduzione della parola::
+                    wordTradotta = TranslateService(GameWord);
+
+                    System.out.println("TRADUZIONE: " + wordTradotta);
                     //Costruisco il messaggio di parola indovinata
-                    WriteErrorOrWinOrSuggestionMessage(dati, "sendWord:", 0, null);//0 indica parola indovinata
+                    WriteErrorOrWinOrSuggestionMessage(dati, "sendWord:", 0, wordTradotta);//0 indica parola indovinata
                 }
                 else {
-                    //a questo punto devo inviare i suggerimenti al client
+                    //a questo punto devo inviare i suggerimenti al client se dopo quest ultimo tentativo ne ha almeno un altro
                     // devo quindi effettuare il calcolo dei sugerimenti, produrre la risposta e inviarla
-                    //1 indica che la risposta conterra i seuggerimenti
-                    WriteErrorOrWinOrSuggestionMessage(dati, "sendWord:", 1, ComputeSuggestions(GameWord, word));
+                    if(Gioco.gettentativiUtente(username) < 12) {
+                        WriteErrorOrWinOrSuggestionMessage(dati, "sendWord:", 1, ComputeSuggestions(GameWord, word));
+                    }
+                    else {//se invece il client ha terminato i tentativi invio al client la traduzione della parola
+                        wordTradotta = TranslateService(GameWord);
+                        WriteErrorOrWinOrSuggestionMessage(dati, "sendWord:", 2, wordTradotta);
+                    }
                 }
             }
         }
         else {
-            WriteErrorOrWinOrSuggestionMessage(dati, "sendWord:", -4, null);//caso in cui la parola non esiste e il tentativo non viene considerato
+            WriteErrorOrWinOrSuggestionMessage(dati, "sendWord:", -4, "");//caso in cui la parola non esiste e il tentativo non viene considerato
         }
 
 
@@ -178,8 +209,13 @@ public class Work implements Runnable {
                 OutWriter.writeInt(lendati + 16);
                 OutWriter.writeChars("playWORDLE:");
 
-                //incremento il numero di partite vinte dall utente
-                Registrati.get(username).increasesGame();
+                //incremento il numero di partite giocate dall utente
+                Utente tmpUtente = Registrati.get(username);
+                tmpUtente.increasesGame();
+
+                //inserisco in coda il messaggio per dire al thread che serializza che un utente ha aggiornato i suoi dati
+                try {DaSerializzare.put(new DataToSerialize<>(null, 'U'));}
+                catch (Exception e) {e.printStackTrace();}
 
                 OutWriter.writeInt(0);//0 indica che l utente puo cominciare a giocare
                 OutWriter.writeLong(nextwClient);
@@ -231,6 +267,7 @@ public class Work implements Runnable {
                 if(u.getLogin()) {
                     if(u.getID_CHANNEL() == (Integer) Key.attachment()) {
                         u.setLogin(false);
+                        Gioco.SetQuitUtente(username);
                         OutWriter.writeInt(0);
                     }
                     else {OutWriter.writeInt(-3);} //-2 indica che l utente non ha inserito l'username corretto
@@ -252,12 +289,16 @@ public class Work implements Runnable {
         ByteArrayOutputStream SupportOut = null;
         Utente u = null;
         int lendati = 0;
+
         username = Tok.nextToken(" ").replace(":", "");//recupero username
         passwd = Tok.nextToken(" ");//recupero passwd
 
         dati.setUsname(username);//inserisco l'username nel pacchetto in modo che il thread che
-        //gestisce le connessioni possa effettuare il logout in caso
-        //il client chiuda la conn all improvviso
+                                 //gestisce le connessioni possa effettuare il logout in caso
+                                 //il client chiuda la conn all improvviso
+
+
+
         //preparo la risposta per il client, la risposta ha lo stesso formato della richiesta
         lendati = "login:".length();//lunghezza dei dati
         dati.allocAnswer(lendati + 8 );//lunghezza dei dati + 4 byte per contenere la lunghezza del messaggio e l'intero finale che indica lo stato dell operazione
@@ -270,12 +311,10 @@ public class Work implements Runnable {
 
             if((u = Registrati.get(username)) != null) {
                 if(u.getPassswd().equals(passwd)) {
-                    //if(u.getLogin()) {OutWriter.writeInt(-3);}//utente gia loggato
-                    //else {//utente non ancora loggato
-                        u.setLogin(true);
-                        u.setID_CHANNEL((Integer) Key.attachment());
-                        OutWriter.writeInt(0);
-                    //}
+
+                    u.setLogin(true);
+                    u.setID_CHANNEL((Integer) Key.attachment());
+                    OutWriter.writeInt(0);
                 }
                 else OutWriter.writeInt(-2);//-2 indica che l utente non ha inserito correttamente la passwd
             }
@@ -297,38 +336,22 @@ public class Work implements Runnable {
         }
         return false;
     }
-    private void WriteErrorOrWinOrSuggestionMessage(PkjData dati, String method, int error, String Suggestions) {
+    private void WriteErrorOrWinOrSuggestionMessage(PkjData dati, String method, int error, String Other) {
 
+        int lendati = method.length() + Other.length();//lunghezza dei dati
+        dati.allocAnswer(lendati + 8 );//lunghezza dei dati + 4 byte per contenere la lunghezza del messaggio e l'intero finale che indica lo stato dell operazione
+        ByteArrayOutputStream SupportOut = new ByteArrayOutputStream();
 
-        if(Suggestions == null) {//caso in cui il metodo viene usato per inviare messaggi di errore o di vittoria
-            int lendati = method.length();//lunghezza dei dati
+        try (DataOutputStream OutWriter = new DataOutputStream(SupportOut)){
 
-            dati.allocAnswer(lendati + 8 );//lunghezza dei dati + 4 byte per contenere la lunghezza del messaggio e l'intero finale che indica lo stato dell operazione
-            ByteArrayOutputStream SupportOut = new ByteArrayOutputStream();
-            try (DataOutputStream OutWriter = new DataOutputStream(SupportOut)){
-
-                OutWriter.writeInt(lendati + 8);
-                OutWriter.writeChars(method);
-                OutWriter.writeInt(error);//-1 indica che la parola non esiste e il tentativo non viene contato
-                dati.SetAnswer(SupportOut.toByteArray());
-            }
-            catch (Exception e) {e.printStackTrace();}
+            OutWriter.writeInt(lendati + 8);
+            OutWriter.writeChars(method);
+            OutWriter.writeInt(error);
+            OutWriter.writeInt(Other.length());
+            OutWriter.writeChars(Other);
+            dati.SetAnswer(SupportOut.toByteArray());
         }
-        else {//caso in cui il metodo viene usato per inviare suggerimenti
-            int lendati = method.length() + Suggestions.length();//lunghezza dei dati
-
-            dati.allocAnswer(lendati + 8 );//lunghezza dei dati + 4 byte per contenere la lunghezza del messaggio e l'intero finale che indica lo stato dell operazione
-            ByteArrayOutputStream SupportOut = new ByteArrayOutputStream();
-            try (DataOutputStream OutWriter = new DataOutputStream(SupportOut)){
-
-                OutWriter.writeInt(lendati + 8);
-                OutWriter.writeChars(method);
-                OutWriter.writeInt(error);//-1 indica che la parola non esiste e il tentativo non viene contato
-                OutWriter.writeChars(Suggestions);
-                dati.SetAnswer(SupportOut.toByteArray());
-            }
-            catch (Exception e) {e.printStackTrace();}
-        }
+        catch (Exception e) {e.printStackTrace();}
     }
     //metodo che costruisce i suggerimenti da inviare all utente
     private String ComputeSuggestions(String GameWord, String UsersWord) {
@@ -386,5 +409,38 @@ public class Work implements Runnable {
     }
     private long CalculateTime(long currentW, long nextW) {
         return (nextW - ( System.currentTimeMillis() - currentW));
+    }
+    private String TranslateService(String GameWord) {//metodo privato usato per recuperare i la traduzione della parola
+
+        String wordTradotta = null;
+        try {
+
+            URL Service = new URL(URLtransale + "get?q=" + GameWord + "&langpair=en|it");
+            URLConnection Request = Service.openConnection();
+
+            try(BufferedInputStream in = new BufferedInputStream(new DataInputStream(Request.getInputStream()))) {
+
+                //dopo aver recuperato la risposta devo recuperare la traduzione della parola
+                //deserializzando la risposta
+                JsonFactory factory = new JsonFactory();
+                JsonParser pars = factory.createParser(in);
+
+                while(pars.nextToken() != null) {//scorro tutti i dati
+                    String currentField = pars.currentName();//recupero il field corrente
+
+                    if(currentField != null) {
+                        if(pars.currentName().equals("translation")) {//se è quello cercato
+
+                            pars.nextToken();//considero il valore di translation
+                            wordTradotta = pars.getText();//recupero la parola tradotta
+                        }
+                    }
+                }
+            }
+            catch (Exception e) {e.printStackTrace();}
+
+        }
+        catch (Exception e) {e.printStackTrace();}
+        return wordTradotta;
     }
 }

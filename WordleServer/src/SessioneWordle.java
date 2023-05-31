@@ -13,7 +13,7 @@ public class SessioneWordle implements Serializable {
     private long lastTime;//variabile per tenere traccia del tempo dell ultima volta che è stata scelta una parola per il gioco
     private long currentTime;//variabile per tenere traccia del tempo della parola corrente del gioco
     private long nextTime;//variabile che indica dopo quanto tempo verra creata la nuova parola
-    private ConcurrentHashMap<String, InfoSessioneUtente> Tentativi;
+    private ConcurrentHashMap<String, InfoSessioneUtente> Tentativi;//dovro cambiare nome alla variabile
 
     @JsonCreator
     public SessioneWordle() {Tentativi = new ConcurrentHashMap<>();}
@@ -23,12 +23,12 @@ public class SessioneWordle implements Serializable {
     public String getWord() {return word;}
     public int setGame(String username) {
 
-        if(Tentativi.get(username) == null) {
+        InfoSessioneUtente tmpInfo = Tentativi.get(username);
+        if(tmpInfo == null) {
             Tentativi.put(username, new InfoSessioneUtente(0, false));
         }
         else {
-            InfoSessioneUtente infoU = Tentativi.get(username);
-            if(infoU.getTentativi() < 12 && !infoU.getResult()) {return 1;}//1 indica che l utente ha gia inviato la richiesta di playWORDLE
+            if(tmpInfo.getTentativi() < 12 && !tmpInfo.getResult() && !tmpInfo.isQuitGame()) {return 1;}//1 indica che l utente ha gia inviato la richiesta di playWORDLE
             else {return -1;}//-1 indica che l utente ha gia partecipato al gioco
         }
         return 0;//0 indica richiesta di playWORDLE andata a buon fine
@@ -39,12 +39,12 @@ public class SessioneWordle implements Serializable {
         InfoSessioneUtente info = Tentativi.get(username);
 
         if(info == null)return -1;//caso in cui l utente non ha selezionato il comando playWORDLE
+        if(info.isQuitGame())return -2;//caso in cui l utente ha gia giocato e ha effettuato il logouti
         if(info.getTentativi() < 12 && !info.getResult()) {
             info.increaseTentativi();
             return 0;
         }
         if(info.getTentativi() >= 12) return -2;//caso in cui l utente ha gia giocato e ha terminato i tentativi
-
         return -3; //ha vinto la partita precedentemente
     }
     public void setWinner(String UserName) {
@@ -57,4 +57,19 @@ public class SessioneWordle implements Serializable {
     public long getCurrentTime() {return currentTime;}
     public void setNextTime(long Time) {nextTime = Time;}
     public long getNextTime() {return nextTime;}
+    public int gettentativiUtente(String username) {
+        return Tentativi.get(username).getTentativi();
+    }
+    public void SetQuitUtente(String username) {
+
+        InfoSessioneUtente tmpInfo = Tentativi.get(username);
+
+        if (tmpInfo == null) {
+            setGame(username);
+            tmpInfo = Tentativi.get(username);
+            tmpInfo.setQuitGame(true);
+        }
+        else {tmpInfo.setQuitGame(true);}
+
+    }
 }

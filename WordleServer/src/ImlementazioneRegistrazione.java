@@ -11,8 +11,8 @@ public class ImlementazioneRegistrazione extends RemoteServer implements Registr
 
     //private Lock write;
     private ConcurrentHashMap<String, Utente> Registrati;
-    private LinkedBlockingDeque<String> DaSerializzare;
-    public ImlementazioneRegistrazione(ConcurrentHashMap<String, Utente> R, LinkedBlockingDeque<String> Lst) {
+    private LinkedBlockingDeque<DataToSerialize> DaSerializzare;
+    public ImlementazioneRegistrazione(ConcurrentHashMap<String, Utente> R, LinkedBlockingDeque<DataToSerialize> Lst) {
         Registrati = R;
         DaSerializzare = Lst;
     }
@@ -28,7 +28,7 @@ public class ImlementazioneRegistrazione extends RemoteServer implements Registr
 
         try {
             if(Registrati.putIfAbsent(username, new Utente(username, passwd)) == null) {
-                DaSerializzare.put(username);
+                DaSerializzare.put(new DataToSerialize(username, 'N'));//il char N indica che sta per arrivare un username
                 return 1;
             }
             return 0;

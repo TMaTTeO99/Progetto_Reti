@@ -17,18 +17,15 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
-public class ServerWordle{
+public class ServerWordle{// il tipo generico T viene utilizzato per implementare la Blockingqueue per la serializzazione
     private static final int SIZE_SIZE = 4;//variabile per indicare il numeero dio byte di un int, serve per legere la dimensione
     private Registry RegistroRMI;
     private Registrazione Skeleton;
     private ExecutorService pool;
     private ConcurrentHashMap<String, Utente> Registrati; // Lista che conterrà gli utenti registrati
     private ImlementazioneRegistrazione ObjEsportato;//variabile per gestire la condition variable per il thread che scrive su json
-    private LinkedBlockingDeque<String> DaSerializzare;//lista di supporto usata per capire quali utenti devono essere serializzati
+    private LinkedBlockingDeque<DataToSerialize> DaSerializzare;//lista di supporto usata per capire quali utenti devono essere serializzati
                                                        //ad ogni iscrizione
-
-    private HashMap<Integer, KeyData> LstDati;//HashmMap usata per recuperare i dati prodotti dai worker
-
     private SessioneWordle Game; //oggetto che rappresenta una sessione di gioco
 
     // utilizzo una lock e una cioondition variable perchè all'interno del costruttore lancio il thread che costruisce la
@@ -39,29 +36,36 @@ public class ServerWordle{
     private Lock ReadWordLock = RWlockWORD.readLock();
     private Lock WriteWordLock = RWlockWORD.writeLock();
     private ArrayList<String> Words;
-    //private Condition CondGame = non so ancora se mi serve domani valuto
 
-    //private ArrayList<SessioneWordle> GameQueue = new ArrayList<>();
-    public ServerWordle(String PathJson , int Nthread, long TimeStempWord, int PortExport, long LTW, File ConfigureFile, ArrayList<String> Vocabolario) throws Exception{
+    //uso thread separati perche il pool ha una dimensione di thread limitata
+    private Thread threadGame;//thread usato per la creazione perodica di una nuova sessione di gioco
+    private Thread threadSerialize;//thread usato per la serializzazione dei dati
+
+    private String URLtranslate;//stringa in cui sarà contenuta l'URL del servizio di traduzione recuperato dal file config
+
+
+    public ServerWordle(String PathJson , int Nthread, long TimeStempWord, int PortExport, long LTW, File ConfigureFile, ArrayList<String> Vocabolario, String URL) throws Exception{
 
         Game = new SessioneWordle();
-        //lancio il thread che periodicamente creerà una nuova sessione di gioco
-        Thread t = new Thread(new OpenGame(TimeStempWord, LTW, Vocabolario, ConfigureFile, Game, WriteWordLock/*, CondGame*/));
-        t.start();
-        Words = Vocabolario;
-        //sezione da sincronizzare perche devo essere sicuro di recuperare l oggetto SessioneGame
-
-        DaSerializzare = new LinkedBlockingDeque<>();
-        pool = (ThreadPoolExecutor) Executors.newFixedThreadPool(Nthread);//pool di thread per eseguire i diversi task
         Registrati = new ConcurrentHashMap<>(); //creo il set degli utenti registrati con concurrenthashmap, per ora lascio i parametri di default
+        DaSerializzare = new LinkedBlockingDeque<>();
+
+        //lancio i thread separati dal threadpool
+        threadGame = new Thread(new OpenGame(TimeStempWord, LTW, Vocabolario, ConfigureFile, Game, WriteWordLock/*, CondGame*/));
+        threadSerialize = new Thread(new MakeJson(Registrati, DaSerializzare, PathJson));
+
+        threadGame.start();
+        threadSerialize.start();
+
+        Words = Vocabolario;
+
+        pool = (ThreadPoolExecutor) Executors.newFixedThreadPool(Nthread);//pool di thread per eseguire i diversi task
 
         ObjEsportato = new ImlementazioneRegistrazione(Registrati, DaSerializzare);//creo l' oggetto da esportare
         Skeleton = (Registrazione) UnicastRemoteObject.exportObject(ObjEsportato, 0);
         RegistroRMI = LocateRegistry.createRegistry(PortExport);
         RegistroRMI.bind("Registrazione", Skeleton);
-        pool.execute(new MakeJson(Registrati, DaSerializzare, PathJson));//lancio il thread che effettua la serializzazione in background
-        LstDati = new HashMap<>();
-
+        URLtranslate = URL;
 
     }
 
@@ -107,7 +111,7 @@ public class ServerWordle{
 
                         PkjData dati = null;
                         if((dati = ReadRequest(ReadyKey)) != null) {//se la lettura della richiesta è andata a buon fine lancio i worker
-                            pool.execute(new Work(ReadyKey, Registrati, dati, Words, Game, ReadWordLock));
+                            pool.execute(new Work(ReadyKey, Registrati, dati, Words, Game, ReadWordLock, DaSerializzare, URLtranslate));
                         }
                     }
                 }
@@ -149,7 +153,9 @@ public class ServerWordle{
      * Metodo per effettuare la chiusura del servizio RMI,
      * quando tale servizio viene chiuso il server viene spento
      */
-    public void ShutDownRMI() throws Exception{
+    /*public void ShutDownRMI() throws Exception{
+
+        Metodo da adattare alle modifiche effettuate
 
         sendNotifica();
         DaSerializzare.put("STOP_THREAD");
@@ -162,6 +168,8 @@ public class ServerWordle{
         }
         PrintRegistrati();
     }
+
+     */
 
     //metodo utilizzato per leggere i dati che arrivano dalla richiesta
     private PkjData ReadRequest(SelectionKey key) {

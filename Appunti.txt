@@ -610,12 +610,18 @@ Giorno 22)	Continuo con il discorso precedente :
 			
 			NOTA: Riguardo i miglioramenti che si possono fare all interno della classe word, quello che voglio
 			fare è usare un unico metodo per scrivere la corretta risposta:
-				Io ho diciamo 3 classi di risposte:
+				Io ho diciamo 4 classi di risposte:
 					1) Risposte che contengono solo "nome metodo":"intero"
-					2) Risposte che contengono  metodo":"intero" "sugerimenti"
-					3) Risposte che contengono  metodo":"intero" "long"
+					(dovrebbero essere i metodi di login logout e playwordle)
 					
+					2) Risposte che contengono  metodo":"intero" "sugerimenti"
+					()
+					
+					3) Risposte che contengono  metodo":"intero" "long"
+					4) Risposte che contengono  metodo":"intero" "int" "traduzione della parola"
 					Voglio riuscire a usare un metodo in grado di capire quale risposta creare :
+					
+					
 					
 					
 					
@@ -629,8 +635,8 @@ Giorno 22)	Continuo con il discorso precedente :
     				3)private float WinGamePerc = 0;//percentuale partite vinte : Fatto
     				
     				DA CONTINUARE DA QUI::::
-    				4)private int LastConsecutive = 0;//lunghezza ultima striscia positiva 
-    				5)private int MaxConsecutive = 0;//striscia positiva piu lunga;
+    				4)private int LastConsecutive = 0;//lunghezza ultima striscia positiva :FATTO
+    				5)private int MaxConsecutive = 0;//striscia positiva piu lunga; :FATTO
 				
 			1) Quando decido che lato server venga considerata giocata una partita dal client?????
 			Credo che possa considerarsi giocata appena il client decide di cliccare il tasto gioca, cioe manda al server una
@@ -640,7 +646,94 @@ Giorno 22)	Continuo con il discorso precedente :
 			che ora dopo aver implementato gli oaggiornamenti delle statistiche, bisogna cominciare a pensare a sistemare
 			per bene la serializzazione
 
+-------------------------------------------------------------------------------------------------------------------------------------------
+
+
+Giorno 23)	Riprendo da dove ero arrivato: 
+			A questo punto devo fare la cosa "difficile", aggiustare la serializzazione:
+			
+			Per questo "task" bisogna considerare per prima cosa il fatto che arrivato a questo punto il server ha
+			altre strutture dati che deve serializzare quindi devo capire bene la disposizione dei dati all interno del
+			file json, credo che devo serializzare per primi gli utenti, e poi le eventuali altre strutture, devo considerare
+			che ancora devo implementare la classifica che anch essa dovra essere serializzata e quindi credo che debba essere 
+			scritta nel file json alla fine.
+			Quindi ora devo capire quando serializzare:
+				Io credo che la cosa migliore sia farlo periodicamente, devo fare in modo che ogni tot di tempo che 
+				magari lo recupero dal file di configurazione in modo da poter permettere una scelta di schedulazione
+				del backup, ci sia un thread che riaggiorni il file json, c'è anche da considerare il fatto 
+				che anche gli utenti devono essere serializzati anche appena si scrivono per essere sicuri di non perdere i dati
+				un altra cosa che potrei provare a fare pero è: serializzare ogni volta che l utente si iscive e poi
+				ad ogni logout di un utente aggiornare i dati del singolo utente sul file json, in questo modo 
+				eviterei di ricreare il json ogni volta, ho visto che questa cosa si puo fare, devo capire bene quando deve essere
+				fatta e come modificare l algo gia presente in quanto, gli utenti devono essere serializzati sia quando 
+				si registrano, sia i campi vanno aggiornati quando è necessario, quindi per ora la serializzazione 
+				degli utenti quando si registrano, va bene, devo capire ora come fare a fare in modo da aggiornare i campi
+				quando è necessario, inoltre devo anche serializzare le altre strutture dati, quello che potrei fare è:
+				Siccome per serializzare quando gli utenti si registrano uso una blockingqueue di stringhe per accedere
+				agli utenti della struttura dati Registarti, posso modificare tale queue in modo da non avere solo
+				stringhe ma ad esempio una struttura dati che mi indica cosa devo fare, ad esempio una struttura dati che
+				ha una stringa, un numero... che mi indica il tipo di operazione che il thread che serializza deve fare, 
+				e poi un campo contenente il valore corretto corrispondente, ad esempio nel caso di aggiornamento
+				tale campo avra un oggetto char come anche nel caso di registrazione da zero e avra invece un altro tipo di dato
+				come ad esempio la classifica o la sessione del gioco: Provo a farlo:::
+				Creo quest a struttura dati, per farlo userò i tipi generici::
+				
+				A questo punto faccio in modo che i dati dell utente vengano aggiornati quando un utente effettua il logout e 
+				credo che sia necessario che venga fatto anche quando l utente anche se non effettua il logout, chiuda la
+				connessione, quando vince una partita e quando perde la partita, cioe finisce i tentativi
+				
+				Altra considerazione da farre è che i dati non per forza devono essere serializzati su un unico file json, 
+				quindi posso creare diversi file json per diverse strutture dati in modo da non avere difficolta a 
+				deserializzare i dati.
+				Per fare questo pero devo modificare l algo di serializzazione e anche lo startserver per recuperare
+				il path di tutti i file json da usare, si puo fare comunque	
+				Mi sono piantato sulla serializzazione, da fare bene domani
+			 	
+
+-------------------------------------------------------------------------------------------------------------------------------------------
+
+
+Giorno 24)	Riprendo dalla serializzazione: Quello che volevo fa io cioe, modificare un singolo oggetto nel file senza 
+						 riscrivere l intero file non si puo fare, quello che sto pensando di fare è:
+						 Riscrivere l intero file dopo che un toto di utenti hanno aggiornato le statistiche
+						 Provo:, sembra funzionare.
+						 
+						 Nota: devo effettuare delle modifiche, quando un utente fa playwordle, comincia una partita,
+						 quindi devo aumentare il numero di partite giocate dal client, inoltre, se un utente
+						 fa playwordle e poi fa logout, perde la partita => se rientra e prova a giocare non
+						 deve poterlo fare, Fatto
+						 
+						 Ora riguardo gli aggiornamentio delle statistiche degli utenti, mi manca da implementare
+						 guesDistribuition ( la distribuzione di tentativi impiegati per arrivare alla soluzione del 
+						 gioco, in ogni partita vinta dal giocatore.) 
+						 Boh, per ora non ne ho ideaaa
+						 vado avanti:::
+						 Provo ora a implementare il servizio di traduzione:::
+						 Continuare domani, devo leggere il file json che mi arriva dal servizio e estrapolare il campo
+						 dal field "translation"
+
+
+-------------------------------------------------------------------------------------------------------------------------------------------
+
+Giorno 25)	Riprendo da dove sono arrivato ieri:
+			Devo sistemare il servizio di traduzione :
+			Tale servizio restituisce un file JSON, a questo punto quindi devo essere in grado di parsare tale file jason e 
+			recuperare la parola
+			
+			
+			
+		NOTAAAA: ***************************** MOLTO IMPORATANTE, devo valutare tutti i controlli che non ho fatto, ad esempio
+		nel ramo in cui il server crea la traduzione della risposta tramite il servizio, devo controllare bene cosa succede in caso
+		di errore, cosi come in tutto il codice, cosa che fino a mo ho un po trascurato,  RIGUARDARE TUTTO *********************
+		
+		INFATTI: nel metodo login mi scoppia tutto se l utente non inserisce la password
+
+
+
+
+
 
 
 
 -------------------------------------------------------------------------------------------------------------------------------------------
+
