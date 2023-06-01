@@ -61,15 +61,7 @@ public class SessioneWordle implements Serializable {
         return Tentativi.get(username).getTentativi();
     }
     public void SetQuitUtente(String username) {
-
         InfoSessioneUtente tmpInfo = Tentativi.get(username);
-
-        if (tmpInfo == null) {
-            setGame(username);
-            tmpInfo = Tentativi.get(username);
-            tmpInfo.setQuitGame(true);
-        }
-        else {tmpInfo.setQuitGame(true);}
-
+        if (tmpInfo != null) {tmpInfo.setQuitGame(true);}
     }
 }

@@ -727,11 +727,46 @@ Giorno 25)	Riprendo da dove sono arrivato ieri:
 		di errore, cosi come in tutto il codice, cosa che fino a mo ho un po trascurato,  RIGUARDARE TUTTO *********************
 		
 		INFATTI: nel metodo login mi scoppia tutto se l utente non inserisce la password
+		
+		
+		
+		Al netto ddei vari controlli da fare, a questo punto devo, inserire il campo nel file config che inndica ogni
+		quanto deve serializzare il server in base a quanti utenti hanno cambiato le loro statistiche, devo poi:
+		implementare il gruppo multicast, implementare la classifica, e i rimanenti comandi  
+		
+		Comincio con l implementazione della classifica, devo prima cosa modificare la classe utente per sistemare la 
+		guess distribution
+		
+		NOTA: riguarrdo il servizio di traduzione, sevo fare i controlli per verificare che il servizio funzioni o meno, 
+		altrimenti devo specificare una risposta diversa del server e anche lato client va controllato, da controllare bene come vengono
+		create la guess distribuition ecc....
+		Controllare l eccezione che mi da lato client, sistemare la guess distribuition
 
 
+-------------------------------------------------------------------------------------------------------------------------------------------
 
 
-
+Giorno 26) :	Sto riprendendo dal fatto di come vengono gestiti gli eventuali errori di sistema o in generale: 
+		Nota: latoi client mi viene sollevata un eccezione quanod invio una parola, il prog funziona lo stesso, ma viene sollevata questa 
+		eccezione::::::: 
+		
+		
+		Exception "java.lang.ClassNotFoundException: com/intellij/openapi/editor/impl
+		/EditorCopyPasteHelperImpl$CopyPasteOptionsTransferableData"while constructing DataFlavor for: application/x-java-serialized
+		-object; class=com.intellij.openapi.editor.impl.EditorCopyPasteHelperImpl$CopyPasteOptionsTransferableData
+		Exception "java.lang.ClassNotFoundException: com/intellij/openapi/editor/impl
+		/EditorCopyPasteHelperImpl$CopyPasteOptionsTransferableData"while constructing DataFlavor for: application/x-java-serialized
+		-object; class=com.intellij.openapi.editor.impl.EditorCopyPasteHelperImpl$CopyPasteOptionsTransferableData 
+		
+		*********************************
+		
+		Ho visto che l eccezione viene lanciata quando faccio ctrl + v sulla riga di sendword, da capire come mai
+		
+		*********************************
+		
+		 da chiedere a chat gpt e vedere cosa puo essere. Inoltre, ora sto provando a usare un unico metodo per costruire le risposte 
+		 lato server, per il login sembra funzionare. Riguardo invece il servizio di traduzione la cosa migliore da fare è
+		 richiederlo ad ogni parola prodotta e non alle richieste dei client (Non so come ho fatto a non pensarci)
 
 
 

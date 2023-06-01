@@ -177,7 +177,7 @@ public class Work implements Runnable {
         String username = null;
         String passwd = null;
         String word = null;
-        int lendati = 0, error = Integer.MAX_VALUE;
+        int lendati = 0;
         ByteArrayOutputStream SupportOut = null;
         Utente u = null;
 
@@ -191,30 +191,57 @@ public class Work implements Runnable {
         //metodo privato per effettuare il calcolo dell tempo di produzione della nuova parola
         long nextwClient = CalculateTime(currentW, nextW);
 
+        //---------------------//
+
+
         username = Tok.nextToken(" ").replace(":", "");//recupero username
+        dati.setUsname(username);//analogo al ramo di login
 
-        ReadWordLock.lock();
-        int result = Gioco.setGame(username);
-        if(result == 0) {
+        lendati = "playWORDLE:".length();//lunghezza dei dati
 
-            Utente tmpUtente = Registrati.get(username);
-            tmpUtente.increasesGame();
+        SupportOut = new ByteArrayOutputStream();
+        try (DataOutputStream OutWriter = new DataOutputStream(SupportOut)){
 
-            //inserisco in coda il messaggio per dire al thread che serializza che un utente ha aggiornato i suoi dati
-            try {DaSerializzare.put(new DataToSerialize<>(null, 'U'));}
-            catch (Exception e) {e.printStackTrace();}
+            ReadWordLock.lock();
+            int result = Gioco.setGame(username);
+            if(result == 0) {
 
-            error = 0;
+                dati.allocAnswer(lendati + 16 );//lunghezza dati + 4 byte per la lunghezza del messaggio + 4 byte l'intero finale per lo stato dell operazione + 8 byte per long
+                OutWriter.writeInt(lendati + 16);
+                OutWriter.writeChars("playWORDLE:");
+
+                //incremento il numero di partite giocate dall utente
+                Utente tmpUtente = Registrati.get(username);
+                tmpUtente.increasesGame();
+
+                //inserisco in coda il messaggio per dire al thread che serializza che un utente ha aggiornato i suoi dati
+                try {DaSerializzare.put(new DataToSerialize<>(null, 'U'));}
+                catch (Exception e) {e.printStackTrace();}
+
+                OutWriter.writeInt(0);//0 indica che l utente puo cominciare a giocare
+                OutWriter.writeLong(nextwClient);
+            }
+            else if(result == 1) {
+                dati.allocAnswer(lendati + 8 );//lunghezza dei dati + 4 byte per contenere la lunghezza del messaggio e l'intero finale che indica lo stato dell operazione
+                OutWriter.writeInt(lendati + 8);
+                OutWriter.writeChars("playWORDLE:");
+
+                OutWriter.writeInt(-1);// -1 indica che l utente aveva gia chiesto un operazione di playWORDLE
+
+            }
+            else {
+
+                dati.allocAnswer(lendati + 8 );//lunghezza dei dati + 4 byte per contenere la lunghezza del messaggio e l'intero finale che indica lo stato dell operazione
+                OutWriter.writeInt(lendati + 8);
+                OutWriter.writeChars("playWORDLE:");
+
+                OutWriter.writeInt(-2);//-2 indica che l utente ha gia giocato al gioco
+            }
+
+            dati.SetAnswer(SupportOut.toByteArray());
         }
-        else if(result == 1) {
-                error = -1;
-        }
-        else {
-
-            error = -2;
-        }
-        WriteErrorOrWinOrSuggestionMessage(dati, "playWORDLE:", error, Long.toString(nextwClient));
-        ReadWordLock.unlock();//per ora la metto qui, potrei doverla cambiare
+        catch (Exception e) {e.printStackTrace();}
+        finally {ReadWordLock.unlock();}
 
     }
     public void LogoutMethod(StringTokenizer Tok, PkjData dati) {
@@ -222,27 +249,39 @@ public class Work implements Runnable {
         String username = null;
         String passwd = null;
         String word = null;
-        int lendati = 0, error = Integer.MAX_VALUE;
+        int lendati = 0;
         ByteArrayOutputStream SupportOut = null;
         Utente u = null;
 
         username = Tok.nextToken(" ").replace(":", "");//recupero username
+        dati.setUsname(username);//analogo al ramo di login
 
-        if((u = Registrati.get(username)) != null) {
+        //preparo la risposta per il client, la risposta ha lo stesso formato della richiesta
+        lendati = "logout:".length();//lunghezza dei dati
+        dati.allocAnswer(lendati + 8 );//lunghezza dei dati + 4 byte per contenere la lunghezza del messaggio e l'intero finale che indica lo stato dell operazione
 
-            if(u.getLogin()) {
+        SupportOut = new ByteArrayOutputStream();
+        try (DataOutputStream OutWriter = new DataOutputStream(SupportOut)){
 
-                if(u.getID_CHANNEL() == (Integer) Key.attachment()) {
-                    u.setLogin(false);
-                    Gioco.SetQuitUtente(username);
-                    error = 0;
+            OutWriter.writeInt(lendati + 8);
+            OutWriter.writeChars("logout:");
+            if((u = Registrati.get(username)) != null) {
+                if(u.getLogin()) {
+                    if(u.getID_CHANNEL() == (Integer) Key.attachment()) {
+                        u.setLogin(false);
+                        Gioco.SetQuitUtente(username);
+                        OutWriter.writeInt(0);
+                    }
+                    else {OutWriter.writeInt(-3);} //-2 indica che l utente non ha inserito l'username corretto
                 }
-                else {error = -3;} //-3 indica che l utente non ha inserito l'username corretto
+                else {OutWriter.writeInt(-2); } //-2 indica che l utente non è loggato
             }
-            else {error = -2; } //-2 indica che l utente non è loggato
+            else OutWriter.writeInt(-1);// -1 indica utente non registrato
+
+            dati.SetAnswer(SupportOut.toByteArray());
         }
-        else error = -1;;// -1 indica utente non registrato
-        WriteErrorOrWinOrSuggestionMessage(dati, "logout:", error, "");
+        catch (Exception e) {e.printStackTrace();}
+
     }
     private void LoginMethod(StringTokenizer Tok, PkjData dati) {
 
@@ -251,33 +290,78 @@ public class Work implements Runnable {
         String word = null;
         ByteArrayOutputStream SupportOut = null;
         Utente u = null;
-        int lendati = 0, error = Integer.MAX_VALUE;
-        //-10 valore che non uso per inviare i messaggi
+        int lendati = 0;
+        int error = -10;
+
+        /*username = Tok.nextToken(" ").replace(":", "");//recupero username
+        passwd = Tok.nextToken(" ");//recupero passwd
+
+        dati.setUsname(username);//inserisco l'username nel pacchetto in modo che il thread che
+                                 //gestisce le connessioni possa effettuare il logout in caso
+                                 //il client chiuda la conn all improvviso
 
 
+
+        //preparo la risposta per il client, la risposta ha lo stesso formato della richiesta
+        lendati = "login:".length();//lunghezza dei dati
+        dati.allocAnswer(lendati + 8 );//lunghezza dei dati + 4 byte per contenere la lunghezza del messaggio e l'intero finale che indica lo stato dell operazione
+
+         */
         SupportOut = new ByteArrayOutputStream();
-        try{
+        try (DataOutputStream OutWriter = new DataOutputStream(SupportOut)){
+            //_________________________________________
             username = Tok.nextToken(" ").replace(":", "");//recupero username
             passwd = Tok.nextToken(" ");//recupero passwd
+
+
+            //preparo la risposta per il client, la risposta ha lo stesso formato della richiesta
+           // lendati = "login:".length();//lunghezza dei dati
+           // dati.allocAnswer(lendati + 8 );//lunghezza dei dati + 4 byte per contenere la lunghezza del messaggio e l'intero finale che indica lo stato dell operazione
+
+            //_________________________________________
+
+           // OutWriter.writeInt(lendati + 8);
+           // OutWriter.writeChars("login:");
 
             if((u = Registrati.get(username)) != null) {
                 if(u.getPassswd().equals(passwd)) {
 
                     u.setLogin(true);
                     u.setID_CHANNEL((Integer) Key.attachment());
+                    //OutWriter.writeInt(0);
                     error = 0;
                 }
-                else error = -2;//-2 indica che l utente non ha inserito correttamente la passwd
+                else error = -2;//OutWriter.writeInt(-2);//-2 indica che l utente non ha inserito correttamente la passwd
             }
-            else error = -1;// -1 indica utente non registrato
-            WriteErrorOrWinOrSuggestionMessage(dati, "login:", error, "");
+            else error = -1;//OutWriter.writeInt(-1);// -1 indica utente non registrato
+            WriteErrorOrWinOrSuggestionMessage(dati, "login", error, "");
+            //dati.SetAnswer(SupportOut.toByteArray());
         }
         catch (Exception e) {//in caso venga sollevata un eccezione
             if(e instanceof NoSuchElementException) {//se viene sollevata perche l utente non ha inserito correttamente
-                                                    //i dati
-                WriteErrorOrWinOrSuggestionMessage(dati, "login:", -4, "");
+                                                     //i dati
+
+                System.out.println("MANCANO I DATI");
+                try (DataOutputStream tmpOut = new DataOutputStream(SupportOut)) {
+
+                    //caso in cui devo inviare una risposta al client dicendo che non ha inserito i dati correttamente
+                    lendati = "login:".length();//lunghezza dei dati
+                    dati.allocAnswer(lendati + 8 );//lunghezza dei dati + 4 byte per contenere la lunghezza del messaggio e l'intero finale che indica lo stato dell operazione
+
+                    //_________________________________________
+                    tmpOut.writeInt(lendati + 8);
+                    tmpOut.writeChars("login:");
+                    tmpOut.writeInt(-4);
+                    dati.SetAnswer(SupportOut.toByteArray());
+
+                }
+                catch (Exception eee) {e.printStackTrace();}
             }
-            else e.printStackTrace();
+            else {//caso di fallimento causato da un errore di sistema
+                //in tale caso potrei cercare di inviare una risposta al client di
+                //errore del server, in caso controllare dopo
+                e.printStackTrace();
+            }
         }
     }
 
@@ -401,3 +485,4 @@ public class Work implements Runnable {
         return wordTradotta;
     }
 }
+

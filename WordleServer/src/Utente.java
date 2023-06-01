@@ -18,7 +18,7 @@ public class Utente implements Serializable {
     private float WinGamePerc = 0;//percentuale partite vinte
     private int LastConsecutive = 0;//lunghezza ultima striscia positiva
     private int MaxConsecutive = 0;//striscia positiva piu lunga;
-    private float GuesDistribuition = 0;
+    private float [] GuesDistribuition = new float[12]; //Il numero massimo di tentativi che un utente puo fare è 12
     private NotificaClient stub;//variabile per recuperare lo stub passato dal client nella fase di registrazione
 
     @JsonCreator //annotazioni utilizzate per poter deserializzare i file
@@ -28,6 +28,9 @@ public class Utente implements Serializable {
         Username = u;
         Passswd = p;
     }
+    public void setGuesDistribuition(float [] g) {GuesDistribuition = g;}
+
+    public float [] getGuesDistribuition() {return GuesDistribuition;}
     public String getPassswd() {
         return Passswd;
     }
@@ -89,9 +92,9 @@ public class Utente implements Serializable {
 
     public void setLogin(boolean value) {login = value;}
 
-    public float getGuesDistribuition() {return GuesDistribuition;}
+    public float getGuesDistribuition(int idx) {return GuesDistribuition[idx];}
 
-    public void setGuesDistribuition(float guesDistribuition) {GuesDistribuition = guesDistribuition;}
+    public void setGuesDistribuition(int idx, float guesDistribuition) {GuesDistribuition[idx] = guesDistribuition;}
 
     public void setMaxConsecutive(int maxConsecutive) {
         MaxConsecutive = maxConsecutive;

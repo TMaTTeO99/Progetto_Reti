@@ -109,7 +109,7 @@ public class MakeJson implements Runnable{
                                 generator.writeObject(Giocataore);
                             }
 
-                            NewJson.close();
+                            //NewJson.close();
 
                             File oldJson = new File(PathJSN.concat("/").concat(FileNameJson));
                             File RenameFile = new File(PathJSN.concat("/").concat("temp.json"));

@@ -62,7 +62,7 @@ public class StartGame extends JFrame {
 
                         usernamelogin = UserTEXTLogin.getText();
                         String pass = new String(UserTEXTpasslogin.getText());
-
+                        if(usernamelogin.length() == 0 || pass.length() == 0)return -4;
                         try {
                             DataOutputStream ou = new DataOutputStream(new BufferedOutputStream(socket.getOutputStream()));
                             DataInputStream inn = new DataInputStream(new BufferedInputStream(socket.getInputStream()));
@@ -94,6 +94,9 @@ public class StartGame extends JFrame {
                                     break;
                                 case -3:
                                     returnvalue = -3;
+                                    break;
+                                case -4 :
+                                    returnvalue = -4;
                                     break;
                             }
                         }
@@ -193,7 +196,18 @@ public class StartGame extends JFrame {
                                                 switch(inn.readInt()) {
                                                     case 0 :
                                                         //ora qui devo fare in modo da poter visualizzare a schermo data e ora della prossima parola
-                                                        DataNextWord = new Date(System.currentTimeMillis() + inn.readLong());
+                                                        // Sto per effettuare modofiche lato server, qui quindi invece di ricever eun long ricevero una
+                                                        //stringa, quindi va convertita
+
+                                                        //solo prova
+                                                        int len = inn.readInt();
+                                                        char [] tmp = new char[len];
+                                                        for(int i = 0; i < len; i++) {
+                                                            tmp[i] = inn.readChar();
+                                                        }
+
+
+                                                        DataNextWord = new Date(System.currentTimeMillis() + Long.parseLong(new String(tmp)));
                                                         NextWordLable.setText(""+DataNextWord);
 
                                                         JOptionPane.showMessageDialog(null, "Operazione completata. Adesso è possibile provare a indovinare una porola");
@@ -303,6 +317,9 @@ public class StartGame extends JFrame {
                                 case -3 :
                                     JOptionPane.showMessageDialog(null, "Login gia effettuato");
                                     break;
+                                case -4:
+                                    JOptionPane.showMessageDialog(null, "Necessario inserire username e password");
+                                    break ;
                             }
                         } catch (Exception e) {
                             // Gestisci eventuali errori di esecuzione della richiesta
@@ -493,7 +510,8 @@ public class StartGame extends JFrame {
         }
         return new String(data);
     }
-    /*public static void main(String[] args) {
+    /*Da capire bene a cosa serve questa cosa
+    public static void main(String[] args) {
         SwingUtilities.invokeLater(new Runnable() {
             public void run() {
                 ClientFrame clientFrame = new ClientFrame();
