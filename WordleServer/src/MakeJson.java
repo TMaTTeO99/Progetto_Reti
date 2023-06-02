@@ -8,6 +8,7 @@ import com.fasterxml.jackson.databind.json.JsonMapper;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.sql.SQLSyntaxErrorException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingDeque;
@@ -21,20 +22,30 @@ public class MakeJson implements Runnable{
     private ConcurrentHashMap<String, Utente> Registrati;//utenti registrati
     private LinkedBlockingDeque<DataToSerialize> UDSlist;//lista che conterra gli user name degli utenti da serializzare
     private String PathJSN;//Stringa che contiene il path di dove scrivere i file json
-    private String FileNameJson = "DataStorage.json";//stringa che verra usata per creare i file json
-    public MakeJson(ConcurrentHashMap<String, Utente> Utenti, LinkedBlockingDeque<DataToSerialize> UDSL, String PathJson) {
+    private String FileNameJsonUtenti = "DataStorageUtenti.json";//stringa che verra usata per creare il file json degli utenti
+    private String FileNameJsonGame = "DataStorageGame.json";//stringa che verra usata per creare il file json del gioco
+    private Lock ReadLockGame;//lock usata per poter leggere l istanza del gioco in mutua esclusione
+                          //potrebbero succedere che il thread che crea una nuova sessione stia
+                          //creando una nuova sessione mentre sto serializzando
+    private Lock WriteLockGame;//lock usata per poter deserializzare il file json riguardante la sessione di
+                               //gioco, teoricamente non dovrebbero esserci thread che
+    private SessioneWordle Game;//oggetto che rappresenta l istanza del gioco
+    public MakeJson(ConcurrentHashMap<String, Utente> Utenti, LinkedBlockingDeque<DataToSerialize> UDSL,
+                    String PathJson, Lock RDlock, SessioneWordle g) {
 
         Registrati = Utenti;
         UDSlist = UDSL;
         PathJSN = PathJson;
+        ReadLockGame = RDlock;
+        Game = g;
     }
-    private FileWriter CheckAndDeserialize(String name, ObjectMapper map) {
+    private FileWriter CheckAndDeserializeUntenti(String name, ObjectMapper map) {
 
         File tmp = null;
         FileWriter writefile = null;//file qwwriter per poter settare la modalità di scrittura append
 
         try {
-            tmp = new File(name);//file per poter controllare l'esistenza del file
+            tmp = new File(name);//controllo l'esistenza del file
             writefile = new FileWriter(name, true);//file usato per il generator in modalità lettura
             if(!tmp.exists())return writefile;//se il file non esiste sono al primo avvio server quindi ritorno il file
 
@@ -52,11 +63,65 @@ public class MakeJson implements Runnable{
 
         return writefile;
     }
+    private int DeserializeGame(String name, ObjectMapper map) {
+
+        File GameJson = new File(name);
+        if(!GameJson.exists())return 1;
+
+        try {
+
+            JsonFactory factory = new JsonFactory();
+            JsonParser pars = factory.createParser(GameJson);
+            pars.setCodec(map);
+
+            while(pars.nextToken() != null) {//scorro tutto il file json
+                String field = pars.currentName();
+                if(field != null) {
+                    switch (field) {
+                        case "word" :
+                            pars.nextToken();//mi sposto sul valore del field
+                            Game.setWord(pars.getText());
+                            break;
+                        case "translatedWord" :
+                            pars.nextToken();//mi sposto sul valore del field
+                            Game.setTranslatedWord(pars.getText());
+                            break;
+                        case "currentTime" :
+                            pars.nextToken();//mi sposto sul valore del field
+                            Game.setCurrentTime(pars.getLongValue());
+                            break;
+                        case "nextTime" :
+                            pars.nextToken();//mi sposto sul valore del field
+                            Game.setNextTime(pars.getLongValue());
+                            break;
+                        case "tentativi":
+                            pars.nextToken();//mi sposto all inizio dell oggetto
+                            while(pars.nextToken() != JsonToken.END_OBJECT) {
+                                String usname = pars.getCurrentName();//recupero il nome dell utente
+                                pars.nextToken();//mi sposto sul valore che sara l oggetto infosessioneutente
+                                InfoSessioneUtente tmpinfo = pars.readValueAs(InfoSessioneUtente.class);
+                                Game.putInfo(usname, tmpinfo);//inserisco i dati
+                            }
+                            break;
+                    }
+                }
+
+            }
+        }
+        catch (Exception e) {
+            e.printStackTrace();
+            return -1;
+        }
+        System.out.println("TERMINATA DESERIALIZZAZIONE GAME");
+        return 0;
+    }
     public void run() {
 
         int NumUpdate = 0;//variabile che mi tiene traccia del numero di utenti che hanno aggiornato le loro statistiche
-        FileWriter NewJson = null;
-        FileWriter JsonFile = null;
+        FileWriter NewJsonUtenti = null;
+        FileWriter NewJsonSessione = null;
+        FileWriter JsonFileUtenti = null;
+
         File TestDire = new File(PathJSN);
         if(!TestDire.exists()) { //caso in cui la dir non esiste => la creo
             TestDire.mkdir();
@@ -69,10 +134,13 @@ public class MakeJson implements Runnable{
 
         try {
             //ora devo controllare se il file esiste e in tal caso scorrerlo e deserializzare
-            if((JsonFile = CheckAndDeserialize(PathJSN.concat("/").concat(FileNameJson), map)) == null) {throw new NullPointerException();}
+            if((JsonFileUtenti = CheckAndDeserializeUntenti(PathJSN.concat("/").concat(FileNameJsonUtenti), map)) == null) {throw new NullPointerException();}
+            //qui devo effetuare il check del file della sessione di gioco creando un altro metodi
+            //checekadnserializzeper il file della sessione
+            if(DeserializeGame(PathJSN.concat("/").concat(FileNameJsonGame), map) == -1) throw new NullPointerException();
 
             JsonFactory factory = new JsonFactory();
-            generator = factory.createGenerator(JsonFile);
+            generator = factory.createGenerator(JsonFileUtenti);
             generator.setCodec(map);
             generator.useDefaultPrettyPrinter();
 
@@ -98,9 +166,9 @@ public class MakeJson implements Runnable{
                         NumUpdate++;//aggiorno il numero di utenti che hanno aggiornato le loro statistiche
                         if(NumUpdate >= 1) {//per ora inserisco 2 per testare, dopo usero un parametro preso dal file config
 
-                            //a questo punto devo saerializzare i dati::
-                            NewJson = new FileWriter(PathJSN.concat("/").concat("temp.json"));
-                            generator = factory.createGenerator(NewJson);
+                            //a questo punto devo saerializzare i dati:: Attenzione il NewJsonUtenti dovrebbe essere aperto in mod append
+                            NewJsonUtenti = new FileWriter(PathJSN.concat("/").concat("tempUtenti.json"));
+                            generator = factory.createGenerator(NewJsonUtenti);
                             generator.setCodec(map);
                             Collection<Utente> lst =  Registrati.values();
                             for(Utente Giocataore : lst) {
@@ -109,10 +177,8 @@ public class MakeJson implements Runnable{
                                 generator.writeObject(Giocataore);
                             }
 
-                            //NewJson.close();
-
-                            File oldJson = new File(PathJSN.concat("/").concat(FileNameJson));
-                            File RenameFile = new File(PathJSN.concat("/").concat("temp.json"));
+                            File oldJson = new File(PathJSN.concat("/").concat(FileNameJsonUtenti));
+                            File RenameFile = new File(PathJSN.concat("/").concat("tempUtenti.json"));
 
                             oldJson.delete();
                             RenameFile.renameTo(oldJson);
@@ -125,8 +191,24 @@ public class MakeJson implements Runnable{
 
                         break;
                     case 'I' : // 'I' indica che bisogna serializzare l istanza attuale del gioco
+                        //comincio con la serializzazione dell istanza del gioco
+                        //qui per serializzare i dati devo usare il file specifico per la sessione del gioco
+                        //devo capire quanle generatore usare, io credo che debba usare piu istanze di generatori
+                        //perche ogni generatore apre un file diverso quindi uso un altro generatore
+                        //quindi qui devo effettuare la stessa operazione dell altro ramo, quello per gli utenti
 
+                        NewJsonSessione = new FileWriter(PathJSN.concat("/").concat("tempSessione.json"));
+                        JsonGenerator genSessione = factory.createGenerator(NewJsonSessione);
+                        genSessione.setCodec(map);
+                        ReadLockGame.lock();
+                            genSessione.writeObject(dato.getDato());
+                        ReadLockGame.unlock();
 
+                        File oldJson = new File(PathJSN.concat("/").concat(FileNameJsonGame));
+                        File RenameFile = new File(PathJSN.concat("/").concat("tempSessione.json"));
+
+                        oldJson.delete();
+                        RenameFile.renameTo(oldJson);
 
                         break;
                 }

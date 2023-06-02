@@ -165,7 +165,8 @@ public class StartServerWordleMain {
         ArrayList<String> vocabolario = getVocabolario();
         try {
             System.out.println(URLtranslate);
-            ServerWordle server = new ServerWordle(PathSerialization, MaxThread, TimeStempWord, PortExport, LastTimeWord, ConfigureFile, vocabolario, URLtranslate);
+            ServerWordle server = new ServerWordle(PathSerialization, MaxThread, TimeStempWord,
+                                                    PortExport, LastTimeWord, ConfigureFile, vocabolario, URLtranslate);
             //Thread.sleep(20000);//dormo per 30 secondi e poi chiudo
             //il servizio rmi e quindi anche il server per ora
 

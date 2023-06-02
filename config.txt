@@ -1,3 +1,7 @@
-thread:10
-timeword:5 11
-pathjson:../JsonSerialization
+thread=10
+timeword=0 0 3 0
+pathjson=../JsonSerialization
+PortExport=6500
+PathVocabolario=../vocabolario.txt
+lastWord=1685740550864
+URL=https://api.mymemory.translated.net/

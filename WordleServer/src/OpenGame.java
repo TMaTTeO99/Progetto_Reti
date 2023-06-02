@@ -1,4 +1,9 @@
-import java.io.File;
+import com.fasterxml.jackson.core.JsonFactory;
+import com.fasterxml.jackson.core.JsonParser;
+
+import java.io.*;
+import java.net.URL;
+import java.net.URLConnection;
 import java.util.ArrayList;
 import java.util.Random;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -9,7 +14,7 @@ import java.util.concurrent.locks.Lock;
 public class OpenGame implements Runnable{
 
     private long time;//tempo che intercorre fra la publicazione di una parola e la successiva
-    private SessioneWordle game;
+    private SessioneWordle game;//oggetto che rappresenta una sessione di gioco
     private long lasttime;//tempo in millisecondi della precedente creazione di un gioco, tale info
                           //viene estrapolata dal file di config
     private long currenttime;//variabile di istanza per salvare il tempo corrente
@@ -17,17 +22,16 @@ public class OpenGame implements Runnable{
     private File ConfigureFile;//file di configurazione che deve essere aggiornato alla chiusura del server per inserire il timestamp
                                //Dell ultima volta in cui è stata estratta una parola
     private SessioneWordle Game;//variabile che rappresenta il gioco
-    private Lock lock;
-
-    //private Condition cond; //Da eliminare
-    public OpenGame(long t, long lt, ArrayList<String> Vcb, File ConfFile, SessioneWordle gm, Lock lck/*, Condition cnd*/) {
+    private Lock lock;//lock per implementare mutua esclusione fra per i thread che accedono all istanza del gioco
+    private String URLtransale;//URL del servizio di traduzione
+    public OpenGame(long t, long lt, ArrayList<String> Vcb, File ConfFile, SessioneWordle gm, Lock lck, String URL) {
         lasttime = lt;
         time = t;
         Vocabolario = Vcb;
         ConfigureFile = ConfFile;
         Game = gm;
         lock = lck;
-        //cond = cnd;
+        URLtransale = URL;
     }
     public void run() {
 
@@ -40,17 +44,21 @@ public class OpenGame implements Runnable{
                 if((currenttime - lasttime) < time) {
                     Thread.sleep(time - (currenttime - lasttime));
                 }
-                lock.lock();
-                Game.setWord(Vocabolario.get(randword.nextInt(Vocabolario.size())));
-                Game.setLastTime(lasttime);
-                Game.setNextTime(time);
-                lasttime = System.currentTimeMillis();
-                currenttime = System.currentTimeMillis();
-                Game.setCurrentTime(currenttime);
-                Game.setTentativi();
-                lock.unlock();
-                System.out.println("Game creato");
+                String tmp = Vocabolario.get(randword.nextInt(Vocabolario.size()));
 
+                lock.lock();
+                     Game.setWord(tmp);
+                     Game.setTranslatedWord(TranslateService(tmp));
+                     Game.setNextTime(time);
+                     lasttime = System.currentTimeMillis();
+                     currenttime = System.currentTimeMillis();
+                     Game.setCurrentTime(currenttime);
+                     Game.setTentativi();
+                lock.unlock();
+                WriteLastSpawn(lasttime);//modifico il file di config in modo da scriverci dentro il time stamp dell ultima
+                                 //sessione di gioco creata
+
+                System.out.println("Game creato");
             }
             catch (Exception e) {e.printStackTrace();}
         }
@@ -58,5 +66,71 @@ public class OpenGame implements Runnable{
         //lasttime attuale, la prima volta che il server sara lanciato sara 0,
         //quindi devo fare un metodo per effettuare questo aggiornamento
         System.out.println("esco");
+    }
+    private String TranslateService(String GameWord) {//metodo privato usato per recuperare i la traduzione della parola
+
+        String wordTradotta = null;
+        try {
+
+            URL Service = new URL(URLtransale + "get?q=" + GameWord + "&langpair=en|it");
+            URLConnection Request = Service.openConnection();
+
+            try(BufferedInputStream in = new BufferedInputStream(new DataInputStream(Request.getInputStream()))) {
+
+                //dopo aver recuperato la risposta devo recuperare la traduzione della parola
+                //deserializzando la risposta
+                JsonFactory factory = new JsonFactory();
+                JsonParser pars = factory.createParser(in);
+
+                while(pars.nextToken() != null) {//scorro tutti i dati
+                    String currentField = pars.currentName();//recupero il field corrente
+
+                    if(currentField != null) {
+                        if(pars.currentName().equals("translation")) {//se è quello cercato
+
+                            pars.nextToken();//considero il valore di translation
+                            wordTradotta = pars.getText();//recupero la parola tradotta
+                        }
+                    }
+                }
+            }
+            catch (Exception e) {e.printStackTrace();}
+
+        }
+        catch (Exception e) {e.printStackTrace();}
+        return wordTradotta;
+    }
+
+    private void WriteLastSpawn(long lasttime) {
+
+        FileWriter NewConfg = null;
+        try (BufferedReader in = new BufferedReader(new FileReader(ConfigureFile));
+            BufferedWriter ou = new BufferedWriter(NewConfg = new FileWriter(ConfigureFile.getParent().concat("/tmpConfig.txt")))){
+
+            String line = null;
+            char [] tmpline = new char[8];//8 sono il numero di caratteri di "lastWord" nel file di config
+            while((line = in.readLine()) != null) {
+
+                System.arraycopy(line.toCharArray(), 0, tmpline, 0, 8);
+
+                if(String.valueOf(tmpline).equals("lastWord")) {//se ho letto il campo lastWord nel file di config
+                    System.out.println("TROVATO FILED");
+                    ou.write("lastWord="+Long.toString(lasttime)+"\n");
+                }
+                else {//altrimenti copio le altre info nel file
+                    ou.write(line+"\n");
+                }
+            }
+            //a questo punto elimino il file vecchio e rinomino quello nuovo
+            File oldFile = new File(ConfigureFile.getPath());
+            File renameFile = new File(ConfigureFile.getParent().concat("/tmpConfig.txt"));
+
+            oldFile.delete();
+            renameFile.renameTo(oldFile);
+
+        }
+        catch (Exception e) {e.printStackTrace();}
+
+
     }
 }

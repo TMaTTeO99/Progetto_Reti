@@ -1,7 +1,5 @@
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.json.JsonMapper;
 
 import java.io.*;
 import java.net.*;
@@ -25,8 +23,8 @@ public class Work implements Runnable {
     private Lock ReadWordLock;
     private ArrayList<String> Words;
     private LinkedBlockingDeque<DataToSerialize> DaSerializzare;
-    private String URLtransale; //stringa che rappresenta l URL per il servizio di traduzione
-    public Work(SelectionKey k, ConcurrentHashMap<String, Utente> R, PkjData dati, ArrayList<String> Vocabolario, SessioneWordle g, Lock RWLock, LinkedBlockingDeque<DataToSerialize> daserializzare, String URL) {
+    public Work(SelectionKey k, ConcurrentHashMap<String, Utente> R, PkjData dati, ArrayList<String> Vocabolario,
+                SessioneWordle g, Lock RWLock, LinkedBlockingDeque<DataToSerialize> daserializzare) {
         Key = k;
         Registrati = R;
         Dati = dati;
@@ -34,7 +32,6 @@ public class Work implements Runnable {
         ReadWordLock = RWLock;
         Words = Vocabolario;
         DaSerializzare = daserializzare;
-        URLtransale = URL;
     }
     public void run() {
 
@@ -118,9 +115,10 @@ public class Work implements Runnable {
             else {
                 //recupero la parola del gioco in muta esclusione
                 ReadWordLock.lock();
-                String GameWord = Gioco.getWord();
+                    String GameWord = Gioco.getWord();
+                    String wordTradotta = Gioco.getTranslatedWord();
                 ReadWordLock.unlock();
-                String wordTradotta = null;
+
 
                 if(GameWord.equals(word)) {//caso in cui il client ha indovinato la parola
 
@@ -146,12 +144,17 @@ public class Work implements Runnable {
                     try {DaSerializzare.put(new DataToSerialize<>(null, 'U'));}
                     catch (Exception e) {e.printStackTrace();}
 
-                    //prima di inviare il messaggio al client, quello che devo fare e accedere al servizio di traduzione della parola::
-                    wordTradotta = TranslateService(GameWord);
-
-                    System.out.println("TRADUZIONE: " + wordTradotta);
                     //Costruisco il messaggio di parola indovinata
                     WriteErrorOrWinOrSuggestionMessage(dati, "sendWord:", 0, wordTradotta);//0 indica parola indovinata
+
+                    //WORNINGGG:::::::::::
+                    //Faccio una prova per serializzare la sessione del gioco:
+                    ReadWordLock.lock();
+                        try {DaSerializzare.put(new DataToSerialize<>(Gioco, 'I'));}
+                        catch (Exception e) {e.printStackTrace();}
+                    ReadWordLock.unlock();
+                    //la serializzazione sembra funzionare, bisogna poi capire quando deve essere fatta
+                    //quindi capire quando deve essere passato in coda il gioco
                 }
                 else {
                     //a questo punto devo inviare i suggerimenti al client se dopo quest ultimo tentativo ne ha almeno un altro
@@ -160,7 +163,6 @@ public class Work implements Runnable {
                         WriteErrorOrWinOrSuggestionMessage(dati, "sendWord:", 1, ComputeSuggestions(GameWord, word));
                     }
                     else {//se invece il client ha terminato i tentativi invio al client la traduzione della parola
-                        wordTradotta = TranslateService(GameWord);
                         WriteErrorOrWinOrSuggestionMessage(dati, "sendWord:", 2, wordTradotta);
                     }
                 }
@@ -183,18 +185,18 @@ public class Work implements Runnable {
 
         //recupero il mutua esclusione i timestamps necessari per poter inviare al client
         //quando eventualemnete sarà generata la prossima parola
-        ReadWordLock.lock();
-        long lastW = Gioco.getLastTime();
-        long currentW = Gioco.getCurrentTime();
-        long nextW = Gioco.getNextTime();
-        ReadWordLock.unlock();
-        //metodo privato per effettuare il calcolo dell tempo di produzione della nuova parola
-        long nextwClient = CalculateTime(currentW, nextW);
-
         username = Tok.nextToken(" ").replace(":", "");//recupero username
 
         ReadWordLock.lock();
-        int result = Gioco.setGame(username);
+            long currentW = Gioco.getCurrentTime();
+            long nextW = Gioco.getNextTime();
+            int result = Gioco.setGame(username);
+        ReadWordLock.unlock();
+
+
+        //metodo privato per effettuare il calcolo dell tempo di produzione della nuova parola
+        long nextwClient = CalculateTime(currentW, nextW);
+
         if(result == 0) {
 
             Utente tmpUtente = Registrati.get(username);
@@ -210,11 +212,10 @@ public class Work implements Runnable {
                 error = -1;
         }
         else {
-
             error = -2;
         }
         WriteErrorOrWinOrSuggestionMessage(dati, "playWORDLE:", error, Long.toString(nextwClient));
-        ReadWordLock.unlock();//per ora la metto qui, potrei doverla cambiare
+
 
     }
     public void LogoutMethod(StringTokenizer Tok, PkjData dati) {
@@ -252,7 +253,7 @@ public class Work implements Runnable {
         ByteArrayOutputStream SupportOut = null;
         Utente u = null;
         int lendati = 0, error = Integer.MAX_VALUE;
-        //-10 valore che non uso per inviare i messaggi
+        //MAX_VALUE valore che non uso sicuramente per inviare i messaggi
 
 
         SupportOut = new ByteArrayOutputStream();
@@ -366,38 +367,5 @@ public class Work implements Runnable {
     }
     private long CalculateTime(long currentW, long nextW) {
         return (nextW - ( System.currentTimeMillis() - currentW));
-    }
-    private String TranslateService(String GameWord) {//metodo privato usato per recuperare i la traduzione della parola
-
-        String wordTradotta = null;
-        try {
-
-            URL Service = new URL(URLtransale + "get?q=" + GameWord + "&langpair=en|it");
-            URLConnection Request = Service.openConnection();
-
-            try(BufferedInputStream in = new BufferedInputStream(new DataInputStream(Request.getInputStream()))) {
-
-                //dopo aver recuperato la risposta devo recuperare la traduzione della parola
-                //deserializzando la risposta
-                JsonFactory factory = new JsonFactory();
-                JsonParser pars = factory.createParser(in);
-
-                while(pars.nextToken() != null) {//scorro tutti i dati
-                    String currentField = pars.currentName();//recupero il field corrente
-
-                    if(currentField != null) {
-                        if(pars.currentName().equals("translation")) {//se è quello cercato
-
-                            pars.nextToken();//considero il valore di translation
-                            wordTradotta = pars.getText();//recupero la parola tradotta
-                        }
-                    }
-                }
-            }
-            catch (Exception e) {e.printStackTrace();}
-
-        }
-        catch (Exception e) {e.printStackTrace();}
-        return wordTradotta;
     }
 }
