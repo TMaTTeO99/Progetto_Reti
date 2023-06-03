@@ -31,10 +31,11 @@ public class ServerWordle{// il tipo generico T viene utilizzato per implementar
     //uso delle readwritelock per gestire la sincronizzazione fra i thread worker, il thread che crea una istanza
     //del deel gioco e il thread che serializza la sessione, usando la write lock per il thread che crea la sessione
     //uso la read lock per i thread che devono solo leggere (i worker e il thread che serializza)
+    //quando deserializzo non le uso perche non potranno esserci thread che competono in quanto siamo nella fase di set-up
     private ReentrantReadWriteLock RWlockWORD = new ReentrantReadWriteLock();
     private Lock ReadWordLock = RWlockWORD.readLock();
     private Lock WriteWordLock = RWlockWORD.writeLock();
-    private ArrayList<String> Words;
+    private ArrayList<String> Words; //vaìriabile che manterrà le parole del vocabolario
 
     //uso thread separati perche il pool ha una dimensione di thread limitata
     private Thread threadGame;//thread usato per la creazione perodica di una nuova sessione di gioco
@@ -42,9 +43,19 @@ public class ServerWordle{// il tipo generico T viene utilizzato per implementar
 
     private String URLtranslate;//stringa in cui sarà contenuta l'URL del servizio di traduzione recuperato dal file config
 
+    private ReentrantReadWriteLock LockClassifca = new ReentrantReadWriteLock();//lock usata per implementare la mutua esclusine sulla classifica
+
+    private Lock ReadLockClassifica = LockClassifca.readLock();
+
+    private Lock WriteLockClassifca = LockClassifca.writeLock();
+
+    private ArrayList<UserValoreClassifica> Classifica; //oggetto che rappresenta la classifica
+
 
     public ServerWordle(String PathJson , int Nthread, long TimeStempWord, int PortExport, long LTW, File ConfigureFile,
                         ArrayList<String> Vocabolario, String URL) throws Exception{
+
+        Classifica = new ArrayList<>();
 
         Game = new SessioneWordle();
         Registrati = new ConcurrentHashMap<>(); //creo il set degli utenti registrati con concurrenthashmap, per ora lascio i parametri di default
@@ -52,7 +63,7 @@ public class ServerWordle{// il tipo generico T viene utilizzato per implementar
 
         //lancio i thread separati dal threadpool
         threadGame = new Thread(new OpenGame(TimeStempWord, LTW, Vocabolario, ConfigureFile, Game, WriteWordLock, URL));
-        threadSerialize = new Thread(new MakeJson(Registrati, DaSerializzare, PathJson, ReadWordLock, Game));
+        threadSerialize = new Thread(new MakeJson(Registrati, DaSerializzare, PathJson, ReadWordLock, Game, Classifica, ReadLockClassifica));
 
         threadGame.start();
         threadSerialize.start();
@@ -61,7 +72,7 @@ public class ServerWordle{// il tipo generico T viene utilizzato per implementar
 
         pool = (ThreadPoolExecutor) Executors.newFixedThreadPool(Nthread);//pool di thread per eseguire i diversi task
 
-        ObjEsportato = new ImlementazioneRegistrazione(Registrati, DaSerializzare);//creo l' oggetto da esportare
+        ObjEsportato = new ImlementazioneRegistrazione(Registrati, DaSerializzare, Classifica, WriteLockClassifca);//creo l' oggetto da esportare
         Skeleton = (Registrazione) UnicastRemoteObject.exportObject(ObjEsportato, 0);
         RegistroRMI = LocateRegistry.createRegistry(PortExport);
         RegistroRMI.bind("Registrazione", Skeleton);
@@ -111,7 +122,7 @@ public class ServerWordle{// il tipo generico T viene utilizzato per implementar
 
                         PkjData dati = null;
                         if((dati = ReadRequest(ReadyKey)) != null) {//se la lettura della richiesta è andata a buon fine lancio i worker
-                            pool.execute(new Work(ReadyKey, Registrati, dati, Words, Game, ReadWordLock, DaSerializzare));
+                            pool.execute(new Work(ReadyKey, Registrati, dati, Words, Game, ReadWordLock, DaSerializzare, Classifica, ReadLockClassifica, WriteLockClassifca));
                         }
                     }
                 }

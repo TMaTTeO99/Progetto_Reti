@@ -760,15 +760,130 @@ Giorno 26) :	Sto riprendendo dal fatto di come vengono gestiti gli eventuali err
 		
 		*********************************
 		
-		Ho visto che l eccezione viene lanciata quando faccio ctrl + v sulla riga di sendword, da capire come mai
+		Ho visto che l eccezione viene lanciata quando faccio ctrl + v sulla riga di sendword, da capire come mai, solo pero se 
+		all interno della barra c'è una parola che viene sovrascritta altrimeti no
 		
 		*********************************
 		
 		 da chiedere a chat gpt e vedere cosa puo essere. Inoltre, ora sto provando a usare un unico metodo per costruire le risposte 
 		 lato server, per il login sembra funzionare. Riguardo invece il servizio di traduzione la cosa migliore da fare è
 		 richiederlo ad ogni parola prodotta e non alle richieste dei client (Non so come ho fatto a non pensarci)
+		 
+		 Modifico il servizio di traduzione: OK
+		 Dovrei provare a serializzare la sessione di gioco :: 
+		 Devo modificare sia il metodo che deserializza sia quello che serializza, devo capire a questo punto, quando va 
+		 serializzata l'istanza del game perche al thread che serializza gli passo l istanza del gioco tramite una coda, 
+		 sicuramente devo farlo alla chiusura del server, devo mantenere consistente il tutto pero con i dati degli utenti, 
+		 quindi credo che debba essere fatto anche ogni volta che vengono serializzati gli utenti	
 
 
 
+-------------------------------------------------------------------------------------------------------------------------------------------
+
+Giorno 27) 	Riprendo dalla serializzazione della sessione di gioco::
+		
+		Devo modificare sia il metodo che deserializza sia quello che serializza, devo capire inoltre, quando va 
+		serializzata l'istanza del game perche al thread che serializza gli passo l istanza del gioco tramite una coda, 
+		sicuramente devo farlo alla chiusura del server, devo mantenere consistente il tutto pero con i dati degli utenti, 
+		quindi credo che debba essere fatto anche ogni volta che vengono serializzati gli utenti,
+		
+		Per serializzare la sessione di gioco, per prima cosa uso un file json separato in modo da non avere problemi per la 
+		deserializzazione, dopo uso un altro metodo come CheckAndDeserialize per fare i controlli e deserializzare
+		
+		La serializzazione funziona, a questo punto pero devo fare in modo che il thread che restarta il gioco, non 
+		vada a ricreare il game quando il game deve essere recuperato dal file json, per farlo, come avevo gia detto,
+		devo far si che il thread quando genera la parola inizialmente vada a scrivere il tempo di generazione della parola
+		nel campo del file di config di ultima volta che è stata creata la sessione di gioco, in modo tale che ilò thread 
+		vada in sleep
+		
+		Nota: Riguardo quando il fatto che i client potrebbero provare ad esempio a loggarsi subito, quindi prima  che 
+		il server sia veramente pronto dovrei trovare qualche soluzione, da pensarci
+		
+		***********************************************************************************************************************
+		
+		 ******************NOTA IMPORTANTISSIMA::::: DEVO CAPIRE BENE QUANDO CHIUDERE I FILE APERTI, *************************
+		 	
+		***********************************************************************************************************************
+		
+		Devo anche sistemare la gestione delle eccezioni nel metodo run del MakeJson..
+		
+		
+		Per fare una corretta deserializzazione non posso recuperare direttamente l oggetto dal file json e assegnarlo all
+		oggetto game, questo perche cosi facendo avrei due game, quello che usano i worker, e quello deserializzato, 
+		e sono diversi, quello che devo fare è: o recuperare i dati uno a uno dal file json e settarli nel oggetto game 
+		condiviso che sarebbe la soluzione piu diifficile ma quella giusta, oppure creare il game temporaneo e poi assegnare
+		al game condiviso i dati uno alla volta che è la soluzione piu facile ma anche quella piu "scorretta"
+				
+		Sembra che funzioni la serializzazione e la deserializzazione del json per la sessione e sembra che funzioni anche la creazione
+		del game periodico modificando il file di config
+		
+		
+		Domani devo: implementare la classifica, la sua serializzazione, i comandi che il client richiede per la classifica 
+		capire quando deve essere serializzato il game e la calssifica, fare il meccanismo delle notifiche e rendere tutto piu legibile, 
+		anche il lavoro di oggi.  						
+
+
+-------------------------------------------------------------------------------------------------------------------------------------------
+
+Giorno 28)	Riprendo dagli obbiettivi lasciati ieri:
+		
+		1)implementare la classifica : Fatto, va cambiata nel caso la formula del punteggio
+		
+		2)serializzazione classifica : Fatto 
+		
+		3)i comandi che il client richiede per la classifica 
+		
+		4)capire quando deve essere serializzato il game e la calssifica
+		
+		5) fare il meccanismo delle notifiche e rendere tutto piu legibile, anche il lavoro di ieri
+		
+		6) Capire come mai quando copio la parola in una sezione di testo lato client si solleva un eccezzione
+		
+		7) Da verificare bene il meccanismo della traduzione 
+		
+		
+		1 ):
+		 Il calcolo del punteggio per l’inserimento in classifica avviene moltiplicando il numero di partite vinte 
+		 per il numero medio di tentativi impiegati per raggiungere la soluzione.
+		 Per ora non so bene come funziona per la classifica, siccome pero il punteggio è una fromula, per ora la 
+		 faccio con la formula che ho capito e ordino in ordine decrescente, poi dopo vedo e in caso la modifico:
+		 quindi per ora il punteggio lo calcolo come: somma tentativi delle partite vinte e poi ordino oppure come ha detto lepori
+		 
+		 Riguardo lo schema logico della classifica, stao pensando di inserire all interno della classifica tutti gli utenti
+		 al momento della registrazione, quando poi un utente vince/perde (se devo considerarre le sconfitte dipende da come calcolo
+		 la classifica) ==> aggiorno la classifica
+		 Ha senso usar euna classe per la classifica???? potrei usare solo una lista????? In ogni caso devo proteggerla con operazioni
+		 di lock e unlock in quanto la classifica sarà condivisa fra i worker per l aggiornamento deio punteggi e il sorting,
+		 e fra il thread che aggiunge nuovi utenti, devo capire come faccio a implementare la mutua esclusione, io dico che una 
+		 blocking queue puo essere usata in quanto, 
+
+		*********************************************************************************************************************
+		Nota: riguardo i metodi che servono per deserializzare i file json, devo sistemare la gestione degli errori, invece
+		di far ritornare un valore posso modificare la segnatura del metodo per le eccezioni e cattuarare le eccezioni
+		nel chiamante direttamente invece di fare passaggi inutili......
+		*********************************************************************************************************************
+		
+		
+		
+		Ritornando invece alla serializzazione, credo che invece di salavre tutto l array, salvero solo il contenuto dell 
+		array cioe degli oggetti di tipo Uservaloreclassifica::
+		
+		
+		Sembra funzionare sia la serializzazione che la deserializzazione della classifica, ora bisogna capire bene
+		quando serializzare la classifica e il game.
+		Domani devo : capire bene la formula del punteggio in classifica poi finire i seguenti task
+		
+			3)i comandi che il client richiede per la classifica 
+		
+			4)capire quando deve essere serializzato il game e la calssifica
+		
+			5) fare il meccanismo delle notifiche e rendere tutto piu legibile, anche il lavoro di ieri
+		
+			6) Capire come mai quando copio la parola in una sezione di testo lato client si solleva un eccezzione
+		
+			7) Da verificare bene il meccanismo della traduzione 
+			
+			e va visto anche come mai si solleva quell eccezione lato client........ 
+			 
 -------------------------------------------------------------------------------------------------------------------------------------------
 

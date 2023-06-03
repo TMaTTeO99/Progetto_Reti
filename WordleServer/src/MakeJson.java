@@ -24,20 +24,23 @@ public class MakeJson implements Runnable{
     private String PathJSN;//Stringa che contiene il path di dove scrivere i file json
     private String FileNameJsonUtenti = "DataStorageUtenti.json";//stringa che verra usata per creare il file json degli utenti
     private String FileNameJsonGame = "DataStorageGame.json";//stringa che verra usata per creare il file json del gioco
+    private String FielNameJsonClassifica = "DataStorageClassifica.json";//stringa che verra usata per creare il file json della classifica
     private Lock ReadLockGame;//lock usata per poter leggere l istanza del gioco in mutua esclusione
                           //potrebbero succedere che il thread che crea una nuova sessione stia
                           //creando una nuova sessione mentre sto serializzando
-    private Lock WriteLockGame;//lock usata per poter deserializzare il file json riguardante la sessione di
-                               //gioco, teoricamente non dovrebbero esserci thread che
+    private Lock ReadLockClassifica;//analogo a readlockgame ma per la classifica
     private SessioneWordle Game;//oggetto che rappresenta l istanza del gioco
+    private ArrayList<UserValoreClassifica> Classifica;//oggetto classifica
     public MakeJson(ConcurrentHashMap<String, Utente> Utenti, LinkedBlockingDeque<DataToSerialize> UDSL,
-                    String PathJson, Lock RDlock, SessioneWordle g) {
+                    String PathJson, Lock RDlock, SessioneWordle g, ArrayList<UserValoreClassifica> Clss, Lock RDClass) {
 
         Registrati = Utenti;
         UDSlist = UDSL;
         PathJSN = PathJson;
         ReadLockGame = RDlock;
+        ReadLockClassifica = RDClass;
         Game = g;
+        Classifica = Clss;
     }
     private FileWriter CheckAndDeserializeUntenti(String name, ObjectMapper map) {
 
@@ -115,11 +118,35 @@ public class MakeJson implements Runnable{
         System.out.println("TERMINATA DESERIALIZZAZIONE GAME");
         return 0;
     }
+    public int DeserializeClassifica(String name, ObjectMapper map) {
+
+        File FileClassifica = new File(name);
+        if(!FileClassifica.exists())return 1;
+
+        try {
+            JsonFactory factory = new JsonFactory();
+            JsonParser pars = factory.createParser(FileClassifica);
+            pars.setCodec(map);
+
+            while(pars.nextToken() == JsonToken.START_OBJECT) {
+                Classifica.add(pars.readValueAs(UserValoreClassifica.class));
+            }
+
+        }
+        catch (Exception e) {
+            e.printStackTrace();
+            return -1;
+        }
+        System.out.println("TERMINATA DESERIALIZZAZIONE CLASSIFICA");
+        return 0;
+    }
     public void run() {
 
         int NumUpdate = 0;//variabile che mi tiene traccia del numero di utenti che hanno aggiornato le loro statistiche
         FileWriter NewJsonUtenti = null;
         FileWriter NewJsonSessione = null;
+        FileWriter NewJsonClassifica = null;
+
         FileWriter JsonFileUtenti = null;
 
         File TestDire = new File(PathJSN);
@@ -135,9 +162,12 @@ public class MakeJson implements Runnable{
         try {
             //ora devo controllare se il file esiste e in tal caso scorrerlo e deserializzare
             if((JsonFileUtenti = CheckAndDeserializeUntenti(PathJSN.concat("/").concat(FileNameJsonUtenti), map)) == null) {throw new NullPointerException();}
-            //qui devo effetuare il check del file della sessione di gioco creando un altro metodi
+            //qui devo effetuare il check del file della sessione di gioco creando un altro metodo
             //checekadnserializzeper il file della sessione
             if(DeserializeGame(PathJSN.concat("/").concat(FileNameJsonGame), map) == -1) throw new NullPointerException();
+            //controllo il file json della classifica se esiste e quindio se deve essere serializzato
+            if(DeserializeClassifica(PathJSN.concat("/").concat(FielNameJsonClassifica), map) == -1)throw new NullPointerException();
+
 
             JsonFactory factory = new JsonFactory();
             generator = factory.createGenerator(JsonFileUtenti);
@@ -187,7 +217,20 @@ public class MakeJson implements Runnable{
                         break;
                     case 'C' : // 'C' indica che bisogna serializzare la classifica
 
-                        //cymaphytic
+                        NewJsonClassifica = new FileWriter(PathJSN.concat("/").concat("tempClassifica.json"));
+                        JsonGenerator genClassifica = factory.createGenerator(NewJsonClassifica);
+                        genClassifica.setCodec(map);
+                        ReadLockClassifica.lock();
+                            for(int i = 0; i<Classifica.size(); i++) {
+                                genClassifica.writeObject(Classifica.get(i));
+                            }
+                        ReadLockClassifica.unlock();
+
+                        File oldJsonClass = new File(PathJSN.concat("/").concat(FielNameJsonClassifica));
+                        File RenameFileClass = new File(PathJSN.concat("/").concat("tempClassifica.json"));
+
+                        oldJsonClass.delete();
+                        RenameFileClass.renameTo(oldJsonClass);
 
                         break;
                     case 'I' : // 'I' indica che bisogna serializzare l istanza attuale del gioco
@@ -204,11 +247,11 @@ public class MakeJson implements Runnable{
                             genSessione.writeObject(dato.getDato());
                         ReadLockGame.unlock();
 
-                        File oldJson = new File(PathJSN.concat("/").concat(FileNameJsonGame));
-                        File RenameFile = new File(PathJSN.concat("/").concat("tempSessione.json"));
+                        File oldJsonGame = new File(PathJSN.concat("/").concat(FileNameJsonGame));
+                        File RenameFileGame = new File(PathJSN.concat("/").concat("tempSessione.json"));
 
-                        oldJson.delete();
-                        RenameFile.renameTo(oldJson);
+                        oldJsonGame.delete();
+                        RenameFileGame.renameTo(oldJsonGame);
 
                         break;
                 }

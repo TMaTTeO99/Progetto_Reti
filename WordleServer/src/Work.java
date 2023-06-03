@@ -1,18 +1,13 @@
-import com.fasterxml.jackson.core.JsonFactory;
-import com.fasterxml.jackson.core.JsonParser;
-
 import java.io.*;
-import java.net.*;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.SocketChannel;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.NoSuchElementException;
-import java.util.StringTokenizer;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 public class Work implements Runnable {
 
@@ -23,8 +18,15 @@ public class Work implements Runnable {
     private Lock ReadWordLock;
     private ArrayList<String> Words;
     private LinkedBlockingDeque<DataToSerialize> DaSerializzare;
+    private ArrayList<UserValoreClassifica> Classifica;
+    private Lock ReadLockClassifica;
+    private Lock WriteLockClassifica;
+
+    //ReadLockClassifica, WriteLockClassifca
+
     public Work(SelectionKey k, ConcurrentHashMap<String, Utente> R, PkjData dati, ArrayList<String> Vocabolario,
-                SessioneWordle g, Lock RWLock, LinkedBlockingDeque<DataToSerialize> daserializzare) {
+                SessioneWordle g, Lock RWLock, LinkedBlockingDeque<DataToSerialize> daserializzare, ArrayList<UserValoreClassifica> Clss,
+                Lock RDLock, Lock WRLock) {
         Key = k;
         Registrati = R;
         Dati = dati;
@@ -32,6 +34,9 @@ public class Work implements Runnable {
         ReadWordLock = RWLock;
         Words = Vocabolario;
         DaSerializzare = daserializzare;
+        Classifica = Clss;
+        ReadLockClassifica = RDLock;
+        WriteLockClassifica = WRLock;
     }
     public void run() {
 
@@ -124,6 +129,9 @@ public class Work implements Runnable {
 
                     Gioco.setWinner(username);//setto i campi  per indicare che per quel utente la parola è stata indovinata
 
+                    //recupero il numero di tentativi fatti dal giocatore per vinvere l attuale partita
+                    int tentativiAttuali = Gioco.gettentativiUtente(username);
+
                     Utente tmpu = Registrati.get(username);//recupero utente
 
                     //aumento il numero di partite vinte dal utente
@@ -138,11 +146,31 @@ public class Work implements Runnable {
                     //ricalcolo la distribuzione
                     tmpu.setGuesDistribuition(tentativiUtente - 1, (tmpu.getGuesDistribuition(tentativiUtente - 1) + 1));
                     System.out.println((float) (tmpu.getGuesDistribuition(tentativiUtente - 1) * 100) / (float) tmpu.getWinGame());
+
                     //aumento striscia positiva di vittorie
                     tmpu.updateLastConsecutive(true);
 
+                    //aggiorno la classifica
+                    updateClassifica(username, tmpu, tentativiAttuali);
+
                     try {DaSerializzare.put(new DataToSerialize<>(null, 'U'));}
                     catch (Exception e) {e.printStackTrace();}
+
+                    //qui devo inserire la classifica per serializzarla sul file json vedo pero ora se funziona la roba prima
+                    try {DaSerializzare.put(new DataToSerialize<>(Classifica, 'C'));}
+                    catch (Exception e) {e.printStackTrace();}
+
+                    //-------------------------------------------//
+
+                        //faccio una stampa della classifica sembra funzionare
+                        ReadLockClassifica.lock();
+                    for(int i = 0; i<Classifica.size(); i++) {
+                        UserValoreClassifica tmp = Classifica.get(i);
+                        System.out.println(tmp.getUsername() + " : " + tmp.getScore());
+                    }
+                        ReadLockClassifica.unlock();
+
+                    //-------------------------------------------//
 
                     //Costruisco il messaggio di parola indovinata
                     WriteErrorOrWinOrSuggestionMessage(dati, "sendWord:", 0, wordTradotta);//0 indica parola indovinata
@@ -292,6 +320,22 @@ public class Work implements Runnable {
             if(Words.get(i).equals(GuessWord))return true;
         }
         return false;
+    }
+    private void updateClassifica(String username, Utente tmpu, int Wintentativi) {
+
+        //acquisisco la mutuia esclusione sulla classifica
+        WriteLockClassifica.lock();
+            for(int i = 0; i<Classifica.size(); i++) {
+
+                //ricerco l utente del quale devo aggiornare lo score
+                UserValoreClassifica temp = Classifica.get(i);
+                if(temp.getUsername().equals(username)) {
+                    temp.UpdateSCore(tmpu.getWinGame(), Wintentativi);
+                    Collections.sort(Classifica);
+                    break;//esco dal ciclo
+                }
+            }
+        WriteLockClassifica.unlock();
     }
     private void WriteErrorOrWinOrSuggestionMessage(PkjData dati, String method, int error, String Other) {
 

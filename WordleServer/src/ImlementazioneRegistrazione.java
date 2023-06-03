@@ -1,20 +1,27 @@
 import java.rmi.RemoteException;
 import java.rmi.server.RemoteServer;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 public class ImlementazioneRegistrazione extends RemoteServer implements Registrazione {
 
+    private ConcurrentHashMap<String, Utente> Registrati;//utenti del gioco
+    private LinkedBlockingDeque<DataToSerialize> DaSerializzare;//lista per trasferire le info al thread che deve serializzare i dati
+    private Lock LockClassifca;//lock per implementare mutua esclusione classifica
+    private ArrayList<UserValoreClassifica> Classifica;
 
-    //private Lock write;
-    private ConcurrentHashMap<String, Utente> Registrati;
-    private LinkedBlockingDeque<DataToSerialize> DaSerializzare;
-    public ImlementazioneRegistrazione(ConcurrentHashMap<String, Utente> R, LinkedBlockingDeque<DataToSerialize> Lst) {
+    public ImlementazioneRegistrazione(ConcurrentHashMap<String, Utente> R, LinkedBlockingDeque<DataToSerialize> Lst,
+                                       ArrayList<UserValoreClassifica> Clss, Lock LckClss) {
         Registrati = R;
         DaSerializzare = Lst;
+        Classifica = Clss;
+        LockClassifca = LckClss;
+
     }
 
     //NOTA: posso ritornare un valore intero invece che booleano per far
@@ -29,6 +36,10 @@ public class ImlementazioneRegistrazione extends RemoteServer implements Registr
         try {
             if(Registrati.putIfAbsent(username, new Utente(username, passwd)) == null) {
                 DaSerializzare.put(new DataToSerialize(username, 'N'));//il char N indica che sta per arrivare un username
+
+                LockClassifca.lock();
+                    Classifica.add(new UserValoreClassifica(username, 0));//inserisco in classifica l utente appena registrato con score 0
+                LockClassifca.unlock();
                 return 1;
             }
             return 0;
