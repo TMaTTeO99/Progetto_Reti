@@ -935,7 +935,7 @@ Giorno 29)	Ricomincio da dove ero arrivato ieri::
 			
 			
 			Nota: Ho leminato lato server il fatto di inviare indietro il nome del metodo e quindi anche la lettura lato 
-			client e sembra tutto ok 
+			client e sembra tutto ok va pero ancora aggiornato per bene il metodo che scrive i dati 
 				 
 		3) fare il meccanismo delle notifiche e rendere tutto piu legibile, anche il lavoro di ieri
 		
