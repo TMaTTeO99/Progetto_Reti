@@ -64,20 +64,65 @@ public class Work implements Runnable {
                 case "sendWord" :
                     SendWordMethod(Tok, Dati);
                     break;
+                case "sendMeStatistics":
+                    SendStatisticsMethod(Tok, Dati);
+                    break;
             }
         }
         catch (Exception e) {e.printStackTrace();}
 
         //qui ora prima di chiudere invio i dati al client
         try {
-            int flag = 0;//fal per far terminare la scrittura dei dati nel caso il client chiuda la connessione anche se verra sollevata una eccezione
+            int flag = 0;//flag per far terminare la scrittura dei dati nel caso il client chiuda la connessione anche se verra sollevata una eccezione
             while((flag = channel.write(ByteBuffer.wrap(Dati.getAnswer()))) != Dati.getIdxAnswer() && flag != -1);
         }
         catch (Exception e) {e.printStackTrace();}
     }
 
     //Metodi privati usati per costruire la risposta corretta
-    public void SendWordMethod(StringTokenizer Tok, PkjData dati) {
+
+    private void SendStatisticsMethod(StringTokenizer Tok, PkjData dati) {
+
+        String username = null;
+        String passwd = null;
+        String word = null;
+        int lendati = 0, GameUtente = 0;
+        ByteArrayOutputStream SupportOut = null;
+        Utente u = null;
+
+        username = Tok.nextToken(" ").replace(":", "");//recupero username
+
+        //devo inviare le statistiche dell ultimo gioco dell utente
+        //nel caso in cui l utente abbia gia chiesto di partecipare a un nuovo gioco devo inviare le
+        //statistiche con il numero di partite giocate -1, altrimenti gli devo mandare le statistiche cosi come sono
+
+        //Recupero l utente
+        u = Registrati.get(username);
+
+        //controllo se l utente in questo momento sta giocando
+        if(Gioco.IsInGame(username) != null){
+            GameUtente = u.getGame() - 1;
+        }
+        else GameUtente = u.getGame();
+        System.out.println(GameUtente +" <---Modifica " + u.getGame());
+        //recupero le statistiche dell utente e creo la stringa che deve essere inviata
+        String answer = new String(new byte[0], StandardCharsets.UTF_8);
+
+        answer = answer.concat("Partite giocate == " + Integer.toString(GameUtente) + "\n");
+        answer = answer.concat("Partite vinte == " + Integer.toString(u.getWinGame()) + "\n");
+        answer = answer.concat("Percentuale partite vinte == " +Float.toString(u.getWinGamePerc()) + "\n");
+        answer = answer.concat("Striscia positiva == " + Integer.toString(u.getLastConsecutive()) + "\n");
+        answer = answer.concat("Massima striscia positiva == " + Integer.toString(u.getMaxConsecutive()) + "\n");
+
+        int [] TmpGuessDistrib = u.getGuesDistribuition();
+        for(int i = 0; i<12; i++) {answer = answer.concat("Vinte in " + (i+1) + " tentativi == " + Integer.toString(TmpGuessDistrib[i]) + "\n");}
+
+        System.out.println(answer);
+        WriteErrorOrWinOrSuggestionMessage(dati, "", 0, answer);
+
+
+    }
+    private void SendWordMethod(StringTokenizer Tok, PkjData dati) {
 
         String username = null;
         String passwd = null;
@@ -89,9 +134,6 @@ public class Work implements Runnable {
         username = Tok.nextToken(" ").replace(":", "");//recupero username
         word = Tok.nextToken(" ");//recupero parola
 
-        dati.setUsname(username);//inserisco l'username nel pacchetto in modo che il thread che
-        //gestisce le connessioni possa effettuare il logout in caso
-        //il client chiuda la conn all improvviso
 
         //Controllo che la parola sia presente nel vocabolario, in caso non ci sia ritorno un messaggio di errore
         if(CheckWord(word)) {
@@ -103,17 +145,17 @@ public class Work implements Runnable {
                 switch (FlagResult) {
                     case -1 ://caso in cui l utente non ha selezionato il comando playWORDLE
 
-                        WriteErrorOrWinOrSuggestionMessage(dati, "sendWord:", -1, "");
+                        WriteErrorOrWinOrSuggestionMessage(dati, "", -1, "");
                         break;
                     case -2 ://caso in cui l utente ha gia giocato e ha terminato i tentativi
 
                         //qui prima di inviare il messaggio devo interrompere la striscia positiva di partite vinte
                         Registrati.get(username).updateLastConsecutive(false);
-                        WriteErrorOrWinOrSuggestionMessage(dati, "sendWord:", -2, "");
+                        WriteErrorOrWinOrSuggestionMessage(dati, "", -2, "");
                         break;
                     case -3 ://ha vinto la partita precedentemente
 
-                        WriteErrorOrWinOrSuggestionMessage(dati, "sendWord:", -3, "");
+                        WriteErrorOrWinOrSuggestionMessage(dati, "", -3, "");
                         break;
                 }
             }
@@ -153,13 +195,20 @@ public class Work implements Runnable {
                     //aggiorno la classifica
                     updateClassifica(username, tmpu, tentativiAttuali);
 
-                    try {DaSerializzare.put(new DataToSerialize<>(null, 'U'));}
-                    catch (Exception e) {e.printStackTrace();}
+                    //segnalo al thread che serializza i dati che un altro utente ha modificato le sue statistiche
+                    SendSerialization('U');
 
-                    //qui devo inserire la classifica per serializzarla sul file json vedo pero ora se funziona la roba prima
-                    try {DaSerializzare.put(new DataToSerialize<>(Classifica, 'C'));}
-                    catch (Exception e) {e.printStackTrace();}
+                    //Invio la classifica al thread che serializza per salvare la classifica aggiornata
+                    SendSerialization('C');
 
+                    //invio al thread che serializza la sessione del gioco
+                    SendSerialization('I');
+
+
+                    //Costruisco il messaggio di parola indovinata
+                    WriteErrorOrWinOrSuggestionMessage(dati, "", 0, wordTradotta);//0 indica parola indovinata
+
+                    /*
                     //-------------------------------------------//
 
                         //faccio una stampa della classifica sembra funzionare
@@ -171,38 +220,29 @@ public class Work implements Runnable {
                         ReadLockClassifica.unlock();
 
                     //-------------------------------------------//
-
-                    //Costruisco il messaggio di parola indovinata
-                    WriteErrorOrWinOrSuggestionMessage(dati, "sendWord:", 0, wordTradotta);//0 indica parola indovinata
-
-                    //WORNINGGG:::::::::::
-                    //Faccio una prova per serializzare la sessione del gioco:
-                    ReadWordLock.lock();
-                        try {DaSerializzare.put(new DataToSerialize<>(Gioco, 'I'));}
-                        catch (Exception e) {e.printStackTrace();}
-                    ReadWordLock.unlock();
-                    //la serializzazione sembra funzionare, bisogna poi capire quando deve essere fatta
-                    //quindi capire quando deve essere passato in coda il gioco
+                    */
                 }
                 else {
                     //a questo punto devo inviare i suggerimenti al client se dopo quest ultimo tentativo ne ha almeno un altro
                     // devo quindi effettuare il calcolo dei sugerimenti, produrre la risposta e inviarla
                     if(Gioco.gettentativiUtente(username) < 12) {
-                        WriteErrorOrWinOrSuggestionMessage(dati, "sendWord:", 1, ComputeSuggestions(GameWord, word));
+                        WriteErrorOrWinOrSuggestionMessage(dati, "", 1, ComputeSuggestions(GameWord, word));
                     }
-                    else {//se invece il client ha terminato i tentativi invio al client la traduzione della parola
-                        WriteErrorOrWinOrSuggestionMessage(dati, "sendWord:", 2, wordTradotta);
+                    else {//se invece il client ha terminato i tentativi invio al client la traduzione della parola e serializzare la sessione di Game
+
+                            SendSerialization('I');
+                        WriteErrorOrWinOrSuggestionMessage(dati, "", 2, wordTradotta);
                     }
                 }
             }
         }
         else {
-            WriteErrorOrWinOrSuggestionMessage(dati, "sendWord:", -4, "");//caso in cui la parola non esiste e il tentativo non viene considerato
+            WriteErrorOrWinOrSuggestionMessage(dati, "", -4, "");//caso in cui la parola non esiste e il tentativo non viene considerato
         }
 
 
     }
-    public void PlayWordleMethod(StringTokenizer Tok, PkjData dati) {
+    private void PlayWordleMethod(StringTokenizer Tok, PkjData dati) {
 
         String username = null;
         String passwd = null;
@@ -229,24 +269,24 @@ public class Work implements Runnable {
 
             Utente tmpUtente = Registrati.get(username);
             tmpUtente.increasesGame();
+            System.out.println(tmpUtente.getGame() + "bobo");
 
             //inserisco in coda il messaggio per dire al thread che serializza che un utente ha aggiornato i suoi dati
-            try {DaSerializzare.put(new DataToSerialize<>(null, 'U'));}
-            catch (Exception e) {e.printStackTrace();}
+            SendSerialization('U');
 
             error = 0;
         }
         else if(result == 1) {
-                error = -1;
+            error = -1;
         }
         else {
             error = -2;
         }
-        WriteErrorOrWinOrSuggestionMessage(dati, "playWORDLE:", error, Long.toString(nextwClient));
+        WriteErrorOrWinOrSuggestionMessage(dati, "", error, Long.toString(nextwClient));
 
 
     }
-    public void LogoutMethod(StringTokenizer Tok, PkjData dati) {
+    private void LogoutMethod(StringTokenizer Tok, PkjData dati) {
 
         String username = null;
         String passwd = null;
@@ -263,15 +303,20 @@ public class Work implements Runnable {
 
                 if(u.getID_CHANNEL() == (Integer) Key.attachment()) {
                     u.setLogin(false);
-                    Gioco.SetQuitUtente(username);
                     error = 0;
+
+                    //prima di settare di abbandonare il gioco devo controllare se l utente ha provato a partecipare
+                    if(Gioco.IsInGame(username) != null) {
+                        Gioco.SetQuitUtente(username);
+                        SendSerialization('I');
+                    }
                 }
                 else {error = -3;} //-3 indica che l utente non ha inserito l'username corretto
             }
             else {error = -2; } //-2 indica che l utente non è loggato
         }
         else error = -1;;// -1 indica utente non registrato
-        WriteErrorOrWinOrSuggestionMessage(dati, "logout:", error, "");
+        WriteErrorOrWinOrSuggestionMessage(dati, "", error, "");
     }
     private void LoginMethod(StringTokenizer Tok, PkjData dati) {
 
@@ -299,12 +344,12 @@ public class Work implements Runnable {
                 else error = -2;//-2 indica che l utente non ha inserito correttamente la passwd
             }
             else error = -1;// -1 indica utente non registrato
-            WriteErrorOrWinOrSuggestionMessage(dati, "login:", error, "");
+            WriteErrorOrWinOrSuggestionMessage(dati, "", error, "");
         }
         catch (Exception e) {//in caso venga sollevata un eccezione
             if(e instanceof NoSuchElementException) {//se viene sollevata perche l utente non ha inserito correttamente
                                                     //i dati
-                WriteErrorOrWinOrSuggestionMessage(dati, "login:", -4, "");
+                WriteErrorOrWinOrSuggestionMessage(dati, "", -4, "");
             }
             else e.printStackTrace();
         }
@@ -320,6 +365,29 @@ public class Work implements Runnable {
             if(Words.get(i).equals(GuessWord))return true;
         }
         return false;
+    }
+    //metodo privato usarto per comunicare con il thread che serializza
+    private void SendSerialization(char type) {
+
+        try {
+
+            switch (type) {
+                case 'U' :  DaSerializzare.put(new DataToSerialize<>(null, 'U'));
+                    break;
+                case 'C' : DaSerializzare.put(new DataToSerialize<>(Classifica, 'C'));
+                    break;
+                case 'I' :
+                    //Anche se uso una blockingqueue ho necessita di usare la readlock per poter accedere all oggetto game in quanto
+                    //in qualsiasi momento tale oggetto puo essere aggiornato dal thread che ricrea una nuova sessione di gioco
+                    ReadWordLock.lock();
+                        try {DaSerializzare.put(new DataToSerialize<>(Gioco, 'I'));}
+                        catch (Exception e) {e.printStackTrace();}
+                    ReadWordLock.unlock();
+                    break;
+            }
+
+        }
+        catch (Exception e) {e.printStackTrace();}
     }
     private void updateClassifica(String username, Utente tmpu, int Wintentativi) {
 

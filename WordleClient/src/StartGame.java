@@ -8,9 +8,11 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.nio.charset.StandardCharsets;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.Date;
+import java.util.StringTokenizer;
 import java.util.concurrent.ExecutionException;
 
 public class StartGame extends JFrame {
@@ -70,12 +72,6 @@ public class StartGame extends JFrame {
                             ou.writeChars("login:" + usernamelogin + " " + pass);
                             ou.flush();
                             System.out.print(inn.readInt());
-                            System.out.print(inn.readChar());
-                            System.out.print(inn.readChar());
-                            System.out.print(inn.readChar());
-                            System.out.print(inn.readChar());
-                            System.out.print(inn.readChar());
-                            System.out.println(inn.readChar());
 
                             switch(inn.readInt()) {
                                 case 0 :
@@ -126,6 +122,7 @@ public class StartGame extends JFrame {
                                     JButton Logout = new JButton("Logout");
                                     JButton Gioca = new JButton("Gioca");
                                     JButton SendWord = new JButton("Send");
+                                    JButton sendMeStatistics = new JButton("sendMeStatistics");
 
                                     // Aggiungi gli ascoltatori di azioni ai JButton
                                     Logout.addActionListener(new ActionListener() {
@@ -141,13 +138,6 @@ public class StartGame extends JFrame {
                                                 ou.writeChars("logout:" + user);
                                                 ou.flush();
                                                 System.out.print(inn.readInt());
-                                                System.out.print(inn.readChar());
-                                                System.out.print(inn.readChar());
-                                                System.out.print(inn.readChar());
-                                                System.out.print(inn.readChar());
-                                                System.out.print(inn.readChar());
-                                                System.out.print(inn.readChar());
-                                                System.out.println(inn.readChar());
 
                                                 switch(inn.readInt()) {
                                                     case 0 :
@@ -181,17 +171,6 @@ public class StartGame extends JFrame {
                                                 ou.writeChars("playWORDLE:" + usernamelogin);
                                                 ou.flush();
                                                 System.out.print(inn.readInt());
-                                                System.out.print(inn.readChar());
-                                                System.out.print(inn.readChar());
-                                                System.out.print(inn.readChar());
-                                                System.out.print(inn.readChar());
-                                                System.out.print(inn.readChar());
-                                                System.out.print(inn.readChar());
-                                                System.out.print(inn.readChar());
-                                                System.out.print(inn.readChar());
-                                                System.out.print(inn.readChar());
-                                                System.out.print(inn.readChar());
-                                                System.out.println(inn.readChar());
 
                                                 switch(inn.readInt()) {
                                                     case 0 :
@@ -241,15 +220,6 @@ public class StartGame extends JFrame {
                                                     ou.flush();
 
                                                     int len = inn.readInt();
-                                                    System.out.print(inn.readChar());
-                                                    System.out.print(inn.readChar());
-                                                    System.out.print(inn.readChar());
-                                                    System.out.print(inn.readChar());
-                                                    System.out.print(inn.readChar());
-                                                    System.out.print(inn.readChar());
-                                                    System.out.print(inn.readChar());
-                                                    System.out.print(inn.readChar());
-                                                    System.out.println(inn.readChar());
                                                     int result = inn.readInt();
                                                     System.out.println(result);
                                                     String wordTradotta = null;
@@ -297,12 +267,34 @@ public class StartGame extends JFrame {
                                             }
                                         }
                                     });
+                                    sendMeStatistics.addActionListener(new ActionListener() {
+                                        @Override
+                                        public void actionPerformed(ActionEvent e) {
 
+                                            //------------------------------------------//
+                                            try {
+                                                DataOutputStream ou = new DataOutputStream(new BufferedOutputStream(socket.getOutputStream()));
+                                                DataInputStream inn = new DataInputStream(new BufferedInputStream(socket.getInputStream()));
+
+                                                ou.writeInt((("sendMeStatistics:"+ usernamelogin).length())*2);
+                                                ou.writeChars("sendMeStatistics:" + usernamelogin);
+                                                ou.flush();
+                                                String statistic = gotStatistics(inn);
+
+
+                                                JOptionPane.showMessageDialog(null, statistic);
+
+                                            }
+                                            catch (Exception ee) {ee.printStackTrace();}
+                                            //-----------------------------------------------------//
+                                        }
+                                    });
 
 
                                     mainPanel.add(makePanelLogout(Logout));
                                     mainPanel.add(makePanelPlayStart(Gioca));
                                     mainPanel.add(makePanelSend(SendWord));
+                                    mainPanel.add(makePanelStatistics(sendMeStatistics));
 
                                     Frame.add(mainPanel);
                                     Frame.setSize(1000, 500);
@@ -395,6 +387,18 @@ public class StartGame extends JFrame {
 
     }
     //metodi utilizzati per creare i panel da inserire nel panel main
+    private JPanel makePanelStatistics(JButton sendMeStatistics) {
+
+        JPanel panelStatistics = new JPanel();
+        panelStatistics.setLayout(new BoxLayout(panelStatistics, BoxLayout.Y_AXIS));
+        panelStatistics.add(new JLabel("User Statistics:"));
+        panelStatistics.add(new JLabel(" "));
+        panelStatistics.add(new JLabel(" "));
+        panelStatistics.add(new JLabel(" "));
+        panelStatistics.add(sendMeStatistics);
+
+        return panelStatistics;
+    }
     private JPanel makePanelLogin(JButton log) {
 
         JPanel panelLogin = new JPanel();
@@ -466,6 +470,7 @@ public class StartGame extends JFrame {
         panelPlay.add((new JLabel(" ")));
         panelPlay.add((NextWordLable = new JLabel("Unknown")));
         panelPlay.add(new JLabel("StartSession:"));
+        panelPlay.add((new JLabel(" ")));
         panelPlay.add(play);
 
         return panelPlay;
@@ -509,6 +514,27 @@ public class StartGame extends JFrame {
             return null;
         }
         return new String(data);
+    }
+    private String gotStatistics(DataInputStream inn) {
+
+        String answer = new String();
+        try {
+
+            int lenMex = inn.readInt();//recupero la lunghezza dell intero messaggio, necessario anche se non usata
+            int error = inn.readInt();//recupero l intero che nel mio protocollo indica eventuale errore
+
+            if(error == 0) {//se non ci sono stati errori
+
+                int lenDati = inn.readInt();//recupero la len del mex che contiene le statistiche
+
+                //recupero i dati
+                for(int i = 0; i<lenDati; i++) {answer = answer.concat(String.valueOf(inn.readChar()));}
+            }
+        }
+        catch (Exception e) {e.printStackTrace();}
+
+        return answer;
+
     }
     /*Da capire bene a cosa serve questa cosa
     public static void main(String[] args) {

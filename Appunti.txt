@@ -887,3 +887,63 @@ Giorno 28)	Riprendo dagli obbiettivi lasciati ieri:
 			 
 -------------------------------------------------------------------------------------------------------------------------------------------
 
+Giorno 29)	Ricomincio da dove ero arrivato ieri::
+		Apparte il fatto che devo rendere bello il metodo run del make json, devo:
+			
+		1) :capire bene quando serializzare la classifica e il game:
+		
+			La classifica credo che debba essere salvata ogni volta che viene aggiornata, quindi alle vittorie dei client,
+			Riguardo il game invece creedo che debba essere serializzato ogni volta che succede che un client o vince (fatto), o perde
+			perche finisce i tentativi(fatto), oppure perche fa quit, 
+			quindi per quest ultimo caso, quando un client fa la logout, 
+			controllo se ha provato a partecipare al gioco e nel caso serializzo il game (fatto)
+		Fatto.
+			 
+			 
+		
+		2)I comandi che il client richiede per la classifica :::
+		
+			Comincio con il comando: sendMeStatistics() :richiesta delle statistiche dell’utente aggiornata dopo l’ultimo gioco
+			qui dopo aver inviato la richiesta devo ricevere le statistiche del client
+                       dopo l ultimo gioco effettuato, quindi, se il client richiede le statistiche mentre è in corso una partita, 
+                       siccome io delle statistiche aggiono solo il numero di partite giocate, in questo caso gli mando games - 1 e il
+                       resto uguale, se mi richiede le statistiche ma non sta giocando una partita in questo momento gli mando tutto
+                       cosi com'è:: ora implemento
+                       Riguardo la risposta del server al client, devo usare un protocollo specifico:
+                       i dati che devo inviare sono:
+                       	
+                       	private int Games = 0;//partite giocate ok
+    				private int WinGame = 0;//partite vinte ok
+  				private float WinGamePerc = 0;//percentuale partite vinte ok
+   				private int LastConsecutive = 0;//lunghezza ultima striscia positiva ok
+   				private int MaxConsecutive = 0;//striscia positiva piu lunga;ok
+  				private float [] GuesDistribuition = new float[12]; //Il numero massimo di tentativi che un utente puo fare è 12 
+			
+			Quindi, manderò i dati in questo ordine: senza spazio perche tanto lato client so gia quali dati mi arriveranno, 
+			li mandero sotto forma di stringa in modo da poter usare il metodo che scrive le risposte
+			 
+			Nota: ricordare di pulire la funzione work dalle var che non uso nei vari metodi
+			
+			il client riceve le statistiche, va sistemata la visualizzazione, va capito bene come funziona lo Standard della
+			decodifica dei caratteri, se non riesco a sistemare correttamente tutto posso cambiare strategia, ad esempio posso
+			inviare le statistiche al client serializzando un oggetto statistica e inviarlo al client, in questo modo
+			il client deve avere la classe statistiche per leggere i dati. Dopo controllo bene
+			
+			Lato client ho deciso di implementare un metodo che raccoglie tutti i dati ricevuti dal server e li inserisce
+			in una stringa, in un secondo momento faccio il parsing della stringa e visualizzo il messaggio.
+			Nemmeno cosi riesco a farlo a causa della codifica dei dati, ora prova a serializzare i dati invece::
+			
+			
+			Nota: Ho leminato lato server il fatto di inviare indietro il nome del metodo e quindi anche la lettura lato 
+			client e sembra tutto ok 
+				 
+		3) fare il meccanismo delle notifiche e rendere tutto piu legibile, anche il lavoro di ieri
+		
+		5) Capire come mai quando copio la parola in una sezione di testo lato client si solleva un eccezzione
+		
+		6) Da verificare bene il meccanismo della traduzione 
+		
+				
+
+-------------------------------------------------------------------------------------------------------------------------------------------
+
