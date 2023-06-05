@@ -152,13 +152,15 @@ public class ServerWordle{// il tipo generico T viene utilizzato per implementar
          * per tenere traccia degli utenti loggati => mandero la notifica per quegli utenti che sono loggati, quindi
          * a questo punto per ora non uso nemmeno la readlock per la lettura tanto poi dovro usare altre lock
          */
-        Set<Map.Entry<String, Utente>> utenti = Registrati.entrySet();
+      /*  Set<Map.Entry<String, Utente>> utenti = Registrati.entrySet();
         for (Map.Entry<String, Utente> u : utenti) {
             try {
                 u.getValue().getStub().SendNotifica(-1);
             }
             catch (Exception e) {e.printStackTrace();}
         }
+
+       */
     }
     /**
      * Metodo per effettuare la chiusura del servizio RMI,

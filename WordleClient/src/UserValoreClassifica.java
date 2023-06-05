@@ -1,19 +1,16 @@
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
-
 import java.io.Serializable;
 
+
+//classe uguale a quella del server per poter recuperare le prime 3 posizioni della classifica
 public class UserValoreClassifica implements Comparable<UserValoreClassifica>, Serializable {
 
     private String username;
     private float score;
 
-    @JsonCreator
-    public UserValoreClassifica(@JsonProperty("username") String us, @JsonProperty("score") float sc) {
+    public UserValoreClassifica(String us, float sc) {
         username = us;
         score = sc;
     }
-
     public float getScore() {return score;}
     public void setScore(float sc) {score = sc;}
     public void setUsername(String usn) {username = usn;}

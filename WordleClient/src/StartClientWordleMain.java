@@ -28,6 +28,7 @@ public class StartClientWordleMain {
              */
 
             StartGame game = new StartGame();
+            /*
             ImplementazioneNotificaClient notifica = null;
             Registrazione servizio = null;
             String user = null;
@@ -87,15 +88,16 @@ public class StartClientWordleMain {
                             case 0 :
                                 System.out.println("Login effettuato");
                                 System.out.println("Benvenuto");
-                                notifica = new ImplementazioneNotificaClient();//oggetto da esportare
-                                NotificaClient skeleton = (NotificaClient) UnicastRemoteObject.exportObject(notifica, 0);
+                                //notifica = new ImplementazioneNotificaClient();//oggetto da esportare
+                                //NotificaClient skeleton = (NotificaClient) UnicastRemoteObject.exportObject(notifica, 0);
                                 /**
                                  * A questo punto il client non termina perhce rimane esportato l'ggetto
                                  * per effettuare la notifica, naturalmente dovra essere esportato quando
                                  * il client fara la login e eliminata l'esportazione in seguito a una logout
                                  */
                                 //ora qua provo a inviare lo stub al server dopo che mi sono registrato ecc
-                                servizio.sendstub(user, skeleton);
+                               // servizio.RegisryForCallBack(user, skeleton);
+            /*
                                 break;
                             case -1:
                                 System.out.println("Errore. Per partecipare al gioco bisogna prima essere iscritti");
@@ -150,6 +152,8 @@ public class StartClientWordleMain {
                     if(notifica != null) UnicastRemoteObject.unexportObject(notifica, true);
                 }
             }
+
+             */
         }
         catch (Exception e) {
             e.printStackTrace();

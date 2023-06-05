@@ -100,7 +100,7 @@ public class Work implements Runnable {
         u = Registrati.get(username);
 
         //controllo se l utente in questo momento sta giocando
-        if(Gioco.IsInGame(username) != null){
+        if(Gioco.IsInGame(username)){
             GameUtente = u.getGame() - 1;
         }
         else GameUtente = u.getGame();
@@ -306,7 +306,7 @@ public class Work implements Runnable {
                     error = 0;
 
                     //prima di settare di abbandonare il gioco devo controllare se l utente ha provato a partecipare
-                    if(Gioco.IsInGame(username) != null) {
+                    if(Gioco.IsInGame(username)) {
                         Gioco.SetQuitUtente(username);
                         SendSerialization('I');
                     }
@@ -393,6 +393,17 @@ public class Work implements Runnable {
 
         //acquisisco la mutuia esclusione sulla classifica
         WriteLockClassifica.lock();
+
+            //Prima di aggiornare la classifica salvo i nomi degli utenti che si trovano nelle prime 3 posizioni
+            String user1 = null;
+            String user2 = null;
+            String user3 = null;
+            int sizeClassifica = Classifica.size();
+            if(sizeClassifica >= 3) {
+                user1 = Classifica.get(0).getUsername();
+                user2 = Classifica.get(1).getUsername();
+                user3 = Classifica.get(2).getUsername();
+            }
             for(int i = 0; i<Classifica.size(); i++) {
 
                 //ricerco l utente del quale devo aggiornare lo score
@@ -401,6 +412,25 @@ public class Work implements Runnable {
                     temp.UpdateSCore(tmpu.getWinGame(), Wintentativi);
                     Collections.sort(Classifica);
                     break;//esco dal ciclo
+                }
+            }
+            //confronto le prime 3 posizioni con quelle precedenti all aggiornamento se sono cambiate invio la notifica
+            if(sizeClassifica >= 3 && (!user1.equals(Classifica.get(0).getUsername()) ||
+                                       !user2.equals(Classifica.get(1).getUsername()) ||
+                                       !user3.equals(Classifica.get(2).getUsername()))){
+                //in questo caso devo recuperare l oggetto stub e inviare le prime 3 posizioni della classifica al client
+                //ricopio le prime 3 posiszioni della classifica in un ArrayList dello stesso tipo e li invio al client
+                ArrayList<UserValoreClassifica> podio = new ArrayList<>();
+                podio.add(Classifica.get(0));
+                podio.add(Classifica.get(1));
+                podio.add(Classifica.get(2));
+                for(Utente u : Registrati.values()) {
+                    System.out.println("INVIO NOTIFICA");
+                    NotificaClient stub = u.getStub();
+                    if(stub != null) {
+                        try {stub.SendNotifica(podio);}
+                        catch (Exception e){e.printStackTrace();}
+                    }
                 }
             }
         WriteLockClassifica.unlock();

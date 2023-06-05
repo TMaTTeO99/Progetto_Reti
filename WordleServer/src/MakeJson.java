@@ -143,6 +143,7 @@ public class MakeJson implements Runnable{
     public void run() {
 
         int NumUpdate = 0;//variabile che mi tiene traccia del numero di utenti che hanno aggiornato le loro statistiche
+        NotificaClient stub = null;
         FileWriter NewJsonUtenti = null;
         FileWriter NewJsonSessione = null;
         FileWriter NewJsonClassifica = null;
@@ -186,8 +187,10 @@ public class MakeJson implements Runnable{
                               //in questo caso quindi quando ricevo 'N' indica username di
                               //utente che deve essere serializzato dall inizio
                         Utente u = Registrati.get(dato.getDato());
+                        stub = u.getStub();
                         u.RemoveSTub();
                         generator.writeObject(u);
+                        u.setStub(stub);
                         System.out.println("SONO ENTRSTO PER LA REGISTRAZIONE DA ZERO");
                         break;
                     case 'U' ://caso in cui il lista sarà presente l username di un utente
@@ -202,9 +205,10 @@ public class MakeJson implements Runnable{
                             generator.setCodec(map);
                             Collection<Utente> lst =  Registrati.values();
                             for(Utente Giocataore : lst) {
-                                System.out.println("Scrivo gli utenti");
+                                stub = Giocataore.getStub();
                                 Giocataore.RemoveSTub();
                                 generator.writeObject(Giocataore);
+                                Giocataore.setStub(stub);
                             }
 
                             File oldJson = new File(PathJSN.concat("/").concat(FileNameJsonUtenti));

@@ -9,8 +9,10 @@ import java.io.DataOutputStream;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
+import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.server.UnicastRemoteObject;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.StringTokenizer;
 import java.util.concurrent.ExecutionException;
@@ -25,11 +27,16 @@ public class StartGame extends JFrame {
     private JTextField TextFieldPassRegistra;
     private JTextField TextFieldWordSendWord;
     private JLabel NextWordLable;
+    private JLabel Classifica = new JLabel("Nessuna Notifica");
     private Date DataNextWord = new Date(0);
     private String usernamelogin;
     private NotificaClient skeleton;
     private ImplementazioneNotificaClient notifica;
-    public StartGame() {
+    Registrazione servizio = null;
+    public StartGame() throws Exception {
+
+        //recupero il servizio di registrazione
+        servizio = (Registrazione) LocateRegistry.getRegistry(6500).lookup("Registrazione");;
 
         // Configurazione del frame principale
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);//quando chiudo il frame principale il client termina
@@ -71,15 +78,15 @@ public class StartGame extends JFrame {
                             ou.writeInt((("login:"+ usernamelogin + " " + pass).length())*2);
                             ou.writeChars("login:" + usernamelogin + " " + pass);
                             ou.flush();
-                            System.out.print(inn.readInt());
+                            System.out.print(inn.readInt() + "1");
 
                             switch(inn.readInt()) {
                                 case 0 :
                                     //ora qua provo a inviare lo stub al server dopo che mi sono registrato ecc
-                                    notifica = new ImplementazioneNotificaClient();
+                                    notifica = new ImplementazioneNotificaClient(Classifica);
                                     skeleton = (NotificaClient) UnicastRemoteObject.exportObject(notifica, 0);
-                                    Registrazione servizio = (Registrazione) LocateRegistry.getRegistry(6500).lookup("Registrazione");;
-                                    servizio.sendstub(usernamelogin, skeleton);
+                                    //Registrazione servizio = (Registrazione) LocateRegistry.getRegistry(6500).lookup("Registrazione");;
+                                    servizio.RegisryForCallBack(usernamelogin, skeleton);
                                     returnvalue = 1;
                                     break;
                                 case -1:
@@ -119,12 +126,47 @@ public class StartGame extends JFrame {
                                     JPanel mainPanel = new JPanel();
                                     mainPanel.setLayout(new FlowLayout(FlowLayout.LEFT, 100, 20));
 
+                                    JButton Visualizza = new JButton("Visualizza");
                                     JButton Logout = new JButton("Logout");
                                     JButton Gioca = new JButton("Gioca");
                                     JButton SendWord = new JButton("Send");
                                     JButton sendMeStatistics = new JButton("sendMeStatistics");
 
-                                    // Aggiungi gli ascoltatori di azioni ai JButton
+                                    //Aggiungo gli ascoltatori di azioni ai JButton
+
+                                    Visualizza.addActionListener(new ActionListener() {
+                                        @Override
+                                        public void actionPerformed(ActionEvent e) {
+
+                                            if(Classifica.getText().equals("Nuova notifica")) {
+
+                                                //recupero il podio
+                                                ArrayList<UserValoreClassifica> podio = notifica.GetClassififca();
+                                                JFrame seePodio = new JFrame("PODIO");
+                                                seePodio.setLayout(new BorderLayout());
+
+                                                seePodio.setLocation(new Point(300, 300));
+
+                                                JTextArea info = new JTextArea();
+                                                info.setEditable(false);
+                                                info.setRows(3);
+                                                JScrollPane scrll = new JScrollPane(info);
+
+                                                info.append("UTENTE: " + podio.get(0).getUsername() + " SCORE: " + podio.get(0).getScore() + "\n");
+                                                info.append("UTENTE: " + podio.get(1).getUsername() + " SCORE: " + podio.get(1).getScore() + "\n");
+                                                info.append("UTENTE: " + podio.get(2).getUsername() + " SCORE: " + podio.get(2).getScore() + "\n");
+
+                                                seePodio.add(info, BorderLayout.CENTER);
+                                                seePodio.setSize(500, 200);
+                                                seePodio.setVisible(true);
+                                                Classifica.setText("Nessuna Notifica");
+
+                                            }
+                                            else {
+                                                JOptionPane.showMessageDialog(null, "Nessuna notifica da visualizzare");
+                                            }
+                                        }
+                                    });
                                     Logout.addActionListener(new ActionListener() {
                                         @Override
                                         public void actionPerformed(ActionEvent e) {
@@ -137,10 +179,12 @@ public class StartGame extends JFrame {
                                                 ou.writeInt((("logout:"+ user).length())*2);
                                                 ou.writeChars("logout:" + user);
                                                 ou.flush();
-                                                System.out.print(inn.readInt());
+                                                System.out.print(inn.readInt()+ "2");
 
                                                 switch(inn.readInt()) {
                                                     case 0 :
+
+                                                        servizio.UnRegisryForCallBack(user, skeleton);
                                                         UnicastRemoteObject.unexportObject(notifica, true);
                                                         Frame.dispose();
                                                         new StartGame();
@@ -170,7 +214,7 @@ public class StartGame extends JFrame {
                                                 ou.writeInt((("playWORDLE:"+ usernamelogin).length())*2);
                                                 ou.writeChars("playWORDLE:" + usernamelogin);
                                                 ou.flush();
-                                                System.out.print(inn.readInt());
+                                                System.out.print(inn.readInt()+ "3");
 
                                                 switch(inn.readInt()) {
                                                     case 0 :
@@ -221,7 +265,7 @@ public class StartGame extends JFrame {
 
                                                     int len = inn.readInt();
                                                     int result = inn.readInt();
-                                                    System.out.println(result);
+                                                    System.out.println(result+ "5");
                                                     String wordTradotta = null;
                                                     switch(result) {
                                                         case 2 ://caso in cui ho sfruttato l ultimo tentativo e ho perso
@@ -281,7 +325,6 @@ public class StartGame extends JFrame {
                                                 ou.flush();
                                                 String statistic = gotStatistics(inn);
 
-
                                                 JOptionPane.showMessageDialog(null, statistic);
 
                                             }
@@ -295,6 +338,7 @@ public class StartGame extends JFrame {
                                     mainPanel.add(makePanelPlayStart(Gioca));
                                     mainPanel.add(makePanelSend(SendWord));
                                     mainPanel.add(makePanelStatistics(sendMeStatistics));
+                                    mainPanel.add(makeSeeNotify(Visualizza));
 
                                     Frame.add(mainPanel);
                                     Frame.setSize(1000, 500);
@@ -336,7 +380,7 @@ public class StartGame extends JFrame {
 
                             String user = TextFieldUserRegistra.getText();
                             String pass = new String(TextFieldPassRegistra.getText());
-                            Registrazione servizio = (Registrazione) LocateRegistry.getRegistry(6500).lookup("Registrazione");
+                            //Registrazione servizio = (Registrazione) LocateRegistry.getRegistry(6500).lookup("Registrazione");
 
                             return servizio.registra(user, pass);
                         }
@@ -464,7 +508,7 @@ public class StartGame extends JFrame {
     private JPanel makePanelPlayStart(JButton play) {
 
         JPanel panelPlay = new JPanel();
-        //NextWordLable =
+
         panelPlay.setLayout(new BoxLayout(panelPlay, BoxLayout.Y_AXIS));
         panelPlay.add((new JLabel("Data e ora prossima parola prodotta: ")));
         panelPlay.add((new JLabel(" ")));
@@ -474,6 +518,19 @@ public class StartGame extends JFrame {
         panelPlay.add(play);
 
         return panelPlay;
+    }
+    private JPanel makeSeeNotify(JButton visualizza) {
+
+        JPanel panelNotify = new JPanel();
+
+        panelNotify.setLayout(new BoxLayout(panelNotify, BoxLayout.Y_AXIS));
+        panelNotify.add(new JLabel("Aggiornamento classifica:\n"));
+        panelNotify.add(new JLabel(" "));
+        panelNotify.add(new JLabel(" "));
+        panelNotify.add(Classifica);
+        panelNotify.add(visualizza);
+
+        return panelNotify;
     }
     public JPanel MakeSuggestionsPanel(String suggestions, String word) {
 

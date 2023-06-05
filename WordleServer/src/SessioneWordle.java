@@ -69,5 +69,9 @@ public class SessioneWordle implements Serializable {
     }
     public ConcurrentHashMap<String, InfoSessioneUtente> getTentativi() {return Tentativi;}
     public void setTentativi(ConcurrentHashMap<String, InfoSessioneUtente> tentativi) {Tentativi = tentativi;}
-    public InfoSessioneUtente IsInGame(String username) {return Tentativi.get(username);}
+    public boolean IsInGame(String username) {
+        InfoSessioneUtente u = Tentativi.get(username);
+        if(u != null) return !u.getQuitGame() && u.getTentativi() >= 0 && u.getTentativi() < 12;
+        return false;
+    }
 }

@@ -49,7 +49,10 @@ public class ImlementazioneRegistrazione extends RemoteServer implements Registr
             return 2;
         }
     }
-    public void sendstub(String username, NotificaClient stub) throws RemoteException {
+    public void RegisryForCallBack(String username, NotificaClient stub) throws RemoteException {
         Registrati.get(username).setStub(stub);
+    }
+    public void UnRegisryForCallBack(String username, NotificaClient stub)throws RemoteException {
+        Registrati.get(username).RemoveSTub();
     }
 }

@@ -104,7 +104,7 @@ public class Utente implements Serializable {
 
     public void setStub(NotificaClient s) {stub = s;}
 
-    public void RemoveSTub() { stub = null;}//metodo usato per eliminare lo stub prima di serializzare
+    public void RemoveSTub() {stub = null;}//metodo usato per eliminare lo stub prima di serializzare
 
     public int getID_CHANNEL() {
         return ID_CHANNEL;
@@ -114,7 +114,7 @@ public class Utente implements Serializable {
         ID_CHANNEL = ID;
     }
 
-    public void UpdatePercWingame() {WinGamePerc = ( ((float) Games / (float) 100) * WinGame);}
+    public void UpdatePercWingame() {WinGamePerc = ( (float) (WinGame * 100) / (float)Games);}
 
     public void updateLastConsecutive(boolean flag) {
 

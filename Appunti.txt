@@ -947,3 +947,49 @@ Giorno 29)	Ricomincio da dove ero arrivato ieri::
 
 -------------------------------------------------------------------------------------------------------------------------------------------
 
+Giorno 30)	partite : 100 = vittorie : x => partite / 100 = vitterie/x => x = (vittorie * 100) / partite
+
+		Riprendo: Riguardo le statistiche sembra funzionare, per ora lascio cosi, poi nel caso miglioro, ho tempo.
+		
+		
+		Continuo con il resto dei comandi che rimangono::
+		
+		Devo cominciare con la condivisone dei risulatati, callback ecc:
+		
+		Nel metodo dell aggiornamento della classifica, nel caso in cui la classifica viene aggiornata in modo tale da far variare le 
+		prime 3 posizioni devo avvertire il client con una notifica. 
+		Devo capire lato client come visualizzo le notifiche:
+		
+		
+			Nota: il client quando fa il login si reve registare al servizio di notifica, il metofdo che uso per fare 
+			questo l ho chiamato sendstub, lo devo chiamare registryforcllback, inoltre devo anche implementare il 
+			metodo unregistryforcallback che deve eseere richiamato quando viene fatto il logout del client: fatto sembra funzionare
+			
+		Nota: c'è ancora il problema nella send statistiche del numero di partite giocate, devo controllare bene :fatto
+		
+		Devo capire ora come visualizzare lato client le notifiche	
+			 
+		 
+		Nota, lato server viene sollevata un eccezione quando invio le notifiche al client, questa eccezione viene lanciata se 
+		ho degli utenti che non sono collegati ma che non hanno fatto logout, allora lo stub lato server non diventa null ma
+		non è funzionante allora si solleva l eccezzione, posso levare la stampa e lasciare stare oppure posso migliorare,
+		
+		
+		La visualizzazione della classifica sembra funzionare
+		
+		Nota:  ************************ 
+		posso far loggare da due client diversi lo stesso utente??? Cosi com'è se da due client effettuo il login,
+		da uno mi fa effettuare il logout, dall altro invece no, questo problema nasce dal fatto che all interno del utente, 
+		inserosco un intero che è l identificativo della connessione, per risolvere questo problema posso usare una lista
+		di identificativi e variabili boolean per il login, in questo modo posso consentire all utente di poter 
+		effettuare il login e il logout da piu dispositivi.  
+			***********************
+
+
+
+
+
+
+
+
+-------------------------------------------------------------------------------------------------------------------------------------------
