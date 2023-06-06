@@ -1,4 +1,7 @@
 import java.io.*;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
+import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.SocketChannel;
@@ -21,12 +24,10 @@ public class Work implements Runnable {
     private ArrayList<UserValoreClassifica> Classifica;
     private Lock ReadLockClassifica;
     private Lock WriteLockClassifica;
-
-    //ReadLockClassifica, WriteLockClassifca
-
+    private InetSocketAddress AddressMulticastClients;//InetSocketaddress usato per inviare ai client del gruppo multicast i tentativi
     public Work(SelectionKey k, ConcurrentHashMap<String, Utente> R, PkjData dati, ArrayList<String> Vocabolario,
                 SessioneWordle g, Lock RWLock, LinkedBlockingDeque<DataToSerialize> daserializzare, ArrayList<UserValoreClassifica> Clss,
-                Lock RDLock, Lock WRLock) {
+                Lock RDLock, Lock WRLock, String IPMulticast, int PortMulticast) {
         Key = k;
         Registrati = R;
         Dati = dati;
@@ -37,6 +38,7 @@ public class Work implements Runnable {
         Classifica = Clss;
         ReadLockClassifica = RDLock;
         WriteLockClassifica = WRLock;
+        AddressMulticastClients = new InetSocketAddress(IPMulticast, PortMulticast);
     }
     public void run() {
 
@@ -67,6 +69,12 @@ public class Work implements Runnable {
                 case "sendMeStatistics":
                     SendStatisticsMethod(Tok, Dati);
                     break;
+                case "share":
+                    ShareMethod(Tok, Dati);
+                    break;
+                case "showMeRanking":
+                    showRankingMethod(Tok, Dati);
+                    break;
             }
         }
         catch (Exception e) {e.printStackTrace();}
@@ -80,7 +88,57 @@ public class Work implements Runnable {
     }
 
     //Metodi privati usati per costruire la risposta corretta
+    private void showRankingMethod(StringTokenizer Tok, PkjData dati) {
 
+        ReadLockClassifica.lock();
+
+            String answer = new String();
+            for(int i = 0; i< Classifica.size(); i++) {
+                UserValoreClassifica temp = Classifica.get(i);
+                answer = answer.concat("USER: " + temp.getUsername() + " SCORE: " + temp.getScore() + "\n");
+            }
+
+        WriteErrorOrWinOrSuggestionMessage(dati, "", 0, answer);
+        ReadLockClassifica.unlock();
+
+    }
+    private void ShareMethod(StringTokenizer Tok, PkjData dati) {
+
+        String username = null;
+        String passwd = null;
+        String word = null;
+        int lendati = 0, GameUtente = 0;
+        ByteArrayOutputStream SupportOut = null;
+        Utente u = null;
+
+        username = Tok.nextToken(" ").replace(":", "");//recupero username
+
+        InfoSessioneUtente tmpInfo = Gioco.getInfoGameUtente(username);
+        if(tmpInfo != null) {//se l utente ha provato almeno a partecipare al gioco
+
+            //qui scorro i tentativi dell utente e costruisco i dati da inviare sul gruppo multicast
+            //costruisco una stringa contenente tutte le sottostringhe che rappresentano i suggerimenti
+            String answer = new String();
+
+            ArrayList<String> Suggerimenti = tmpInfo.getTryWord();
+            answer = answer.concat(username);
+
+            for(int  i = 0; i<Suggerimenti.size(); i++) {answer = answer.concat(" " + Suggerimenti.get(i));}
+
+            //invio la stringa con un datagrampacket al gruppo multicast
+            try (DatagramSocket sock = new DatagramSocket()){
+
+                byte [] byteAnswer = answer.getBytes();
+                DatagramPacket pkj = new DatagramPacket(byteAnswer, 0, byteAnswer.length, AddressMulticastClients);
+                sock.send(pkj);
+
+                WriteErrorOrWinOrSuggestionMessage(dati, "", 0, "");
+            }
+            catch (Exception e) {}
+        }
+        else WriteErrorOrWinOrSuggestionMessage(dati, "", -1, "");//caso in cui l utente non ha partecipato al gioco
+
+    }
     private void SendStatisticsMethod(StringTokenizer Tok, PkjData dati) {
 
         String username = null;
@@ -204,33 +262,23 @@ public class Work implements Runnable {
                     //invio al thread che serializza la sessione del gioco
                     SendSerialization('I');
 
-
                     //Costruisco il messaggio di parola indovinata
                     WriteErrorOrWinOrSuggestionMessage(dati, "", 0, wordTradotta);//0 indica parola indovinata
 
-                    /*
-                    //-------------------------------------------//
-
-                        //faccio una stampa della classifica sembra funzionare
-                        ReadLockClassifica.lock();
-                    for(int i = 0; i<Classifica.size(); i++) {
-                        UserValoreClassifica tmp = Classifica.get(i);
-                        System.out.println(tmp.getUsername() + " : " + tmp.getScore());
-                    }
-                        ReadLockClassifica.unlock();
-
-                    //-------------------------------------------//
-                    */
                 }
                 else {
                     //a questo punto devo inviare i suggerimenti al client se dopo quest ultimo tentativo ne ha almeno un altro
                     // devo quindi effettuare il calcolo dei sugerimenti, produrre la risposta e inviarla
                     if(Gioco.gettentativiUtente(username) < 12) {
-                        WriteErrorOrWinOrSuggestionMessage(dati, "", 1, ComputeSuggestions(GameWord, word));
+
+                        String suggestions = ComputeSuggestions(GameWord, word);//costruisco i suggerimenti per l utente
+                        Gioco.getTentativi().get(username).getTryWord().add(suggestions);//aggiungo il tentativo alla sessione dell utente
+                        WriteErrorOrWinOrSuggestionMessage(dati, "", 1, suggestions);//rispondo al client
+
                     }
                     else {//se invece il client ha terminato i tentativi invio al client la traduzione della parola e serializzare la sessione di Game
 
-                            SendSerialization('I');
+                        SendSerialization('I');
                         WriteErrorOrWinOrSuggestionMessage(dati, "", 2, wordTradotta);
                     }
                 }
@@ -420,15 +468,16 @@ public class Work implements Runnable {
                                        !user3.equals(Classifica.get(2).getUsername()))){
                 //in questo caso devo recuperare l oggetto stub e inviare le prime 3 posizioni della classifica al client
                 //ricopio le prime 3 posiszioni della classifica in un ArrayList dello stesso tipo e li invio al client
-                ArrayList<UserValoreClassifica> podio = new ArrayList<>();
-                podio.add(Classifica.get(0));
-                podio.add(Classifica.get(1));
-                podio.add(Classifica.get(2));
+                ArrayList<UserValoreClassifica> ClassificaNotifiche = new ArrayList<>();
+
+                for(int i = 0; i<3; i++) {ClassificaNotifiche.add(Classifica.get(i));}
+
                 for(Utente u : Registrati.values()) {
+
                     System.out.println("INVIO NOTIFICA");
                     NotificaClient stub = u.getStub();
                     if(stub != null) {
-                        try {stub.SendNotifica(podio);}
+                        try {stub.SendNotifica(ClassificaNotifiche);}
                         catch (Exception e){e.printStackTrace();}
                     }
                 }

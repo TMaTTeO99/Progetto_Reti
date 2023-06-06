@@ -16,6 +16,7 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.StringTokenizer;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.LinkedBlockingDeque;
 
 public class StartGame extends JFrame {
 
@@ -32,6 +33,7 @@ public class StartGame extends JFrame {
     private String usernamelogin;
     private NotificaClient skeleton;
     private ImplementazioneNotificaClient notifica;
+    private LinkedBlockingDeque<Suggerimenti> SuggerimentiQueue = new LinkedBlockingDeque<>();
     Registrazione servizio = null;
     public StartGame() throws Exception {
 
@@ -126,14 +128,118 @@ public class StartGame extends JFrame {
                                     JPanel mainPanel = new JPanel();
                                     mainPanel.setLayout(new FlowLayout(FlowLayout.LEFT, 100, 20));
 
+                                    JButton ShowMeSharing = new JButton("Visualizza Condivisioni");
                                     JButton Visualizza = new JButton("Visualizza");
                                     JButton Logout = new JButton("Logout");
                                     JButton Gioca = new JButton("Gioca");
                                     JButton SendWord = new JButton("Send");
                                     JButton sendMeStatistics = new JButton("sendMeStatistics");
+                                    JButton ShowMeRancking = new JButton("showMeRanking");
+                                    JButton Share = new JButton("Share");
+
+
+                                    //a questo punto quello che faccio è lanciare un thread che sta i ascolto
+                                    //dei dati che vengono inviati dal server sul gruppo multicast
+                                    //porta e ip dovranno essere dati presi dalfile di config
+                                    Thread multiCast = new Thread(new CaptureUDPmessages("239.0.0.1", 5240, SuggerimentiQueue));
+                                    multiCast.start();
 
                                     //Aggiungo gli ascoltatori di azioni ai JButton
 
+                                    ShowMeSharing.addActionListener(new ActionListener() {
+                                        @Override
+                                        public void actionPerformed(ActionEvent e) {
+
+                                            //cerco di estrarre dalla coda finche la cosa è piena
+                                            Suggerimenti datiCondivisi = null;
+                                            JFrame shareFrame = new JFrame("SUGGERIMENTI CONDIVISI");
+                                            shareFrame.setLayout(new BorderLayout());
+                                            shareFrame.setLocation(new Point(300, 300));
+
+
+                                            while((datiCondivisi = SuggerimentiQueue.poll()) != null) {
+                                                System.out.print("QUIIIIIII");
+                                                //qui devo trovare il modo di visualizzare i suggerimenti in un unico panel
+                                                shareFrame.add(MakeAllSuggestionsPanel(datiCondivisi));
+                                            }
+
+                                            shareFrame.setSize(200, 200);
+                                            shareFrame.setVisible(true);
+                                        }
+                                    });
+                                    Share.addActionListener(new ActionListener() {
+                                        @Override
+                                        public void actionPerformed(ActionEvent e) {
+
+                                            try {
+                                                DataOutputStream ou = new DataOutputStream(new BufferedOutputStream(socket.getOutputStream()));
+                                                DataInputStream inn = new DataInputStream(new BufferedInputStream(socket.getInputStream()));
+
+                                                ou.writeInt((("share:"+ usernamelogin).length())*2);
+                                                ou.writeChars("share:" + usernamelogin);
+                                                ou.flush();
+                                                System.out.print(inn.readInt()+ "3");
+
+                                                switch(inn.readInt()) {
+                                                    case 0 :
+                                                        JOptionPane.showMessageDialog(null, "Operazione Completata");
+                                                        break;
+                                                    case -1 :
+                                                        JOptionPane.showMessageDialog(null, "Errore. Giocare al gioco prima di condividere i risultati");
+                                                        break;
+                                                }
+                                            }
+                                            catch (Exception ee) {ee.printStackTrace();}
+                                        }
+                                    });
+                                    ShowMeRancking.addActionListener(new ActionListener() {
+                                        @Override
+                                        public void actionPerformed(ActionEvent e) {
+
+                                            try {
+                                                DataOutputStream ou = new DataOutputStream(new BufferedOutputStream(socket.getOutputStream()));
+                                                DataInputStream inn = new DataInputStream(new BufferedInputStream(socket.getInputStream()));
+
+                                                ou.writeInt((("showMeRanking:").length())*2);
+                                                ou.writeChars("showMeRanking:");
+                                                ou.flush();
+                                                System.out.print(inn.readInt());
+
+
+                                                switch(inn.readInt()) {
+                                                    case 0 :
+
+                                                        JFrame seePodio = new JFrame("CLASSIFICA");
+                                                        seePodio.setLayout(new BorderLayout());
+                                                        seePodio.setLocation(new Point(300, 300));
+
+                                                        JTextArea info = new JTextArea();
+                                                        info.setEditable(false);
+                                                        JScrollPane scrll = new JScrollPane(info);
+
+
+                                                        int lenDati = inn.readInt();//recupero la lunghezza dei dati
+                                                        //qui posso usare il metodo readData credo, in caso vedere
+                                                        String classifica = new String();
+
+                                                        for(int i = 0; i<lenDati; i++) {classifica = classifica.concat(String.valueOf(inn.readChar())); }
+
+                                                        info.append(classifica);
+
+                                                        seePodio.add(info, BorderLayout.CENTER);
+                                                        seePodio.setSize(200, 200);
+                                                        seePodio.setVisible(true);
+
+                                                        break;
+                                                    case -1:
+                                                        JOptionPane.showMessageDialog(null, "Errore. Impossibile visualizzare la classifica");
+                                                        break;
+                                                }
+                                            }
+                                            catch (Exception ee) {ee.printStackTrace();}
+
+                                        }
+                                    });
                                     Visualizza.addActionListener(new ActionListener() {
                                         @Override
                                         public void actionPerformed(ActionEvent e) {
@@ -141,7 +247,7 @@ public class StartGame extends JFrame {
                                             if(Classifica.getText().equals("Nuova notifica")) {
 
                                                 //recupero il podio
-                                                ArrayList<UserValoreClassifica> podio = notifica.GetClassififca();
+                                                ArrayList<UserValoreClassifica> ClassNotifica = notifica.GetClassififca();
                                                 JFrame seePodio = new JFrame("PODIO");
                                                 seePodio.setLayout(new BorderLayout());
 
@@ -151,13 +257,11 @@ public class StartGame extends JFrame {
                                                 info.setEditable(false);
                                                 info.setRows(3);
                                                 JScrollPane scrll = new JScrollPane(info);
-
-                                                info.append("UTENTE: " + podio.get(0).getUsername() + " SCORE: " + podio.get(0).getScore() + "\n");
-                                                info.append("UTENTE: " + podio.get(1).getUsername() + " SCORE: " + podio.get(1).getScore() + "\n");
-                                                info.append("UTENTE: " + podio.get(2).getUsername() + " SCORE: " + podio.get(2).getScore() + "\n");
-
+                                                for(int i = 0; i<ClassNotifica.size(); i++) {
+                                                    info.append("UTENTE: " + ClassNotifica.get(i).getUsername() + " SCORE: " + ClassNotifica.get(i).getScore() + "\n");
+                                                }
                                                 seePodio.add(info, BorderLayout.CENTER);
-                                                seePodio.setSize(500, 200);
+                                                seePodio.setSize(200, 200);
                                                 seePodio.setVisible(true);
                                                 Classifica.setText("Nessuna Notifica");
 
@@ -222,7 +326,7 @@ public class StartGame extends JFrame {
                                                         // Sto per effettuare modofiche lato server, qui quindi invece di ricever eun long ricevero una
                                                         //stringa, quindi va convertita
 
-                                                        //solo prova
+                                                        //solo prova anche qua posso usare readData
                                                         int len = inn.readInt();
                                                         char [] tmp = new char[len];
                                                         for(int i = 0; i < len; i++) {
@@ -333,12 +437,14 @@ public class StartGame extends JFrame {
                                         }
                                     });
 
-
                                     mainPanel.add(makePanelLogout(Logout));
                                     mainPanel.add(makePanelPlayStart(Gioca));
                                     mainPanel.add(makePanelSend(SendWord));
                                     mainPanel.add(makePanelStatistics(sendMeStatistics));
                                     mainPanel.add(makeSeeNotify(Visualizza));
+                                    mainPanel.add(makePanelShowMeRanking(ShowMeRancking));
+                                    mainPanel.add(makePanelShare(Share));
+                                    mainPanel.add(ShowMeSharing);
 
                                     Frame.add(mainPanel);
                                     Frame.setSize(1000, 500);
@@ -431,6 +537,32 @@ public class StartGame extends JFrame {
 
     }
     //metodi utilizzati per creare i panel da inserire nel panel main
+    private JPanel makePanelShare(JButton Share) {
+
+        JPanel panelShare = new JPanel();
+        panelShare.setLayout(new BoxLayout(panelShare, BoxLayout.Y_AXIS));
+        panelShare.add(new JLabel("Condividi Risultati: "));
+        panelShare.add(new JLabel(" "));
+        panelShare.add(new JLabel(" "));
+        panelShare.add(new JLabel(" "));
+
+        panelShare.add(Share);
+
+        return panelShare;
+    }
+    private JPanel makePanelShowMeRanking(JButton ShowMeRancking) {
+
+        JPanel panelShowRanking = new JPanel();
+        panelShowRanking.setLayout(new BoxLayout(panelShowRanking, BoxLayout.Y_AXIS));
+        panelShowRanking.add(new JLabel("Visualizza classifica attuale: "));
+        panelShowRanking.add(new JLabel(" "));
+        panelShowRanking.add(new JLabel(" "));
+        panelShowRanking.add(new JLabel(" "));
+
+        panelShowRanking.add(ShowMeRancking);
+
+        return panelShowRanking;
+    }
     private JPanel makePanelStatistics(JButton sendMeStatistics) {
 
         JPanel panelStatistics = new JPanel();
@@ -531,6 +663,42 @@ public class StartGame extends JFrame {
         panelNotify.add(visualizza);
 
         return panelNotify;
+    }
+    public JPanel MakeAllSuggestionsPanel(Suggerimenti dati) {
+
+        JPanel main = new JPanel();
+        main.setLayout(new BoxLayout(main, BoxLayout.Y_AXIS));
+
+        ArrayList<String> lst = dati.getSuggerimenti();
+
+        for(int i = 0; i< lst.size(); i++) {
+
+            String suggerimento = lst.get(i);
+            System.out.println(suggerimento);
+            JPanel panel = new JPanel(new GridLayout(1, 10));
+
+            for(int j = 0; j<10; j++) {//suggestions è lunga 10
+
+                JLabel label = new JLabel(String.valueOf('*'), SwingConstants.CENTER);
+                label.setOpaque(true);
+
+                switch (String.valueOf(suggerimento.charAt(j))) {
+
+                    case "+" :
+                        label.setBackground(Color.GREEN);
+                        break;
+                    case "x" :
+                        label.setBackground(Color.GRAY);
+                        break;
+                    case "?" :
+                        label.setBackground(Color.YELLOW);
+                        break;
+                }
+                panel.add(label);
+            }
+            main.add(panel);
+        }
+        return main;
     }
     public JPanel MakeSuggestionsPanel(String suggestions, String word) {
 

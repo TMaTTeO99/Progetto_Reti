@@ -51,6 +51,9 @@ public class ServerWordle{// il tipo generico T viene utilizzato per implementar
 
     private ArrayList<UserValoreClassifica> Classifica; //oggetto che rappresenta la classifica
 
+    //per i test li lascio cosi, poi devo recuperarli dal file di config
+    private int PortMulticast = 5240;
+    private String IP_multicast = "239.0.0.1";
 
     public ServerWordle(String PathJson , int Nthread, long TimeStempWord, int PortExport, long LTW, File ConfigureFile,
                         ArrayList<String> Vocabolario, String URL) throws Exception{
@@ -122,7 +125,8 @@ public class ServerWordle{// il tipo generico T viene utilizzato per implementar
 
                         PkjData dati = null;
                         if((dati = ReadRequest(ReadyKey)) != null) {//se la lettura della richiesta è andata a buon fine lancio i worker
-                            pool.execute(new Work(ReadyKey, Registrati, dati, Words, Game, ReadWordLock, DaSerializzare, Classifica, ReadLockClassifica, WriteLockClassifca));
+                            pool.execute(new Work(ReadyKey, Registrati, dati, Words, Game, ReadWordLock, DaSerializzare,
+                                                  Classifica, ReadLockClassifica, WriteLockClassifca, IP_multicast, PortMulticast));
                         }
                     }
                 }

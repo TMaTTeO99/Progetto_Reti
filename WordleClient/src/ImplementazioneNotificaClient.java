@@ -12,13 +12,6 @@ public class ImplementazioneNotificaClient extends RemoteServer implements Notif
     public void SendNotifica(ArrayList<UserValoreClassifica> podio) throws RemoteException {
 
         Podio = podio;
-        /*String notifica = new String("<html>");
-        for(int i = 0; i< podio.size(); i++) {
-            notifica = notifica.concat("<br>" + "USER: " + podio.get(i).getUsername() + " SCORE: " + podio.get(i).getScore());
-        }
-        notifica = notifica.concat("</html>");
-        System.out.println(notifica);
-        */
         classifica.setText("Nuova notifica");
     }
     public ArrayList<UserValoreClassifica> GetClassififca() {return Podio;}

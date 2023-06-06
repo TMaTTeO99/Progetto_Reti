@@ -37,6 +37,11 @@ public class ImlementazioneRegistrazione extends RemoteServer implements Registr
             if(Registrati.putIfAbsent(username, new Utente(username, passwd)) == null) {
                 DaSerializzare.put(new DataToSerialize(username, 'N'));//il char N indica che sta per arrivare un username
 
+                /**
+                 * WORNING
+                 * inserire anche la classifica per serializzarla dopo che l utente si è iscritto
+                 */
+
                 LockClassifca.lock();
                     Classifica.add(new UserValoreClassifica(username, 0));//inserisco in classifica l utente appena registrato con score 0
                 LockClassifca.unlock();
