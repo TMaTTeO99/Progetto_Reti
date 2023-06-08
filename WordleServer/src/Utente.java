@@ -2,6 +2,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.io.Serializable;
+import java.util.HashMap;
 import java.util.Objects;
 
 //classe usata per rappresemtare un utente, ogni utente è identificato da un username che deve essere univoco, ad ogni untente poi
@@ -9,8 +10,11 @@ import java.util.Objects;
 
 public class Utente implements Serializable {
 
-    private int ID_CHANNEL = -1;
-    private boolean login = false; //variabile che indica se l'utente è loggato o meno, Nota: a jackson da noia se scrivo Login
+
+
+    private HashMap<Integer, InfoLogin> LoginChannel = new HashMap<>();
+    //private int ID_CHANNEL = -1;
+    //private boolean login = false; //variabile che indica se l'utente è loggato o meno, Nota: a jackson da noia se scrivo Login
     private String Username = null;
     private String Passswd = null;
     private int Games = 0;//partite giocate
@@ -24,7 +28,7 @@ public class Utente implements Serializable {
     @JsonCreator //annotazioni utilizzate per poter deserializzare i file
     public Utente(
             @JsonProperty("Username") String u,
-            @JsonProperty("Passswd")String p) {
+            @JsonProperty("Passswd") String p) {
         Username = u;
         Passswd = p;
     }
@@ -83,14 +87,11 @@ public class Utente implements Serializable {
         LastConsecutive = lastConsecutive;
     }
 
-
     public int getMaxConsecutive() {
         return MaxConsecutive;
     }
 
-    public boolean getLogin() {return login;}
-
-    public void setLogin(boolean value) {login = value;}
+    public void setLogin(int idx, boolean val) {LoginChannel.put(idx, new InfoLogin(Username, val));}//val == 1 login, val == 0 logout
 
     public int getGuesDistribuition(int idx) {return GuesDistribuition[idx];}
 
@@ -106,13 +107,9 @@ public class Utente implements Serializable {
 
     public void RemoveSTub() {stub = null;}//metodo usato per eliminare lo stub prima di serializzare
 
-    public int getID_CHANNEL() {
-        return ID_CHANNEL;
-    }
+    public HashMap<Integer, InfoLogin> getLoginChannel() {return LoginChannel;}
 
-    public void setID_CHANNEL(int ID) {
-        ID_CHANNEL = ID;
-    }
+    public void setLoginChannel(HashMap<Integer, InfoLogin> info) {LoginChannel = info;}
 
     public void UpdatePercWingame() {WinGamePerc = ( (float) (WinGame * 100) / (float)Games);}
 
@@ -123,6 +120,20 @@ public class Utente implements Serializable {
             if(LastConsecutive > MaxConsecutive) MaxConsecutive = LastConsecutive;
         }
         else {LastConsecutive = 0;}//caso  in cui il client ha finito i tentativi senza indovinare la parola allora si interrompe la striscia positiva
+    }
+    public String getUserLogin(int idx) {
+        InfoLogin info = LoginChannel.get(idx);
+        if(info != null)return info.getName();
+
+        return null;
+    }
+
+    public boolean getLogin(int idx) {
+
+        InfoLogin info = LoginChannel.get(idx);
+        if(info != null) return info.getlogin();
+
+        return false;
     }
 
 }

@@ -5,19 +5,25 @@ import java.net.DatagramPacket;
 import java.net.InetSocketAddress;
 import java.net.MulticastSocket;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.NoSuchElementException;
 import java.util.StringTokenizer;
 import java.util.concurrent.LinkedBlockingDeque;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 //classe che viene utilizzata perr stare in ascolto dei messaggi udp che il server invia sul gruppo multicast
 public class CaptureUDPmessages implements Runnable{
 
     private final int MAX_SIZE = 256;//utilizzo una dimensione per datagrampacket di 256 byte
     private InetSocketAddress address;
-    private LinkedBlockingDeque<Suggerimenti> SuggerimentiQueue;
-    public CaptureUDPmessages(String IP_multicast, int port, LinkedBlockingDeque<Suggerimenti> SuggQueue) throws Exception{
+    private Lock lock;
+    private ArrayList<Suggerimenti> SuggerimentiQueue;
+    public CaptureUDPmessages(String IP_multicast, int port, ArrayList<Suggerimenti> SuggQueue, ReentrantLock lck) throws Exception{
         address = new InetSocketAddress(IP_multicast, port);
         SuggerimentiQueue = SuggQueue;
+        lock = lck;
     }
 
     public void run() {
@@ -33,7 +39,7 @@ public class CaptureUDPmessages implements Runnable{
 
                 DatagramPacket packet = new DatagramPacket(datiDaricevere, 0, MAX_SIZE);
                 sock.receive(packet);//recupero il packet
-
+                System.out.print("PACKETTO RICEVUTO");
                 //leggo i dati dal paket tramite datainputstream
                 try(DataInputStream in = new DataInputStream(new ByteArrayInputStream(packet.getData()))) {
 
@@ -52,8 +58,9 @@ public class CaptureUDPmessages implements Runnable{
                     sugg.setUtente(tok.nextToken());
                     while(tok.hasMoreTokens()) {sugg.addSuggerimento(tok.nextToken());}
 
-                    SuggerimentiQueue.put(sugg);
-
+                    lock.lock();
+                        SuggerimentiQueue.add(sugg);
+                    lock.unlock();
                 }
                 catch (Exception e) {e.printStackTrace();}
 

@@ -56,7 +56,7 @@ public class OpenGame implements Runnable{
                      Game.setTentativi();
                 lock.unlock();
                 WriteLastSpawn(lasttime);//modifico il file di config in modo da scriverci dentro il time stamp dell ultima
-                                 //sessione di gioco creata
+                                        //sessione di gioco creata
 
                 System.out.println("Game creato");
             }

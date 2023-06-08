@@ -12,16 +12,17 @@ public class ImlementazioneRegistrazione extends RemoteServer implements Registr
 
     private ConcurrentHashMap<String, Utente> Registrati;//utenti del gioco
     private LinkedBlockingDeque<DataToSerialize> DaSerializzare;//lista per trasferire le info al thread che deve serializzare i dati
-    private Lock LockClassifca;//lock per implementare mutua esclusione classifica
+    private Lock LockClassifcaWrite;//lock per per la classifica in scrittura
+    private Lock LockClassifcaRead;//lock per per la classifica in lettura
     private ArrayList<UserValoreClassifica> Classifica;
 
     public ImlementazioneRegistrazione(ConcurrentHashMap<String, Utente> R, LinkedBlockingDeque<DataToSerialize> Lst,
-                                       ArrayList<UserValoreClassifica> Clss, Lock LckClss) {
+                                       ArrayList<UserValoreClassifica> Clss, Lock LckClss, Lock LckClassRd) {
         Registrati = R;
         DaSerializzare = Lst;
         Classifica = Clss;
-        LockClassifca = LckClss;
-
+        LockClassifcaWrite = LckClss;
+        LockClassifcaRead = LckClassRd;
     }
 
     //NOTA: posso ritornare un valore intero invece che booleano per far
@@ -37,14 +38,13 @@ public class ImlementazioneRegistrazione extends RemoteServer implements Registr
             if(Registrati.putIfAbsent(username, new Utente(username, passwd)) == null) {
                 DaSerializzare.put(new DataToSerialize(username, 'N'));//il char N indica che sta per arrivare un username
 
-                /**
-                 * WORNING
-                 * inserire anche la classifica per serializzarla dopo che l utente si è iscritto
-                 */
-
-                LockClassifca.lock();
+                LockClassifcaWrite.lock();
                     Classifica.add(new UserValoreClassifica(username, 0));//inserisco in classifica l utente appena registrato con score 0
-                LockClassifca.unlock();
+                LockClassifcaWrite.unlock();
+
+                LockClassifcaRead.lock();
+                    DaSerializzare.put(new DataToSerialize<>(Classifica, 'C'));
+                LockClassifcaRead.unlock();
                 return 1;
             }
             return 0;

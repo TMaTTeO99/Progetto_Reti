@@ -75,7 +75,7 @@ public class ServerWordle{// il tipo generico T viene utilizzato per implementar
 
         pool = (ThreadPoolExecutor) Executors.newFixedThreadPool(Nthread);//pool di thread per eseguire i diversi task
 
-        ObjEsportato = new ImlementazioneRegistrazione(Registrati, DaSerializzare, Classifica, WriteLockClassifca);//creo l' oggetto da esportare
+        ObjEsportato = new ImlementazioneRegistrazione(Registrati, DaSerializzare, Classifica, WriteLockClassifca, ReadLockClassifica);//creo l' oggetto da esportare
         Skeleton = (Registrazione) UnicastRemoteObject.exportObject(ObjEsportato, 0);
         RegistroRMI = LocateRegistry.createRegistry(PortExport);
         RegistroRMI.bind("Registrazione", Skeleton);

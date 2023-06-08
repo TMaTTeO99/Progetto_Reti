@@ -17,6 +17,9 @@ import java.util.Date;
 import java.util.StringTokenizer;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.LinkedBlockingDeque;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 public class StartGame extends JFrame {
 
@@ -33,7 +36,13 @@ public class StartGame extends JFrame {
     private String usernamelogin;
     private NotificaClient skeleton;
     private ImplementazioneNotificaClient notifica;
-    private LinkedBlockingDeque<Suggerimenti> SuggerimentiQueue = new LinkedBlockingDeque<>();
+
+    private ArrayList<Suggerimenti> SuggerimentiQueueTemp = new ArrayList<>();
+
+    private ReentrantLock locksuggerimenti = new ReentrantLock();//lock usata per implementare mutua esclusione sulla coda dei suggerimenti
+
+
+    //private LinkedBlockingDeque<Suggerimenti> SuggerimentiQueue = new LinkedBlockingDeque<>();
     Registrazione servizio = null;
     public StartGame() throws Exception {
 
@@ -72,7 +81,7 @@ public class StartGame extends JFrame {
                         // Questo pezzo di codice lo devo inserire in un metodo
 
                         usernamelogin = UserTEXTLogin.getText();
-                        String pass = new String(UserTEXTpasslogin.getText());
+                        String pass = new String(UserTEXTpasslogin.getPassword());//qui prima era getText, l ho modificato
                         if(usernamelogin.length() == 0 || pass.length() == 0)return -4;
                         try {
                             DataOutputStream ou = new DataOutputStream(new BufferedOutputStream(socket.getOutputStream()));
@@ -87,7 +96,6 @@ public class StartGame extends JFrame {
                                     //ora qua provo a inviare lo stub al server dopo che mi sono registrato ecc
                                     notifica = new ImplementazioneNotificaClient(Classifica);
                                     skeleton = (NotificaClient) UnicastRemoteObject.exportObject(notifica, 0);
-                                    //Registrazione servizio = (Registrazione) LocateRegistry.getRegistry(6500).lookup("Registrazione");;
                                     servizio.RegisryForCallBack(usernamelogin, skeleton);
                                     returnvalue = 1;
                                     break;
@@ -136,16 +144,55 @@ public class StartGame extends JFrame {
                                     JButton sendMeStatistics = new JButton("sendMeStatistics");
                                     JButton ShowMeRancking = new JButton("showMeRanking");
                                     JButton Share = new JButton("Share");
-
+                                    JButton TimeNextWord = new JButton("TimeNextWord");
 
                                     //a questo punto quello che faccio è lanciare un thread che sta i ascolto
                                     //dei dati che vengono inviati dal server sul gruppo multicast
                                     //porta e ip dovranno essere dati presi dalfile di config
-                                    Thread multiCast = new Thread(new CaptureUDPmessages("239.0.0.1", 5240, SuggerimentiQueue));
+                                    Thread multiCast = new Thread(new CaptureUDPmessages("239.0.0.1", 5240, SuggerimentiQueueTemp, locksuggerimenti));
                                     multiCast.start();
 
                                     //Aggiungo gli ascoltatori di azioni ai JButton
+                                    TimeNextWord.addActionListener(new ActionListener() {
+                                        @Override
+                                        public void actionPerformed(ActionEvent e) {
 
+                                            try {
+                                                DataOutputStream ou = new DataOutputStream(new BufferedOutputStream(socket.getOutputStream()));
+                                                DataInputStream inn = new DataInputStream(new BufferedInputStream(socket.getInputStream()));
+
+                                                ou.writeInt((("TimeNextWord:" + usernamelogin).length())*2);
+                                                ou.writeChars("TimeNextWord:" + usernamelogin);
+                                                ou.flush();
+                                                System.out.print(inn.readInt()+ "3");
+                                                switch (inn.readInt()) {
+
+                                                    case 0 :
+                                                        //ora qui devo fare in modo da poter visualizzare a schermo data e ora della prossima parola
+                                                        // Sto per effettuare modofiche lato server, qui quindi invece di ricever eun long ricevero una
+                                                        //stringa, quindi va convertita
+
+                                                        //solo prova anche qua posso usare readData
+                                                        int len = inn.readInt();
+                                                        char [] tmp = new char[len];
+                                                        for(int i = 0; i < len; i++) {
+                                                            tmp[i] = inn.readChar();
+                                                        }
+
+                                                        DataNextWord = new Date(System.currentTimeMillis() + Long.parseLong(new String(tmp)));
+                                                        NextWordLable.setText(""+DataNextWord);
+
+                                                        break;
+                                                    default :
+                                                        JOptionPane.showMessageDialog(null, "ERRORE");
+                                                        break;
+
+                                                }
+
+                                            }
+                                            catch (Exception ee) {ee.printStackTrace();}
+                                        }
+                                    });
                                     ShowMeSharing.addActionListener(new ActionListener() {
                                         @Override
                                         public void actionPerformed(ActionEvent e) {
@@ -153,18 +200,33 @@ public class StartGame extends JFrame {
                                             //cerco di estrarre dalla coda finche la cosa è piena
                                             Suggerimenti datiCondivisi = null;
                                             JFrame shareFrame = new JFrame("SUGGERIMENTI CONDIVISI");
-                                            shareFrame.setLayout(new BorderLayout());
+                                            shareFrame.setLayout(new BoxLayout(shareFrame.getContentPane(), BoxLayout.Y_AXIS));
                                             shareFrame.setLocation(new Point(300, 300));
 
+                                            try {
+                                                locksuggerimenti.lock();
+                                                if(SuggerimentiQueueTemp.size() != 0) {
 
-                                            while((datiCondivisi = SuggerimentiQueue.poll()) != null) {
-                                                System.out.print("QUIIIIIII");
-                                                //qui devo trovare il modo di visualizzare i suggerimenti in un unico panel
-                                                shareFrame.add(MakeAllSuggestionsPanel(datiCondivisi));
+                                                    int i = 0;
+
+                                                    System.out.println("PRIMA DEL PANNEL e dopo AWAIT");
+                                                    System.out.println(SuggerimentiQueueTemp.size());
+                                                    while(i < SuggerimentiQueueTemp.size()) {
+
+                                                        //qui devo trovare il modo di visualizzare i suggerimenti in un unico panel
+                                                        shareFrame.add(MakeAllSuggestionsPanel(SuggerimentiQueueTemp.get(i)));
+                                                        i++;
+                                                    }
+
+                                                    shareFrame.setSize(200, 200);
+                                                    shareFrame.setVisible(true);
+                                                }
+                                                else {
+                                                    JOptionPane.showMessageDialog(null, "Nessuna Notifica");
+                                                }
                                             }
-
-                                            shareFrame.setSize(200, 200);
-                                            shareFrame.setVisible(true);
+                                            catch (Exception ex) {ex.printStackTrace();}
+                                            finally {locksuggerimenti.unlock();}
                                         }
                                     });
                                     Share.addActionListener(new ActionListener() {
@@ -187,6 +249,12 @@ public class StartGame extends JFrame {
                                                     case -1 :
                                                         JOptionPane.showMessageDialog(null, "Errore. Giocare al gioco prima di condividere i risultati");
                                                         break;
+                                                    case -2:
+                                                        JOptionPane.showMessageDialog(null, "Errore. Prima di poter condividere i tentativi bisogna fare almeno un tentativo e terminare la partita");
+                                                        break;
+                                                    case -3 :
+                                                        JOptionPane.showMessageDialog(null, "Errore. Utente non ha effettuato il login");
+                                                        break;
                                                 }
                                             }
                                             catch (Exception ee) {ee.printStackTrace();}
@@ -200,8 +268,8 @@ public class StartGame extends JFrame {
                                                 DataOutputStream ou = new DataOutputStream(new BufferedOutputStream(socket.getOutputStream()));
                                                 DataInputStream inn = new DataInputStream(new BufferedInputStream(socket.getInputStream()));
 
-                                                ou.writeInt((("showMeRanking:").length())*2);
-                                                ou.writeChars("showMeRanking:");
+                                                ou.writeInt((("showMeRanking:" + usernamelogin).length())*2);
+                                                ou.writeChars("showMeRanking:" + usernamelogin);
                                                 ou.flush();
                                                 System.out.print(inn.readInt());
 
@@ -322,21 +390,6 @@ public class StartGame extends JFrame {
 
                                                 switch(inn.readInt()) {
                                                     case 0 :
-                                                        //ora qui devo fare in modo da poter visualizzare a schermo data e ora della prossima parola
-                                                        // Sto per effettuare modofiche lato server, qui quindi invece di ricever eun long ricevero una
-                                                        //stringa, quindi va convertita
-
-                                                        //solo prova anche qua posso usare readData
-                                                        int len = inn.readInt();
-                                                        char [] tmp = new char[len];
-                                                        for(int i = 0; i < len; i++) {
-                                                            tmp[i] = inn.readChar();
-                                                        }
-
-
-                                                        DataNextWord = new Date(System.currentTimeMillis() + Long.parseLong(new String(tmp)));
-                                                        NextWordLable.setText(""+DataNextWord);
-
                                                         JOptionPane.showMessageDialog(null, "Operazione completata. Adesso è possibile provare a indovinare una porola");
                                                         break;
                                                     case -1 :
@@ -409,6 +462,9 @@ public class StartGame extends JFrame {
                                                         case -4 :
                                                             JOptionPane.showMessageDialog(null, "Parola inesistente all interno del gioco. Il tentativo non verrà considerato");
                                                             break;
+                                                        case -5 :
+                                                            JOptionPane.showMessageDialog(null, "Utente non ha effettuato il login");
+                                                            break;
                                                     }
                                                 }
                                                 catch (Exception ee) {ee.printStackTrace();}
@@ -428,9 +484,8 @@ public class StartGame extends JFrame {
                                                 ou.writeChars("sendMeStatistics:" + usernamelogin);
                                                 ou.flush();
                                                 String statistic = gotStatistics(inn);
-
-                                                JOptionPane.showMessageDialog(null, statistic);
-
+                                                if(statistic != null) JOptionPane.showMessageDialog(null, statistic);
+                                                else JOptionPane.showMessageDialog(null, "Impossibile visualizzare le statistiche");
                                             }
                                             catch (Exception ee) {ee.printStackTrace();}
                                             //-----------------------------------------------------//
@@ -444,6 +499,7 @@ public class StartGame extends JFrame {
                                     mainPanel.add(makeSeeNotify(Visualizza));
                                     mainPanel.add(makePanelShowMeRanking(ShowMeRancking));
                                     mainPanel.add(makePanelShare(Share));
+                                    mainPanel.add(makePanelNextWord(TimeNextWord));
                                     mainPanel.add(ShowMeSharing);
 
                                     Frame.add(mainPanel);
@@ -465,6 +521,7 @@ public class StartGame extends JFrame {
                             }
                         } catch (Exception e) {
                             // Gestisci eventuali errori di esecuzione della richiesta
+                            System.out.println("CATCH ESTERNO");
                             e.printStackTrace();
                         }
                     }
@@ -637,16 +694,27 @@ public class StartGame extends JFrame {
         return panelSend;
 
     }
+    private JPanel makePanelNextWord(JButton TimeNextWord) {
+
+        JPanel panelNextWord = new JPanel();
+
+        panelNextWord.setLayout(new BoxLayout(panelNextWord, BoxLayout.Y_AXIS));
+
+        panelNextWord.add((new JLabel(" ")));
+        panelNextWord.add(new JLabel("StartSession:"));
+        panelNextWord.add((new JLabel(" ")));
+        panelNextWord.add((NextWordLable = new JLabel("Unknown")));
+        panelNextWord.add(TimeNextWord);
+
+        return panelNextWord;
+
+    }
     private JPanel makePanelPlayStart(JButton play) {
 
         JPanel panelPlay = new JPanel();
 
         panelPlay.setLayout(new BoxLayout(panelPlay, BoxLayout.Y_AXIS));
-        panelPlay.add((new JLabel("Data e ora prossima parola prodotta: ")));
-        panelPlay.add((new JLabel(" ")));
-        panelPlay.add((NextWordLable = new JLabel("Unknown")));
-        panelPlay.add(new JLabel("StartSession:"));
-        panelPlay.add((new JLabel(" ")));
+        panelPlay.add((new JLabel("Inizia partita: ")));
         panelPlay.add(play);
 
         return panelPlay;
@@ -666,9 +734,16 @@ public class StartGame extends JFrame {
     }
     public JPanel MakeAllSuggestionsPanel(Suggerimenti dati) {
 
+        //in lst sono contenuti tutti i sugerimenti di un utente
+        //quindi nel main panel devo inserire prima il nome dell utente
+        //il metodo corrente viene richiamato in un while e viene aggiunto piu volte
+        //questo main panel che ritorno cosi riesco ad inserire tutti i risultati di tutti gli utenti
+        GridLayout layoutMain = null;
         JPanel main = new JPanel();
-        main.setLayout(new BoxLayout(main, BoxLayout.Y_AXIS));
+        main.setLayout(layoutMain = new GridLayout(0, 1));
+        layoutMain.setVgap(10);
 
+        main.setBorder(BorderFactory.createTitledBorder(dati.getUtente()));
         ArrayList<String> lst = dati.getSuggerimenti();
 
         for(int i = 0; i< lst.size(); i++) {
@@ -755,6 +830,7 @@ public class StartGame extends JFrame {
                 //recupero i dati
                 for(int i = 0; i<lenDati; i++) {answer = answer.concat(String.valueOf(inn.readChar()));}
             }
+            else return null;
         }
         catch (Exception e) {e.printStackTrace();}
 
