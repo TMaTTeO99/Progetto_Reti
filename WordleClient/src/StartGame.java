@@ -8,17 +8,10 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.net.InetSocketAddress;
 import java.net.Socket;
-import java.nio.charset.StandardCharsets;
-import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.ArrayList;
 import java.util.Date;
-import java.util.StringTokenizer;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.LinkedBlockingDeque;
-import java.util.concurrent.locks.Condition;
-import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
 public class StartGame extends JFrame {
@@ -76,12 +69,12 @@ public class StartGame extends JFrame {
                 SwingWorker<Integer, Void> worker = new SwingWorker<Integer, Void>() {
                     @Override
                     protected Integer doInBackground() throws Exception {
+
                         int returnvalue = 1;
-                        //----------------------------------------------******************************
-                        // Questo pezzo di codice lo devo inserire in un metodo
 
                         usernamelogin = UserTEXTLogin.getText();
                         String pass = new String(UserTEXTpasslogin.getPassword());//qui prima era getText, l ho modificato
+
                         if(usernamelogin.length() == 0 || pass.length() == 0)return -4;
                         try {
                             DataOutputStream ou = new DataOutputStream(new BufferedOutputStream(socket.getOutputStream()));
@@ -89,7 +82,7 @@ public class StartGame extends JFrame {
                             ou.writeInt((("login:"+ usernamelogin + " " + pass).length())*2);
                             ou.writeChars("login:" + usernamelogin + " " + pass);
                             ou.flush();
-                            System.out.print(inn.readInt() + "1");
+                            inn.readInt(); //scarto la len del messaggio
 
                             switch(inn.readInt()) {
                                 case 0 :
@@ -115,29 +108,34 @@ public class StartGame extends JFrame {
                         }
                         catch (Exception ee) {ee.printStackTrace();}
 
-                        //----------------------------------------------***************************
                         return returnvalue;
                     }
                     @Override
                     protected void done() {
                         try {
-                            // Ottieni il risultato della richiesta dal server
 
-                            Integer response = get();  // o false
+
+                            Integer response = get();  // Recupero il valore di ritorno del metodo doInBackground
                             switch (response) {
-                                case 1 :
+
+                                case 1 ://caso in cui la richiesta di login è stata completata
+
                                     // Chiudo il frame corrente e apro il nuovo frame
                                     dispose();
 
                                     JFrame Frame = new JFrame("Wordle Game");
                                     Frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
                                     Frame.setLocation(new Point(200, 200));
+                                   // Frame.setLayout(new BorderLayout());//<--- non c era
 
                                     JPanel mainPanel = new JPanel();
-                                    mainPanel.setLayout(new FlowLayout(FlowLayout.LEFT, 100, 20));
+                                    mainPanel.setLayout(new GridLayout(0, 2));//<-- nuovo
 
-                                    JButton ShowMeSharing = new JButton("Visualizza Condivisioni");
-                                    JButton Visualizza = new JButton("Visualizza");
+
+                                    //mainPanel.setLayout(new FlowLayout(FlowLayout.LEFT, 100, 20));<-- quello di prima
+
+                                    JButton ShowMeSharing = new JButton("See");
+                                    JButton Visualizza = new JButton("See");
                                     JButton Logout = new JButton("Logout");
                                     JButton Gioca = new JButton("Gioca");
                                     JButton SendWord = new JButton("Send");
@@ -168,18 +166,9 @@ public class StartGame extends JFrame {
                                                 switch (inn.readInt()) {
 
                                                     case 0 :
-                                                        //ora qui devo fare in modo da poter visualizzare a schermo data e ora della prossima parola
-                                                        // Sto per effettuare modofiche lato server, qui quindi invece di ricever eun long ricevero una
-                                                        //stringa, quindi va convertita
 
-                                                        //solo prova anche qua posso usare readData
-                                                        int len = inn.readInt();
-                                                        char [] tmp = new char[len];
-                                                        for(int i = 0; i < len; i++) {
-                                                            tmp[i] = inn.readChar();
-                                                        }
-
-                                                        DataNextWord = new Date(System.currentTimeMillis() + Long.parseLong(new String(tmp)));
+                                                        //aggiorno la data di quando verra rilasciata la prossima parola da indovinare
+                                                        DataNextWord = new Date(System.currentTimeMillis() + Long.parseLong(ReadData(inn)));
                                                         NextWordLable.setText(""+DataNextWord);
 
                                                         break;
@@ -240,7 +229,7 @@ public class StartGame extends JFrame {
                                                 ou.writeInt((("share:"+ usernamelogin).length())*2);
                                                 ou.writeChars("share:" + usernamelogin);
                                                 ou.flush();
-                                                System.out.print(inn.readInt()+ "3");
+                                                inn.readInt();//scarto la len del messaggio
 
                                                 switch(inn.readInt()) {
                                                     case 0 :
@@ -271,7 +260,7 @@ public class StartGame extends JFrame {
                                                 ou.writeInt((("showMeRanking:" + usernamelogin).length())*2);
                                                 ou.writeChars("showMeRanking:" + usernamelogin);
                                                 ou.flush();
-                                                System.out.print(inn.readInt());
+                                                inn.readInt();//scarto la len del messaggio
 
 
                                                 switch(inn.readInt()) {
@@ -285,14 +274,7 @@ public class StartGame extends JFrame {
                                                         info.setEditable(false);
                                                         JScrollPane scrll = new JScrollPane(info);
 
-
-                                                        int lenDati = inn.readInt();//recupero la lunghezza dei dati
-                                                        //qui posso usare il metodo readData credo, in caso vedere
-                                                        String classifica = new String();
-
-                                                        for(int i = 0; i<lenDati; i++) {classifica = classifica.concat(String.valueOf(inn.readChar())); }
-
-                                                        info.append(classifica);
+                                                        info.append(ReadData(inn));
 
                                                         seePodio.add(info, BorderLayout.CENTER);
                                                         seePodio.setSize(200, 200);
@@ -351,7 +333,7 @@ public class StartGame extends JFrame {
                                                 ou.writeInt((("logout:"+ user).length())*2);
                                                 ou.writeChars("logout:" + user);
                                                 ou.flush();
-                                                System.out.print(inn.readInt()+ "2");
+                                                inn.readInt();//scarto la len del messaggio
 
                                                 switch(inn.readInt()) {
                                                     case 0 :
@@ -386,7 +368,7 @@ public class StartGame extends JFrame {
                                                 ou.writeInt((("playWORDLE:"+ usernamelogin).length())*2);
                                                 ou.writeChars("playWORDLE:" + usernamelogin);
                                                 ou.flush();
-                                                System.out.print(inn.readInt()+ "3");
+                                                inn.readInt();//scarto la len del messaggio
 
                                                 switch(inn.readInt()) {
                                                     case 0 :
@@ -397,6 +379,9 @@ public class StartGame extends JFrame {
                                                         break;
                                                     case -2 :
                                                         JOptionPane.showMessageDialog(null, "Tentativi esauriti per questa sessione. Riprovare a giocare in una nuova sessione");
+                                                        break;
+                                                    case -3 :
+                                                        JOptionPane.showMessageDialog(null, "ERROE. L'utente non ha effettuato il login");
                                                         break;
                                                 }
                                             }
@@ -420,22 +405,23 @@ public class StartGame extends JFrame {
                                                     ou.writeChars("sendWord:" + usernamelogin + " " + word);
                                                     ou.flush();
 
-                                                    int len = inn.readInt();
+                                                    inn.readInt();//scarto la len del messaggio
+
                                                     int result = inn.readInt();
-                                                    System.out.println(result+ "5");
                                                     String wordTradotta = null;
+
                                                     switch(result) {
                                                         case 2 ://caso in cui ho sfruttato l ultimo tentativo e ho perso
                                                                 //devo recuperare la parola tradotta
 
-                                                            wordTradotta = ReadData(inn, inn.readInt());
+                                                            wordTradotta = ReadData(inn);
                                                             JOptionPane.showMessageDialog(null, "Tentativi terminati\n Traduzione: " + wordTradotta);
 
 
                                                             break;
                                                         case 1 ://caso in cui devo ricevere i suggerimenti
 
-                                                            String sug = ReadData(inn, inn.readInt());//recupero i suggerimenti
+                                                            String sug = ReadData(inn);//recupero i suggerimenti
 
                                                             //a questo punto quello che devo fare è visualizzare i suggerimenti in forma grafica
                                                             JPanel suggestionPanle = MakeSuggestionsPanel(sug, word);
@@ -446,7 +432,7 @@ public class StartGame extends JFrame {
                                                                 // In questo caso lato server dovro inserire la
                                                                 // traduzione della parola che qui andra letta
 
-                                                            wordTradotta = ReadData(inn, inn.readInt());
+                                                            wordTradotta = ReadData(inn);
                                                             JOptionPane.showMessageDialog(null, "Vittoria\nTraduzione: " + wordTradotta);
 
                                                             break;
@@ -483,12 +469,16 @@ public class StartGame extends JFrame {
                                                 ou.writeInt((("sendMeStatistics:"+ usernamelogin).length())*2);
                                                 ou.writeChars("sendMeStatistics:" + usernamelogin);
                                                 ou.flush();
-                                                String statistic = gotStatistics(inn);
-                                                if(statistic != null) JOptionPane.showMessageDialog(null, statistic);
+                                                inn.readInt();//scarto la lunghezza del messaggio
+
+                                                if(inn.readInt() == 0){//controllo eventuale messaggio di errore che il server invia
+                                                    String statistic = ReadData(inn);
+                                                    JOptionPane.showMessageDialog(null, statistic);
+                                                }
                                                 else JOptionPane.showMessageDialog(null, "Impossibile visualizzare le statistiche");
+
                                             }
                                             catch (Exception ee) {ee.printStackTrace();}
-                                            //-----------------------------------------------------//
                                         }
                                     });
 
@@ -500,9 +490,10 @@ public class StartGame extends JFrame {
                                     mainPanel.add(makePanelShowMeRanking(ShowMeRancking));
                                     mainPanel.add(makePanelShare(Share));
                                     mainPanel.add(makePanelNextWord(TimeNextWord));
-                                    mainPanel.add(ShowMeSharing);
+                                    mainPanel.add(makePanelShowMeShareing(ShowMeSharing));
 
-                                    Frame.add(mainPanel);
+                                    mainPanel.setBackground(new Color(92, 89, 94));
+                                    Frame.add(mainPanel, BorderLayout.CENTER);//prima non c'era BorderLayout.CENTER
                                     Frame.setSize(1000, 500);
                                     Frame.setVisible(true);
                                     break;
@@ -594,15 +585,25 @@ public class StartGame extends JFrame {
 
     }
     //metodi utilizzati per creare i panel da inserire nel panel main
+    private JPanel makePanelShowMeShareing(JButton ShowMeSharing) {
+
+        JPanel panelShowShare = new JPanel();
+        panelShowShare.setPreferredSize(new Dimension(20, 20));
+        panelShowShare.setBorder(BorderFactory.createTitledBorder("VISUALIZZA CONDIVISIONI UTENTI: "));
+        panelShowShare.setLayout(new BoxLayout(panelShowShare, BoxLayout.Y_AXIS));
+        panelShowShare.add(ShowMeSharing);
+        panelShowShare.setBackground(new Color(192, 166, 209));
+        return panelShowShare;
+
+
+    }
     private JPanel makePanelShare(JButton Share) {
 
         JPanel panelShare = new JPanel();
+        panelShare.setPreferredSize(new Dimension(20, 20));
+        panelShare.setBorder(BorderFactory.createTitledBorder("CONDIVIDI RISULTATI: "));
         panelShare.setLayout(new BoxLayout(panelShare, BoxLayout.Y_AXIS));
-        panelShare.add(new JLabel("Condividi Risultati: "));
-        panelShare.add(new JLabel(" "));
-        panelShare.add(new JLabel(" "));
-        panelShare.add(new JLabel(" "));
-
+        panelShare.setBackground(new Color(192, 166, 209));
         panelShare.add(Share);
 
         return panelShare;
@@ -610,12 +611,10 @@ public class StartGame extends JFrame {
     private JPanel makePanelShowMeRanking(JButton ShowMeRancking) {
 
         JPanel panelShowRanking = new JPanel();
+        panelShowRanking.setPreferredSize(new Dimension(20, 20));
+        panelShowRanking.setBorder(BorderFactory.createTitledBorder("VISUALIZZA CLASSIFICA: "));
         panelShowRanking.setLayout(new BoxLayout(panelShowRanking, BoxLayout.Y_AXIS));
-        panelShowRanking.add(new JLabel("Visualizza classifica attuale: "));
-        panelShowRanking.add(new JLabel(" "));
-        panelShowRanking.add(new JLabel(" "));
-        panelShowRanking.add(new JLabel(" "));
-
+        panelShowRanking.setBackground(new Color(192, 166, 209));
         panelShowRanking.add(ShowMeRancking);
 
         return panelShowRanking;
@@ -623,11 +622,10 @@ public class StartGame extends JFrame {
     private JPanel makePanelStatistics(JButton sendMeStatistics) {
 
         JPanel panelStatistics = new JPanel();
+        panelStatistics.setPreferredSize(new Dimension(20, 20));
+        panelStatistics.setBorder(BorderFactory.createTitledBorder("STATISTICHE: "));
         panelStatistics.setLayout(new BoxLayout(panelStatistics, BoxLayout.Y_AXIS));
-        panelStatistics.add(new JLabel("User Statistics:"));
-        panelStatistics.add(new JLabel(" "));
-        panelStatistics.add(new JLabel(" "));
-        panelStatistics.add(new JLabel(" "));
+        panelStatistics.setBackground(new Color(192, 166, 209));
         panelStatistics.add(sendMeStatistics);
 
         return panelStatistics;
@@ -665,15 +663,25 @@ public class StartGame extends JFrame {
     }
     private JPanel makePanelLogout(JButton log) {
 
+
         JPanel panelLogout = new JPanel();
+        panelLogout.setPreferredSize(new Dimension(20, 20));
+        panelLogout.setBorder(BorderFactory.createTitledBorder("LOGOUT: "));
         TExtFieldUserLogout = new JTextField(10);
 
+        //utilizzo una classe anonima per poter implementare un actionPerformed in modo da consentire all utente di usare il tasto invio
+        //per eseguire il tasto Logout
+        TExtFieldUserLogout.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                log.doClick();
+            }
+        });
+
         panelLogout.setLayout(new BoxLayout(panelLogout, BoxLayout.Y_AXIS));
-        panelLogout.add(new JLabel("Logout"));
-        panelLogout.add(new JLabel(" "));
-        panelLogout.add(new JLabel("Nome Utente: " + usernamelogin));//in caso un utente non ricordasse con quale username si è loggato
-        panelLogout.add(new JLabel("Username:"));
+        panelLogout.add(new JLabel("Username: " + usernamelogin));//in caso un utente non ricordasse con quale username si è loggato
         panelLogout.add(TExtFieldUserLogout);
+        panelLogout.setBackground(new Color(192, 166, 209));
         panelLogout.add(log);
 
         return panelLogout;
@@ -682,53 +690,59 @@ public class StartGame extends JFrame {
     private JPanel makePanelSend(JButton log) {
 
         JPanel panelSend = new JPanel();
+        panelSend.setPreferredSize(new Dimension(20, 20));
+        panelSend.setBorder(BorderFactory.createTitledBorder("SEND WORD: "));
         TextFieldWordSendWord = new JTextField(10);
 
+        //utilizzo una classe anonima per poter implementare un actionPerformed in modo da consentire all utente di usare il tasto invio
+        //per eseguire il tasto Send
+        TextFieldWordSendWord.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                log.doClick();
+            }
+        });
+
         panelSend.setLayout(new BoxLayout(panelSend, BoxLayout.Y_AXIS));
-        panelSend.add(new JLabel("Send word"));
-        panelSend.add(new JLabel(" "));
-        panelSend.add(new JLabel("Word:"));
         panelSend.add(TextFieldWordSendWord);
         panelSend.add(log);
-
+        panelSend.setBackground(new Color(192, 166, 209));
         return panelSend;
 
     }
     private JPanel makePanelNextWord(JButton TimeNextWord) {
 
         JPanel panelNextWord = new JPanel();
-
+        panelNextWord.setPreferredSize(new Dimension(20, 20));
+        panelNextWord.setBorder(BorderFactory.createTitledBorder("START SESSION: "));
         panelNextWord.setLayout(new BoxLayout(panelNextWord, BoxLayout.Y_AXIS));
 
-        panelNextWord.add((new JLabel(" ")));
-        panelNextWord.add(new JLabel("StartSession:"));
-        panelNextWord.add((new JLabel(" ")));
         panelNextWord.add((NextWordLable = new JLabel("Unknown")));
         panelNextWord.add(TimeNextWord);
-
+        panelNextWord.setBackground(new Color(192, 166, 209));
         return panelNextWord;
 
     }
     private JPanel makePanelPlayStart(JButton play) {
 
         JPanel panelPlay = new JPanel();
+        panelPlay.setPreferredSize(new Dimension(20, 20));
+        panelPlay.setBorder(BorderFactory.createTitledBorder("INIZIA PARTITA: "));
 
         panelPlay.setLayout(new BoxLayout(panelPlay, BoxLayout.Y_AXIS));
-        panelPlay.add((new JLabel("Inizia partita: ")));
         panelPlay.add(play);
-
+        panelPlay.setBackground(new Color(192, 166, 209));;
         return panelPlay;
     }
     private JPanel makeSeeNotify(JButton visualizza) {
 
         JPanel panelNotify = new JPanel();
-
+        panelNotify.setPreferredSize(new Dimension(20, 20));
+        panelNotify.setBorder(BorderFactory.createTitledBorder("NOTIFICHE AGGIORNAMENTO CLASSIFICA: "));
         panelNotify.setLayout(new BoxLayout(panelNotify, BoxLayout.Y_AXIS));
-        panelNotify.add(new JLabel("Aggiornamento classifica:\n"));
-        panelNotify.add(new JLabel(" "));
-        panelNotify.add(new JLabel(" "));
         panelNotify.add(Classifica);
         panelNotify.add(visualizza);
+        panelNotify.setBackground(new Color(192, 166, 209));
 
         return panelNotify;
     }
@@ -798,12 +812,12 @@ public class StartGame extends JFrame {
         }
         return panel;
     }
-    private String ReadData(DataInputStream inn, int len) {
+    private String ReadData(DataInputStream inn) {
 
-        //provo a modificare questo metodo
-        int read = 0;
-        char [] data = new char[len];
+        char [] data = null;
         try {
+            int read = 0, len = inn.readInt();
+            data = new char[len];
             while(read < len) {
                 data[read] = inn.readChar();
                 read++;
@@ -815,28 +829,7 @@ public class StartGame extends JFrame {
         }
         return new String(data);
     }
-    private String gotStatistics(DataInputStream inn) {
 
-        String answer = new String();
-        try {
-
-            int lenMex = inn.readInt();//recupero la lunghezza dell intero messaggio, necessario anche se non usata
-            int error = inn.readInt();//recupero l intero che nel mio protocollo indica eventuale errore
-
-            if(error == 0) {//se non ci sono stati errori
-
-                int lenDati = inn.readInt();//recupero la len del mex che contiene le statistiche
-
-                //recupero i dati
-                for(int i = 0; i<lenDati; i++) {answer = answer.concat(String.valueOf(inn.readChar()));}
-            }
-            else return null;
-        }
-        catch (Exception e) {e.printStackTrace();}
-
-        return answer;
-
-    }
     /*Da capire bene a cosa serve questa cosa
     public static void main(String[] args) {
         SwingUtilities.invokeLater(new Runnable() {

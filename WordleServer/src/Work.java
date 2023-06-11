@@ -356,30 +356,34 @@ public class Work implements Runnable {
         //quando eventualemnete sarà generata la prossima parola
         username = Tok.nextToken(" ").replace(":", "");//recupero username
 
-        ReadWordLock.lock();
-            int result = Gioco.setGame(username);
-        ReadWordLock.unlock();
+        //devo controllare che il client abbia fatto il login
+        u = Registrati.get(username);
 
+        if(u != null && u.getLogin((Integer) Key.attachment())) {//controllo che l utente abbia effettuato il login
 
-        //metodo privato per effettuare il calcolo dell tempo di produzione della nuova parola
-        //long nextwClient = CalculateTime(currentW, nextW);
+            ReadWordLock.lock();
+                int result = Gioco.setGame(username);
+            ReadWordLock.unlock();
 
-        if(result == 0) {
+            if(result == 0) {
 
-            Utente tmpUtente = Registrati.get(username);
-            tmpUtente.increasesGame();
-            System.out.println(tmpUtente.getGame() + "bobo");
+                u.increasesGame();
+                System.out.println(u.getGame() + "bobo");
 
-            //inserisco in coda il messaggio per dire al thread che serializza che un utente ha aggiornato i suoi dati
-            SendSerialization('U');
+                //inserisco in coda il messaggio per dire al thread che serializza che un utente ha aggiornato i suoi dati
+                SendSerialization('U');
 
-            error = 0;
-        }
-        else if(result == 1) {
-            error = -1;
+                error = 0;
+            }
+            else if(result == 1) {
+                error = -1;
+            }
+            else {
+                error = -2;
+            }
         }
         else {
-            error = -2;
+            error = -3;
         }
         WriteErrorOrWinOrSuggestionMessage(dati, "", error, "");
 

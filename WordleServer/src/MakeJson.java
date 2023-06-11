@@ -185,7 +185,8 @@ public class MakeJson implements Runnable{
 
                     case 'N' : //caso in cui il lista sarà presente l username di un utente
                               //in questo caso quindi quando ricevo 'N' indica username di
-                              //utente che deve essere serializzato dall inizio
+                              //utente che deve essere serializzato dall inizio,
+
                         Utente u = Registrati.get(dato.getDato());
                         stub = u.getStub();
                         u.RemoveSTub();
@@ -193,70 +194,23 @@ public class MakeJson implements Runnable{
                         u.setStub(stub);
                         System.out.println("SONO ENTRSTO PER LA REGISTRAZIONE DA ZERO");
                         break;
-                    case 'U' ://caso in cui il lista sarà presente l username di un utente
-                              //in questo caso quindi quando ricevo 'U' indica un utente che
-                              //deve essere aggiornato
+                    case 'U' ://Coso in cui un utente ha aggiornato i dati statistici
+                              //Uso un intero per controllare quanti utenti hanno aggiornato i loro dati, serializzo quando un certo
+                              //numero di utenti hanno aggiornato le statistiche in modo da non dover accedere al disco troppo
+                              //frequentemente visto che bisognerà riscrivere tutto il file json
+
                         NumUpdate++;//aggiorno il numero di utenti che hanno aggiornato le loro statistiche
                         if(NumUpdate >= 1) {//per ora inserisco 2 per testare, dopo usero un parametro preso dal file config
-
-                            //a questo punto devo saerializzare i dati:: Attenzione il NewJsonUtenti dovrebbe essere aperto in mod append
-                            NewJsonUtenti = new FileWriter(PathJSN.concat("/").concat("tempUtenti.json"));
-                            generator = factory.createGenerator(NewJsonUtenti);
-                            generator.setCodec(map);
-                            Collection<Utente> lst =  Registrati.values();
-                            for(Utente Giocataore : lst) {
-                                stub = Giocataore.getStub();
-                                Giocataore.RemoveSTub();
-                                generator.writeObject(Giocataore);
-                                Giocataore.setStub(stub);
-                            }
-
-                            File oldJson = new File(PathJSN.concat("/").concat(FileNameJsonUtenti));
-                            File RenameFile = new File(PathJSN.concat("/").concat("tempUtenti.json"));
-
-                            oldJson.delete();
-                            RenameFile.renameTo(oldJson);
+                            MakeJsonUPdateUtenti(generator, map, factory, NewJsonUtenti);
                             NumUpdate = 0;
                         }
                         break;
                     case 'C' : // 'C' indica che bisogna serializzare la classifica
-
-                        NewJsonClassifica = new FileWriter(PathJSN.concat("/").concat("tempClassifica.json"));
-                        JsonGenerator genClassifica = factory.createGenerator(NewJsonClassifica);
-                        genClassifica.setCodec(map);
-                        ReadLockClassifica.lock();
-                            for(int i = 0; i<Classifica.size(); i++) {
-                                genClassifica.writeObject(Classifica.get(i));
-                            }
-                        ReadLockClassifica.unlock();
-
-                        File oldJsonClass = new File(PathJSN.concat("/").concat(FielNameJsonClassifica));
-                        File RenameFileClass = new File(PathJSN.concat("/").concat("tempClassifica.json"));
-
-                        oldJsonClass.delete();
-                        RenameFileClass.renameTo(oldJsonClass);
-
+                        MakeJsonUpdateClassifica(map, factory, NewJsonClassifica);
                         break;
                     case 'I' : // 'I' indica che bisogna serializzare l istanza attuale del gioco
-                        //comincio con la serializzazione dell istanza del gioco
-                        //qui per serializzare i dati devo usare il file specifico per la sessione del gioco
-                        //devo capire quanle generatore usare, io credo che debba usare piu istanze di generatori
-                        //perche ogni generatore apre un file diverso quindi uso un altro generatore
-                        //quindi qui devo effettuare la stessa operazione dell altro ramo, quello per gli utenti
 
-                        NewJsonSessione = new FileWriter(PathJSN.concat("/").concat("tempSessione.json"));
-                        JsonGenerator genSessione = factory.createGenerator(NewJsonSessione);
-                        genSessione.setCodec(map);
-                        ReadLockGame.lock();
-                            genSessione.writeObject(dato.getDato());
-                        ReadLockGame.unlock();
-
-                        File oldJsonGame = new File(PathJSN.concat("/").concat(FileNameJsonGame));
-                        File RenameFileGame = new File(PathJSN.concat("/").concat("tempSessione.json"));
-
-                        oldJsonGame.delete();
-                        RenameFileGame.renameTo(oldJsonGame);
-
+                        MakeJsonUpdateGame(map, factory, NewJsonSessione, dato);
                         break;
                 }
                 //condizione di controllo della stringa per la terminazione del thread
@@ -275,5 +229,64 @@ public class MakeJson implements Runnable{
             else if(e instanceof NullPointerException) {System.out.println("Errore nella lettura del file json");}
         }
         //ricordawre di chiudere i file alla fine e anche in caso di exception
+    }
+
+    //metodi privati per serializzare i dati
+    private void MakeJsonUpdateGame(ObjectMapper map, JsonFactory factory, FileWriter NewJsonSessione, DataToSerialize dato) throws Exception{
+
+        NewJsonSessione = new FileWriter(PathJSN.concat("/").concat("tempSessione.json"));
+        JsonGenerator genSessione = factory.createGenerator(NewJsonSessione);
+        genSessione.setCodec(map);
+        ReadLockGame.lock();
+        genSessione.writeObject(dato.getDato());
+        ReadLockGame.unlock();
+
+        File oldJsonGame = new File(PathJSN.concat("/").concat(FileNameJsonGame));
+        File RenameFileGame = new File(PathJSN.concat("/").concat("tempSessione.json"));
+
+        oldJsonGame.delete();
+        RenameFileGame.renameTo(oldJsonGame);
+
+    }
+    private void MakeJsonUPdateUtenti(JsonGenerator gen, ObjectMapper map, JsonFactory factory, FileWriter NewJsonUtenti) throws Exception{
+
+        //a questo punto devo saerializzare i dati:: Attenzione il NewJsonUtenti dovrebbe essere aperto in mod append
+
+        NewJsonUtenti = new FileWriter(PathJSN.concat("/").concat("tempUtenti.json"));
+        gen = factory.createGenerator(NewJsonUtenti);
+        gen.setCodec(map);
+        Collection<Utente> lst =  Registrati.values();
+        for(Utente Giocataore : lst) {
+
+            NotificaClient stub = Giocataore.getStub();
+            Giocataore.RemoveSTub();
+            gen.writeObject(Giocataore);
+            Giocataore.setStub(stub);
+        }
+
+        File oldJson = new File(PathJSN.concat("/").concat(FileNameJsonUtenti));
+        File RenameFile = new File(PathJSN.concat("/").concat("tempUtenti.json"));
+
+        oldJson.delete();
+        RenameFile.renameTo(oldJson);
+
+    }
+    private void MakeJsonUpdateClassifica(ObjectMapper map, JsonFactory factory, FileWriter NewJsonClassifica) throws Exception{
+
+        NewJsonClassifica = new FileWriter(PathJSN.concat("/").concat("tempClassifica.json"));
+        JsonGenerator genClassifica = factory.createGenerator(NewJsonClassifica);
+        genClassifica.setCodec(map);
+        ReadLockClassifica.lock();
+        for(int i = 0; i<Classifica.size(); i++) {
+            genClassifica.writeObject(Classifica.get(i));
+        }
+        ReadLockClassifica.unlock();
+
+        File oldJsonClass = new File(PathJSN.concat("/").concat(FielNameJsonClassifica));
+        File RenameFileClass = new File(PathJSN.concat("/").concat("tempClassifica.json"));
+
+        oldJsonClass.delete();
+        RenameFileClass.renameTo(oldJsonClass);
+
     }
 }

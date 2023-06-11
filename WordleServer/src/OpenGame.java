@@ -94,10 +94,14 @@ public class OpenGame implements Runnable{
                     }
                 }
             }
-            catch (Exception e) {e.printStackTrace();}
+            catch (Exception e) {
+                wordTradotta = wordTradotta.concat("TRADUZIONE NON DISPONIBILE");
+            }
 
         }
-        catch (Exception e) {e.printStackTrace();}
+        catch (Exception e) {
+            wordTradotta = wordTradotta.concat("TRADUZIONE NON DISPONIBILE");
+        }
         return wordTradotta;
     }
 
