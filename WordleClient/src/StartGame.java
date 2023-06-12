@@ -34,9 +34,7 @@ public class StartGame extends JFrame {
 
     private ReentrantLock locksuggerimenti = new ReentrantLock();//lock usata per implementare mutua esclusione sulla coda dei suggerimenti
 
-
-    //private LinkedBlockingDeque<Suggerimenti> SuggerimentiQueue = new LinkedBlockingDeque<>();
-    Registrazione servizio = null;
+    private Registrazione servizio = null;
     public StartGame() throws Exception {
 
         //recupero il servizio di registrazione
@@ -46,8 +44,9 @@ public class StartGame extends JFrame {
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);//quando chiudo il frame principale il client termina
         setTitle("Wordle");
         setLocation(new Point(200, 200));
+        setLayout(new GridLayout());
 
-        socket = new Socket();//creo l oggetto socket e mi connetto
+        socket = new Socket();//creo l oggetto socket e mi connetto al server appena avvio
         try {socket.connect(new InetSocketAddress("localhost", 6501));}
         catch (Exception e) {e.printStackTrace();}
         //creo il pannel main
@@ -143,6 +142,7 @@ public class StartGame extends JFrame {
                                     JButton ShowMeRancking = new JButton("showMeRanking");
                                     JButton Share = new JButton("Share");
                                     JButton TimeNextWord = new JButton("TimeNextWord");
+                                    JButton help = new JButton("Help");
 
                                     //a questo punto quello che faccio è lanciare un thread che sta i ascolto
                                     //dei dati che vengono inviati dal server sul gruppo multicast
@@ -151,6 +151,19 @@ public class StartGame extends JFrame {
                                     multiCast.start();
 
                                     //Aggiungo gli ascoltatori di azioni ai JButton
+                                    help.addActionListener(new ActionListener() {
+                                        @Override
+                                        public void actionPerformed(ActionEvent e) {
+
+                                            JOptionPane.showMessageDialog(null, "Oltre alle ovvie operazioni il gioco consente anche di: \n" +
+                                                                                                        "1) Visualizzare le prime 3 posizioni della classifica quando vengono aggiornate (NOTIFICHE AGGIORNAMENTO CLASSIFICA)\n" +
+                                                                                                        "2) Condividere il risultato della partita (CONDIVIDI RISULTATI)\n" +
+                                                                                                        "3) Visualizzare le condivisioni degli altri utenti (VISUALIZZA CONDIVISIONI UTENTI)\n" +
+                                                                                                        "4) Visualizzare le proprie statistiche (STATISTICHE)\n" +
+                                                                                                        "5) Visualizzare la data e l ora in cui la parola corrente verrà aggiornata (START SESSION)");
+
+                                        }
+                                    });
                                     TimeNextWord.addActionListener(new ActionListener() {
                                         @Override
                                         public void actionPerformed(ActionEvent e) {
@@ -491,6 +504,7 @@ public class StartGame extends JFrame {
                                     mainPanel.add(makePanelShare(Share));
                                     mainPanel.add(makePanelNextWord(TimeNextWord));
                                     mainPanel.add(makePanelShowMeShareing(ShowMeSharing));
+                                    mainPanel.add(makeHelpButton(help));
 
                                     mainPanel.setBackground(new Color(92, 89, 94));
                                     Frame.add(mainPanel, BorderLayout.CENTER);//prima non c'era BorderLayout.CENTER
@@ -575,16 +589,49 @@ public class StartGame extends JFrame {
 
         // Aggiungo i pulsanti al frame
 
-
-
         mainPanel.add(makePanelLogin(Login));
         mainPanel.add(makePanelRegistrazione(Registra));
         add(mainPanel);
+        add(makePanelRules());
         setSize(new Dimension(1000, 500));
         setVisible(true);
 
     }
-    //metodi utilizzati per creare i panel da inserire nel panel main
+    //metodi utilizzati per creare i panel da inserire nei mainpanel
+    private JPanel makePanelRules() {
+
+
+        JPanel panelShowRules = new JPanel();
+        JLabel tmp = null;
+
+        panelShowRules.setPreferredSize(new Dimension(20, 20));
+        panelShowRules.setBorder(BorderFactory.createTitledBorder("OVERVIEW GAME: "));
+        panelShowRules.setLayout(new BoxLayout(panelShowRules, BoxLayout.Y_AXIS));
+        panelShowRules.add(tmp = new JLabel("<html>Il gioco wordle consiste nel cercare di indovinare una parola inglese formata da 10 lettere.<br>" +
+                                            "Periodicamente viene proposta una nuova parola<br> che l'utente dovrà provare a indovinare in un massimo di 12 tentativi.<br>" +
+                                            "Se la parola scelta dall utente non è presente nel vocabolario del gioco il tentativo non verrà considerato.<br>" +
+                                            "Dopo aver effettuato il login sarà presente il pulsante (HELP) che guiderà l utente per l utilizzo delle altre funzionalità " +
+                                            "proposte dal gioco <br>" +
+                                            "<br>Le regole sono le seguenti: <br>" +
+                                            "<br>1) Prima di effettuare il login è necessario iscriversi<br>" +
+                                            "2) Prima di poter tentare di indovinare una parola è necessario chiedere di giocare<br>" +
+                                            "3) Se un utente chiede di giocare ed effettua il logout prima di aver indovinato la parola la partita è considerata persa<br>" +
+                                            "4) Se un utente esaurisce i 12 tentativi senza indovinare la parola la partita è considerata persa <br>" +
+                                            "5) Se un utente comincia una partita e dubito dopo viene aggiornata la parola del gioco la partita è considerata persa</html>"
+                                            ));
+        return panelShowRules;
+
+    }
+    private JPanel makeHelpButton(JButton help) {
+
+        JPanel panelHelp = new JPanel();
+        panelHelp.setPreferredSize(new Dimension(20, 20));
+        panelHelp.setBorder(BorderFactory.createTitledBorder("VISUALIZZA AIUTI: "));
+        panelHelp.setLayout(new BoxLayout(panelHelp, BoxLayout.Y_AXIS));
+        panelHelp.add(help);
+        panelHelp.setBackground(new Color(192, 166, 209));
+        return panelHelp;
+    }
     private JPanel makePanelShowMeShareing(JButton ShowMeSharing) {
 
         JPanel panelShowShare = new JPanel();
@@ -633,11 +680,13 @@ public class StartGame extends JFrame {
     private JPanel makePanelLogin(JButton log) {
 
         JPanel panelLogin = new JPanel();
+        panelLogin.setPreferredSize(new Dimension(20, 20));
+        panelLogin.setBorder(BorderFactory.createTitledBorder("Login: "));
         UserTEXTLogin = new JTextField(10);
         UserTEXTpasslogin = new JPasswordField(10);
 
+
         panelLogin.setLayout(new FlowLayout());
-        panelLogin.add(new JLabel("Login:"));
         panelLogin.add(new JLabel("Username"));
         panelLogin.add(UserTEXTLogin);
         panelLogin.add(new JLabel("Password"));
@@ -649,11 +698,12 @@ public class StartGame extends JFrame {
     private JPanel makePanelRegistrazione(JButton reg) {
 
         JPanel panelRegistra = new JPanel();
+        panelRegistra.setPreferredSize(new Dimension(20, 20));
+        panelRegistra.setBorder(BorderFactory.createTitledBorder("Registrazione:"));
         TextFieldUserRegistra = new JTextField(10);
         TextFieldPassRegistra = new JPasswordField(10);
 
         panelRegistra.setLayout(new FlowLayout());
-        panelRegistra.add(new JLabel("Registrazione:"));
         panelRegistra.add(new JLabel("Username"));
         panelRegistra.add(TextFieldUserRegistra);
         panelRegistra.add(new JLabel("Password"));
