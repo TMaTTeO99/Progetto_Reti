@@ -65,7 +65,7 @@ public class ServerWordle{// il tipo generico T viene utilizzato per implementar
         DaSerializzare = new LinkedBlockingDeque<>();
 
         //lancio i thread separati dal threadpool
-        threadGame = new Thread(new OpenGame(TimeStempWord, LTW, Vocabolario, ConfigureFile, Game, WriteWordLock, URL));
+        threadGame = new Thread(new OpenGame(TimeStempWord, LTW, Vocabolario, ConfigureFile, Game, WriteWordLock, URL, DaSerializzare));
         threadSerialize = new Thread(new MakeJson(Registrati, DaSerializzare, PathJson, ReadWordLock, Game, Classifica, ReadLockClassifica));
 
         threadGame.start();

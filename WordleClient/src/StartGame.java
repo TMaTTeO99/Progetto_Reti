@@ -112,8 +112,7 @@ public class StartGame extends JFrame {
                     @Override
                     protected void done() {
                         try {
-
-
+                            
                             Integer response = get();  // Recupero il valore di ritorno del metodo doInBackground
                             switch (response) {
 

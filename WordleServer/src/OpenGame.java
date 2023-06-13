@@ -7,6 +7,7 @@ import java.net.URLConnection;
 import java.util.ArrayList;
 import java.util.Random;
 import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 
@@ -24,7 +25,8 @@ public class OpenGame implements Runnable{
     private SessioneWordle Game;//variabile che rappresenta il gioco
     private Lock lock;//lock per implementare mutua esclusione fra per i thread che accedono all istanza del gioco
     private String URLtransale;//URL del servizio di traduzione
-    public OpenGame(long t, long lt, ArrayList<String> Vcb, File ConfFile, SessioneWordle gm, Lock lck, String URL) {
+    private LinkedBlockingDeque<DataToSerialize> DaSerializzare;
+    public OpenGame(long t, long lt, ArrayList<String> Vcb, File ConfFile, SessioneWordle gm, Lock lck, String URL, LinkedBlockingDeque<DataToSerialize> SerializeQueue) {
         lasttime = lt;
         time = t;
         Vocabolario = Vcb;
@@ -32,6 +34,7 @@ public class OpenGame implements Runnable{
         Game = gm;
         lock = lck;
         URLtransale = URL;
+        DaSerializzare = SerializeQueue;
     }
     public void run() {
 
@@ -54,6 +57,8 @@ public class OpenGame implements Runnable{
                      currenttime = System.currentTimeMillis();
                      Game.setCurrentTime(currenttime);
                      Game.setTentativi();
+                     try {DaSerializzare.put(new DataToSerialize<>(Game, 'I'));}
+                     catch (Exception e) {e.printStackTrace();}
                 lock.unlock();
                 WriteLastSpawn(lasttime);//modifico il file di config in modo da scriverci dentro il time stamp dell ultima
                                         //sessione di gioco creata
@@ -118,7 +123,6 @@ public class OpenGame implements Runnable{
                 System.arraycopy(line.toCharArray(), 0, tmpline, 0, 8);
 
                 if(String.valueOf(tmpline).equals("lastWord")) {//se ho letto il campo lastWord nel file di config
-                    System.out.println("TROVATO FILED");
                     ou.write("lastWord="+Long.toString(lasttime)+"\n");
                 }
                 else {//altrimenti copio le altre info nel file
