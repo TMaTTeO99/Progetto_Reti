@@ -1,15 +1,6 @@
-import java.io.*;
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
-import java.net.Socket;
-import java.nio.charset.StandardCharsets;
-import java.rmi.registry.LocateRegistry;
-import java.rmi.registry.Registry;
-import java.rmi.server.UnicastRemoteObject;
-import java.util.Scanner;
+import java.io.File;
 
 public class StartClientWordleMain {
-
 
     /**
      * Comincio con l implementazione corretta del client in modo da poter testare correttamente il server
@@ -26,8 +17,11 @@ public class StartClientWordleMain {
              *  il client in 2 mod con la gui e senza in modo da poter testare l app correttamente
              *
              */
+            GetDataConfig dataConfig = new GetDataConfig("configClient.txt", "../");
 
-            StartGame game = new StartGame();
+            dataConfig.SearchFile(new File(dataConfig.getPathStart()));
+            StartGame game = new StartGame(dataConfig.getIP_server(), dataConfig.getPort_ListeningSocket()
+                                            , dataConfig.getIP_Multicast(), dataConfig.getPort_Multicast(), dataConfig.getPortExport());
             /*
             ImplementazioneNotificaClient notifica = null;
             Registrazione servizio = null;

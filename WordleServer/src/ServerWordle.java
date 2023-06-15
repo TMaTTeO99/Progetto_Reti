@@ -1,5 +1,3 @@
-import java.io.ByteArrayInputStream;
-import java.io.DataInputStream;
 import java.io.File;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
@@ -12,13 +10,11 @@ import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.*;
 import java.util.concurrent.*;
-import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
-public class ServerWordle{// il tipo generico T viene utilizzato per implementare la Blockingqueue per la serializzazione
-    private static final int SIZE_SIZE = 4;//variabile per indicare il numeero dio byte di un int, serve per legere la dimensione
+public class ServerWordle{
+    private static final int SIZE_SIZE = 4;//variabile per indicare il numero dio byte di un int, serve per legere i dati che arrivano
     private Registry RegistroRMI;
     private Registrazione Skeleton;
     private ExecutorService pool;
@@ -52,34 +48,36 @@ public class ServerWordle{// il tipo generico T viene utilizzato per implementar
     private ArrayList<UserValoreClassifica> Classifica; //oggetto che rappresenta la classifica
 
     //per i test li lascio cosi, poi devo recuperarli dal file di config
-    private int PortMulticast = 5240;
-    private String IP_multicast = "239.0.0.1";
+    private int PortMulticast, Port_Listening;
+    private String IP_multicast;
 
-    public ServerWordle(String PathJson , int Nthread, long TimeStempWord, int PortExport, long LTW, File ConfigureFile,
-                        ArrayList<String> Vocabolario, String URL) throws Exception{
+    public ServerWordle(ArrayList<String> Vocabolario, GetDataConfig dataConfig) throws Exception{
+
+        PortMulticast = dataConfig.getPort_Multicast();
+        IP_multicast = dataConfig.getIP_Multicast();
+        Port_Listening = dataConfig.getPort_ListeningSocket();
 
         Classifica = new ArrayList<>();
-
         Game = new SessioneWordle();
         Registrati = new ConcurrentHashMap<>(); //creo il set degli utenti registrati con concurrenthashmap, per ora lascio i parametri di default
         DaSerializzare = new LinkedBlockingDeque<>();
 
         //lancio i thread separati dal threadpool
-        threadGame = new Thread(new OpenGame(TimeStempWord, LTW, Vocabolario, ConfigureFile, Game, WriteWordLock, URL, DaSerializzare));
-        threadSerialize = new Thread(new MakeJson(Registrati, DaSerializzare, PathJson, ReadWordLock, Game, Classifica, ReadLockClassifica));
+        threadGame = new Thread(new OpenGame(dataConfig.getTimeStempWord(), dataConfig.getLastTimeWord(), Vocabolario, dataConfig.getConfigureFile(), Game, WriteWordLock, dataConfig.getURLtranslate(), DaSerializzare));
+        threadSerialize = new Thread(new MakeJson(Registrati, DaSerializzare, dataConfig.getPathSerialization(), ReadWordLock, Game, Classifica, ReadLockClassifica));
 
         threadGame.start();
         threadSerialize.start();
 
         Words = Vocabolario;
 
-        pool = (ThreadPoolExecutor) Executors.newFixedThreadPool(Nthread);//pool di thread per eseguire i diversi task
+        pool = (ThreadPoolExecutor) Executors.newFixedThreadPool(dataConfig.getMaxThread());//pool di thread per eseguire i diversi task
 
         ObjEsportato = new ImlementazioneRegistrazione(Registrati, DaSerializzare, Classifica, WriteLockClassifca, ReadLockClassifica);//creo l' oggetto da esportare
         Skeleton = (Registrazione) UnicastRemoteObject.exportObject(ObjEsportato, 0);
-        RegistroRMI = LocateRegistry.createRegistry(PortExport);
+        RegistroRMI = LocateRegistry.createRegistry(dataConfig.getPortExport());
         RegistroRMI.bind("Registrazione", Skeleton);
-        URLtranslate = URL;
+        URLtranslate = dataConfig.getURLtranslate();
 
     }
 
@@ -93,7 +91,7 @@ public class ServerWordle{// il tipo generico T viene utilizzato per implementar
         try (ServerSocketChannel AcceptSocket = ServerSocketChannel.open()) {//clausola try with resource per per chiudere la socket in caso di terminazione
 
             Selector selector = Selector.open();//istanza diuu Selector per poter fare multiplaxing delle connessioni
-            AcceptSocket.bind(new InetSocketAddress(6501));//Porta Temporanea
+            AcceptSocket.bind(new InetSocketAddress(Port_Listening));//Porta Temporanea
             AcceptSocket.configureBlocking(false);//setto il canale come non bloccante
             AcceptSocket.register(selector, SelectionKey.OP_ACCEPT);//registro la ServerSocketChannel per operazione di Accept
             Integer ID_Channel = 0;//intero per identificare la connessione

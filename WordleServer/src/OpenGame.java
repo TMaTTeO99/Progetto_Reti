@@ -6,9 +6,7 @@ import java.net.URL;
 import java.net.URLConnection;
 import java.util.ArrayList;
 import java.util.Random;
-import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.LinkedBlockingDeque;
-import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 
 //classe che conterra un metodo run per poter periodicamente creare un nuova parola
@@ -65,16 +63,15 @@ public class OpenGame implements Runnable{
 
                 System.out.println("Game creato");
             }
-            catch (Exception e) {e.printStackTrace();}
+            catch (Exception e) {
+                e.printStackTrace();
+                lock.unlock();
+            }
         }
-        //qui quando tale thread verrà interrotto dovro aggiornare il file di configurazione con
-        //lasttime attuale, la prima volta che il server sara lanciato sara 0,
-        //quindi devo fare un metodo per effettuare questo aggiornamento
-        System.out.println("esco");
     }
     private String TranslateService(String GameWord) {//metodo privato usato per recuperare i la traduzione della parola
 
-        String wordTradotta = null;
+        String wordTradotta = new String();
         try {
 
             URL Service = new URL(URLtransale + "get?q=" + GameWord + "&langpair=en|it");
@@ -95,6 +92,8 @@ public class OpenGame implements Runnable{
 
                             pars.nextToken();//considero il valore di translation
                             wordTradotta = pars.getText();//recupero la parola tradotta
+                            System.out.println(wordTradotta);
+                            break; //recupero la traaduzione ed esco
                         }
                     }
                 }

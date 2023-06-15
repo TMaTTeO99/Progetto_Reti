@@ -10,7 +10,6 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
 
 public class Work implements Runnable {
 
@@ -136,9 +135,6 @@ public class Work implements Runnable {
     private void ShareMethod(StringTokenizer Tok, PkjData dati) {
 
         String username = null;
-        String passwd = null;
-        String word = null;
-        int lendati = 0, GameUtente = 0;
         ByteArrayOutputStream SupportOut = null;
         Utente u = null;
 
@@ -180,15 +176,11 @@ public class Work implements Runnable {
         }
         else WriteErrorOrWinOrSuggestionMessage(dati, "", -3, "");//caso in cui l utente non ha effettuato il login
 
-
-
     }
     private void SendStatisticsMethod(StringTokenizer Tok, PkjData dati) {
 
+        int GameUtente = 0;
         String username = null;
-        String passwd = null;
-        String word = null;
-        int lendati = 0, GameUtente = 0;
         ByteArrayOutputStream SupportOut = null;
         Utente u = null;
 
@@ -211,7 +203,7 @@ public class Work implements Runnable {
                 GameUtente = u.getGame() - 1;
             }
             else GameUtente = u.getGame();
-            System.out.println(GameUtente +" <---Modifica " + u.getGame());
+
             //recupero le statistiche dell utente e creo la stringa che deve essere inviata
             String answer = new String(new byte[0], StandardCharsets.UTF_8);
 
@@ -231,9 +223,7 @@ public class Work implements Runnable {
     private void SendWordMethod(StringTokenizer Tok, PkjData dati) {
 
         String username = null;
-        String passwd = null;
         String word = null;
-        int lendati = 0;
         ByteArrayOutputStream SupportOut = null;
         Utente u = null;
 
@@ -269,8 +259,8 @@ public class Work implements Runnable {
                 else {
                     //recupero la parola del gioco in muta esclusione
                     ReadWordLock.lock();
-                    String GameWord = Gioco.getWord();
-                    String wordTradotta = Gioco.getTranslatedWord();
+                        String GameWord = Gioco.getWord();
+                        String wordTradotta = Gioco.getTranslatedWord();
                     ReadWordLock.unlock();
 
 
@@ -345,10 +335,8 @@ public class Work implements Runnable {
     }
     private void PlayWordleMethod(StringTokenizer Tok, PkjData dati) {
 
+        int error = Integer.MAX_VALUE;
         String username = null;
-        String passwd = null;
-        String word = null;
-        int lendati = 0, error = Integer.MAX_VALUE;
         ByteArrayOutputStream SupportOut = null;
         Utente u = null;
 
@@ -368,11 +356,8 @@ public class Work implements Runnable {
             if(result == 0) {
 
                 u.increasesGame();
-                System.out.println(u.getGame() + "bobo");
-
                 //inserisco in coda il messaggio per dire al thread che serializza che un utente ha aggiornato i suoi dati
                 SendSerialization('U');
-
                 error = 0;
             }
             else if(result == 1) {
@@ -387,14 +372,11 @@ public class Work implements Runnable {
         }
         WriteErrorOrWinOrSuggestionMessage(dati, "", error, "");
 
-
     }
     private void LogoutMethod(StringTokenizer Tok, PkjData dati) {
 
+        int error = Integer.MAX_VALUE;
         String username = null;
-        String passwd = null;
-        String word = null;
-        int lendati = 0, error = Integer.MAX_VALUE;
         ByteArrayOutputStream SupportOut = null;
         Utente u = null;
 
@@ -426,10 +408,9 @@ public class Work implements Runnable {
 
         String username = null;
         String passwd = null;
-        String word = null;
         ByteArrayOutputStream SupportOut = null;
         Utente u = null;
-        int lendati = 0, error = Integer.MAX_VALUE;
+        int error = Integer.MAX_VALUE;
         //MAX_VALUE valore che non uso sicuramente per inviare i messaggi
 
 
@@ -495,7 +476,8 @@ public class Work implements Runnable {
     private void updateClassifica(String username, Utente tmpu, int Wintentativi) {
 
         //acquisisco la mutuia esclusione sulla classifica
-        WriteLockClassifica.lock();
+        try {
+            WriteLockClassifica.lock();
 
             //Prima di aggiornare la classifica salvo i nomi degli utenti che si trovano nelle prime 3 posizioni
             String user1 = null;
@@ -507,7 +489,7 @@ public class Work implements Runnable {
                 user2 = Classifica.get(1).getUsername();
                 user3 = Classifica.get(2).getUsername();
             }
-            for(int i = 0; i<Classifica.size(); i++) {
+            for(int i = 0; i<sizeClassifica; i++) {
 
                 //ricerco l utente del quale devo aggiornare lo score
                 UserValoreClassifica temp = Classifica.get(i);
@@ -519,8 +501,8 @@ public class Work implements Runnable {
             }
             //confronto le prime 3 posizioni con quelle precedenti all aggiornamento se sono cambiate invio la notifica
             if(sizeClassifica >= 3 && (!user1.equals(Classifica.get(0).getUsername()) ||
-                                       !user2.equals(Classifica.get(1).getUsername()) ||
-                                       !user3.equals(Classifica.get(2).getUsername()))){
+                    !user2.equals(Classifica.get(1).getUsername()) ||
+                    !user3.equals(Classifica.get(2).getUsername()))){
                 //in questo caso devo recuperare l oggetto stub e inviare le prime 3 posizioni della classifica al client
                 //ricopio le prime 3 posiszioni della classifica in un ArrayList dello stesso tipo e li invio al client
                 ArrayList<UserValoreClassifica> ClassificaNotifiche = new ArrayList<>();
@@ -529,7 +511,6 @@ public class Work implements Runnable {
 
                 for(Utente u : Registrati.values()) {
 
-                    System.out.println("INVIO NOTIFICA");
                     NotificaClient stub = u.getStub();
                     if(stub != null) {
                         try {stub.SendNotifica(ClassificaNotifiche);}
@@ -537,7 +518,9 @@ public class Work implements Runnable {
                     }
                 }
             }
-        WriteLockClassifica.unlock();
+        }
+        finally {WriteLockClassifica.unlock();}
+
     }
     private void WriteErrorOrWinOrSuggestionMessage(PkjData dati, String method, int error, String Other) {
 
@@ -578,9 +561,7 @@ public class Work implements Runnable {
                                                             // non è presente nella parola del gioco
             }
         }
-        //Stampe per i miei test, poi l elimino
-        // String consigli = new String(CharConsigli);
-        //System.out.println(consigli + "quiiii");
+        //stampa di test
         System.out.println("PAROLA DEL GIOCO " + GameWord);//per ora decommento cosi vedo la parola
         return new String(CharConsigli);
     }

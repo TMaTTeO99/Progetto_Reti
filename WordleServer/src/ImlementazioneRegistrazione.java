@@ -1,13 +1,9 @@
 import java.rmi.RemoteException;
 import java.rmi.server.RemoteServer;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
-
 public class ImlementazioneRegistrazione extends RemoteServer implements Registrazione {
 
     private ConcurrentHashMap<String, Utente> Registrati;//utenti del gioco

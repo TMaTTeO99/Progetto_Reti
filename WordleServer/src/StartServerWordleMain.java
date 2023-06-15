@@ -15,116 +15,8 @@ import java.util.concurrent.TimeUnit;
  */
 public class StartServerWordleMain {
 
-    private static String URLtranslate;//Stringa usata poer contenere l url del servizio di traduzione
-    private static long LastTimeWord;//var utilizzata per poter recuperare il tempo in millisecondi dell ultima volta in cui una parola è stata estratta
-    private static final long DayInMS = 86400000;//conversione di un giorno in millisecondi
-    private static final long OraInMS = 3600000; //conversione di 24 ore in millisecondi
-    private static final long MinInMS = 60000; //conversione di 1 minuto in millisecondi
-    private static final long SecInMS = 1000;
-
-    private static int MaxThread = 5;//di default assegno un numero di thread cosi in caso di errore nel file di config
-                                     //iol server comunque puo lavorare
-    private static long TimeStempWord = DayInMS;
-    private static String ConfigureFileName = "config.txt"; //nome del file contenente le info di configurazione
-    private static String PathSerialization;
-    private static String PathVocabolario;
-    private static int PortExport; // il valore che  assumerà questa var deve essere lo sesso lato client nel suo file dio config
-    /**
-     * WORNIGGGGGGG!!!!!!!!:
-     * tale path dovra essere modificato prima della consegna in base a come verranno messe le cartelle
-     * nella dir finale, per ora è solo per me
-     * */
     private static final String PathStart = "../"; //Path della dir da cui cominciare la ricerca del file
 
-    private static File ConfigureFile = null;
-
-    //metodo privato per convertire il tempo indicato all'interno del file di config in millisecondi
-    private static long ToMLS(String arg) {
-
-        //il formato della stringa arg è: giorni ore minuti secondi
-        long tm = 0;
-
-        StringTokenizer tok = new StringTokenizer(arg, " ");
-        tm += DayInMS * Integer.parseInt(tok.nextToken());
-        tm += OraInMS * Integer.parseInt(tok.nextToken());
-        tm += MinInMS * Integer.parseInt(tok.nextToken());
-        tm += SecInMS * Integer.parseInt(tok.nextToken());
-
-        return tm;
-    }
-    //metodo privato per effettuare il pars di ogni linea letta dal file di configurazione
-    private static void ParsCLine(String ln) {
-
-        StringTokenizer tok = new StringTokenizer(ln, "=");
-        while(tok.hasMoreTokens()) {
-            try {
-                switch(tok.nextToken()) {
-                    case "thread" :
-                        MaxThread = Integer.parseInt(tok.nextToken());
-                        break;
-                    case "timeword" :
-                        TimeStempWord = ToMLS(tok.nextToken());//metodo privato per la conversione in long
-                        break;
-                    case "pathjson" :
-                        PathSerialization = tok.nextToken();
-                        break;
-                    case "PortExport":
-                        PortExport = Integer.parseInt(tok.nextToken());
-                        break;
-                    case "PathVocabolario":
-                        PathVocabolario = tok.nextToken();
-                        break;
-                    case "lastWord":
-                        LastTimeWord = Long.parseLong(tok.nextToken());
-                        break;
-                    case "URL":
-                        URLtranslate = tok.nextToken();
-                        break;
-                }
-            }
-            catch (Exception e) {
-                System.out.println("ERRORE Nel file di configurazione");
-                System.out.println("Verrannno utilizzati i parametri di default per configurare il server");
-            }
-        }
-    }
-    private static void ReadConfig(BufferedReader inConfig) throws Exception{
-
-        String line = null;
-        while((line = inConfig.readLine()) != null) {ParsCLine(line);}
-    }
-    //metodo statico per la ricerca del path del file di configurazione
-    public static void SearchFile(File curfile) {
-
-        String [] lst = curfile.list();
-        File next = null;
-        for(int i = 0; i<lst.length; i++) {
-            next = new File(curfile+"/"+lst[i]);
-            try {
-                if(next.isFile()) {
-                    if(next.getName().equals(ConfigureFileName))ConfigureFile = new File(next.getPath());
-                }
-                else if(next.isDirectory()) SearchFile(next);
-            }
-            catch (Exception e) {e.printStackTrace();}
-        }
-    }
-    //metodo statico privato per recuperare le parole dal vocabolaRrio
-    private static ArrayList<String > getVocabolario() {
-
-        ArrayList<String > tmp = new ArrayList<>();
-        File pathWord = new File(PathVocabolario);
-
-        try (BufferedReader in = new BufferedReader(new FileReader(pathWord))){
-            String word = null;
-            while((word = in.readLine()) != null) {
-                tmp.add(word);
-            }
-        }
-        catch (Exception e) {e.printStackTrace();}
-        return tmp;
-
-    }
     public static void main(String [] args) {
 
         /**
@@ -142,31 +34,29 @@ public class StartServerWordleMain {
          * Per ora creo il file solo per vedere il TimeWord e per poter implementare la regiostrazione e la serializzazione
          * Comincio la fase di configurazione:
          */
+        GetDataConfig ConfigureData = new GetDataConfig("configServer.txt", "../");
+
         //Ricerca e apertura del file di configurazione
-        SearchFile(new File(PathStart));
+        ConfigureData.SearchFile(new File(ConfigureData.getPathStart()));
 
         //Chiusura in caso di file di configurazione non trovato
-        if(ConfigureFile == null){
+        if(ConfigureData.getConfigureFile() == null){
             System.out.println("ERRORE. File di configurazione assente");
             return;
         }
-        System.out.println(ConfigureFile.getPath());//lascio questa stampa per eventualmente ritrovare il file
+
         //a questo punto devo effettuare il pars del file
-        try(BufferedReader inConfig = new BufferedReader(new FileReader(ConfigureFile))) {
-            ReadConfig(inConfig);
-        }
+        try {ConfigureData.ReadConfig();}
         catch (Exception e) {e.printStackTrace();}
 
         //a questo punto ho recuperato le prima info di configurazione
         //tali info le passo al server per l'elaborazione
-        System.out.println(PathSerialization);
 
         //prima di istanziare il server leggo il vocabolario e lo inserisco in una struttura dati opportuna
-        ArrayList<String> vocabolario = getVocabolario();
+        ArrayList<String> vocabolario = ConfigureData.getVocabolario();
         try {
-            System.out.println(URLtranslate);
-            ServerWordle server = new ServerWordle(PathSerialization, MaxThread, TimeStempWord,
-                                                    PortExport, LastTimeWord, ConfigureFile, vocabolario, URLtranslate);
+
+            ServerWordle server = new ServerWordle(vocabolario, ConfigureData);
             //Thread.sleep(20000);//dormo per 30 secondi e poi chiudo
             //il servizio rmi e quindi anche il server per ora
 

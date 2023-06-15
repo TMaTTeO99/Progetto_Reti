@@ -1,0 +1,343 @@
+Giorno 30)
+
+	Ricomincio da dove ero arrivato ieri:::.
+	
+	Riprendo dal dalla questione del gruppo multicast, bisogna scegliere l indirizzo:
+	da 224.0.1.0 -> 238.255.255.255 POSSONO navigare in internet, provo a usare questo
+	
+	Nota: per usare il gruppo multicast, è necessario che i client siano in ascolto su una porta, tale porta deve essere conosciuta dal
+	server, ora devo capire se questa porta è conosciuta a priori dal server oppure sono i client che la inviano ad esempio
+	o in seguito alla login o in seguito alla registrazione, credo di metterer questa porta nel file di config.
+	Ora quello che devo fare è mantenere salavti nella classe sessionewordle, nella struttura tentativi, tutti i tentativi
+	che gli utenti fanno sotto forma di stringhe " x + ? " in questo modo quando il client lo richiede puo visuaizzare
+	i dati che gli altri client hanno condiviso Fatto.
+	Ora posso cominciare a implementare il gruppo multicast: 	
+	
+	Il client deve sempre essere in ascolto della ricezione dei dati che gli altri utenti condividono, per farlo, il client deve
+	utilizzare un altro thread che esegue l operazione di lettura dei dati che arrivano, devo capire cosa succede con l interfaccia grafica
+	se lancio un thread "manuale", per ora sia lato server che lato client l ip lo lascio nel codice, poi dovra essere nel file di
+	configurazione:::
+	
+	Riguardo la dimensione dei datagrampacket uso una dimensione di 256 byte, il numero di byte che vengono ricevuti per 
+	ogni sessione di un utente è 12 * 10 == 120 byte, il problema è che il server invia tanti datagrammi tanti quando 
+	sono gli utenti che hanno partecipato alla sessione di gioco, quindi quello che faccio è ciclare nel client finche non si riceve tutta
+	la lista di liste (una lista di utenti dove per ogni nodo della lista si hanno al massimo 12 stringhe), quindi, il server 
+	costruirà una stringa di al piu 12 sotto stringhe separate da spazio e alla fine una stringa di terminazione nel caso dovesse 
+	servire ma penso di no, alla fine della lettura del pachetto inserisco in una lista che ha come elemnti una mia struttura dati 
+	che contiene un array di stringhe::
+	Nota: nei dati inviati dall utente sul gruppo multicast deve essere inserito anche il nome degli utenti che hanno effettuato i 
+	tentativi, quindi alla fine delle parole usate per il gioco il server appenderà anche il nome dello specifico utente.
+	
+	Il thread che lato client sta in ascolto a ricevere le stringhe deve inserire all interno di una coda condivisa con il thread main
+	degli oggetti che contengono il nome dell utente che ha fatto i tentativi e i tentatiovi stessi in modo che poi l utente
+	utilizzando il comando showMeSharing possa visualizzare tali suggerimenti 
+	
+	
+	Nota: prima di riprendere con il gruppo multicast, quello che devo fare è implementare il tasto showmeranking in modo
+	da permettere al client di visualizzare la classifica in ogni momento: il server inviera al client una stringa gia pronta
+	per la stampa UTENTE nome SCORE punteggio  : Fatto 
+	
+	
+	Ora riprendo con il multicast:::
+		
+		Lato server quando ho finito i suggerimenti e devo inserire il nome dell utente nella stringa, invece di separare l ultimo
+		suggerimento dal nome con uno spazio lo separo con ":" in modo tale che durante il parsing lato client
+		venga sollevata un eccezione che posso catturare per prendere il nome del client
+		
+		
+		Va sistemata la visualizzazione dei tentativi condivisi ì, inoltre non so perche se ho due client che condividono dati
+		vengono visualizzati solo gli ultimi, questo credo dipenda dalla porta usata per l indirizzo multicast, comunque domani vedo bene
+		perche oggi sono stanco	
+		
+		
+	
+-------------------------------------------------------------------------------------------------------------------------------------------
+Giorno 31) 
+
+		Riprendo da dove ero arrivato ieri, devo visualizzare i suggerimenti condivisi dagli utenti::
+		Sembra che la visualizzazione sia decente, ora, 
+		
+		
+		
+		Riprendo prima dalla visualizzazione grafica e poi vedo il problema della porta, il problema della porta, boh non penso ci sia
+		forse ieri ero stanco e non mi tornava ma sembra andare, ora pero c'è il problema che usando la blockingqueue io vado a 
+		eliminare i dati dalla coda, quindi la visualizzazione dei dati avviene solo per1 volta, per farlo credo che è necessario
+		usare delle lock e no una blockingqueue altrimenti la coda si svuota.
+		
+		NOTA: riguardo al bug di login e logout per consentire che un utente possa loggarsi da piu dispositivi (usare piu connessioni)
+		quello che faccio è usare un array di flag per il login e un array/lista di interi per indicare la connessione con cui 
+		arriva la richiesta di logion in modo da non permettere che un utente possa far buttare fuori un altro inserendo un altro nome
+		anzi usoi direttamente una hashmap, pero per farlo per l intero della connessione devo usare integer e per il flag di login   
+		non posso usare boolean ma un altro dato, uso un intero, 1 == loggato, 0 non loggato
+		
+		Risolto il bug del login ho creato una hashmap che ha come key l intero associato al channel e come valore 
+		l username del utente che si è loggato quando si logga l utente viene inserito un campo nella hashmap, 
+		Sembra funzionare. 
+		Ora riprendo con la coda concorrente nel client per le condivisioni dei risultati, fatto.
+		
+		Nota: c'è da effettuare la serializzazione anche quando gli utenti si iscrivono dall inizio in modo da 
+		avere sempre qualcuno in classifica cosi l utente se prova a visualizzare la classifica non si apre un pannello con la classifica
+		vuota, in ogni caso in tal caso devo fare in modo che venga visualizzato un messaggio con scritto classifica vuota.
+		
+		Per oggi terino qui, domani riprendo..
+				
+
+-------------------------------------------------------------------------------------------------------------------------------------------
+
+
+Giorno 32): 	Comincio con le operazioni di rifinitura:
+			
+			1) Quando un utente si iscrive al gioco deve essere inserito in classifica, e dovrebbe essere serializzata
+			
+				: Fatto.
+			
+			
+			
+			2) Devo sistemare il fatto che quando un utente fa il playword, il time di prossima parola deve rimanere visibile
+			   anche dopo che si fa ad esempio il logout, inoltre credo che un utente anche prima del playwordle deve essere
+			   in grado di sapere quando sarà startato il prossimo game, per fare cio però in seguito alla login il server deve
+			   inviare i dati al client, quindi vanno effettuate le modifiche sia lato client che lato server: 
+			   	
+			   	Comincio a vedere lato client::: Nota: la lable riguardo il prossimo start di game allora non deve essere 
+			   	presente nel panel del play wordle ma in un altro, quindi o in quello di login oppure in uno exnovo, 
+			   	inoltre lato client potrei fare un countdown di quando sarà startato il prossimo game
+			   	
+			   	Devo decidere dove inserire la lable della prossima parola: in quale panel ???
+			   	Ho il problema che se facccio cosi come dico la prossima parola mi viene detta solo quando faccio la login, 
+			   	io voglio che sia sempre visisbile prima che l utente cominci a giocare in modo che l utente possa
+			   	decidere se giocare o meno, a questo punto allora inserisco un comando (tasto) in piu in modo
+			   	che l utente prima di giocare possa visualizzare quando verrà spownata la prossima parola.
+			   	
+			   Fatto, L interfaccia è ancora meno legibile però.	
+			   	 
+			
+			3) Capire quando devo serializzare i dati, (Per ora salto perche si tratta solo di copiare e incollare l inserimento
+			nella coda ma devo essere sveglio per capire qual'è il punto giusto) ***************____WARNING____******************
+			
+			4) Va anche sistemato il fatto che un utente puo condividere i propri risultati prima di aver terminato la classifica,
+			   credo che debba essere fatto solo a termine partita :: Fatto
+			   
+			
+			5) Va inserito il controllo del login lato server nelle diverse operazioni :: 
+				Per fare ciò, ad ogni invio di una richiesta il client deve inserire anche il suo nomeutente in 
+				background:::
+				Comincio::: 
+					a) sendtimeword :: fatto
+					b) Showmesharing :: non ha bisogno di questo, lato client 
+					c) SHowmeranking :: fatto
+					d) Share :: fatto.
+					e) sendMeStatistics :: fatto:
+					f) Il tasto visualizza non va controllato
+					g) Logout :: era gia fatto
+					h) tasto gioca :: fatto 
+			
+			6) Va sistemato a modo la classe makejson del server (legibilita ecc) :::
+			
+				
+				Creo un metodo diverso per ogni file che devo serializzare
+				Serializzazione per aggionramento utente :: fatto
+				Sembra che sia migliorato, forse è bene dare una controllata
+				
+				
+						
+			
+			
+			7) Va sistemato il client, l interfaccia grafica va fatta piu carina, devo cercare di fare le operazioni di lettura
+			   di dati al meglio possibile, cercare di fare tutto con dei metodi privati a modo
+			
+			8) Devo cercare di sistemare tutti i worning, sia nel client che nel server.
+			
+			9) Vorrei anche creare le interfacce, fare in modo che le classi che uso implementano le giuste interfacce e quest'ultime
+			   vorrei commentarle per bene con javadoc.
+		  	
+		  	10) Bisogna creare i file di config, sia completare quello del server che creare quello del client, bisogna quindi 
+		  	    creare l algo di parsing nel client per recuperare i dati
+		  	   
+		  	11) Va testato tutto il programma, quindi va creato un script per fare i test e vedere che succede, potrebbe essere 
+		  	    necessario dover implementare anche un file di log e quindi un algo che lo scriva
+		  	    
+		  	12) Dovrei anche vedere se posso settare i thread di supporto come thread demoni per avere meno problemi per la
+		  	    terminazione sia del client che del server.
+		  	    
+		  	13) Devo quindi implementare la terminazione
+		  	
+		  	14) Devo gestire le try catch a modo
+		  	
+		  	15) Devo anche sistemare i messaggi di errore che il client visualizza
+		  	
+		  	16) Devo aggiustare la traduzione
+		  	
+		  	Per ora non mi viene in mente altro, comincio con questi task.
+			
+			Nota: va sistemato l invio del time della prossima parola, forse non funziona correttamente.
+			Riprendere domani da dove ero rimasto, cioe con l aggiunta del controllo in ogni metodo che il client in questione
+			sia loggato prima di fare qualsiasi operazione
+			
+			17) Quando un utente si connette al server e fa il login, gli viene associato un numero a tale connessione, 
+			questo l ho fatto per far si che un utente possa fare il login da piu dispositivi anche contemporaneamente
+			senza avere problemi e per far si che un altro utente non possa far si che un secondo utente venga tolto dal login
+			, quello che succede è che nel server all utente viene associata quella connessione (il numero)
+			al login dell utente. Quando pero il client chiude la connessione senza pero fare il logout, quello che succede è 
+			che rimangono nelle strutture dati del server i dati riguardando quella connessione, a questo punto quando si ricollega
+			quel client alla nuova connessione il server associa un altro intero, quindi quello che succede è che il client comunque
+			deve rifare il login e quella connessione la viene persa. 
+			Per prima cosa quando un client fa il logout deve essere tolto il dato nella classe utente per quel login, oltre a settare
+			il logout dovrei eliminare il nodo dalla lista, questa roba la controllo bene domani, per ora faccio solo il make json
+			 
+
+			18) devo anche sistemare l eccezzione che mi lancia il client quando incollo roba sul jtext, 
+
+-------------------------------------------------------------------------------------------------------------------------------------------
+
+
+Giorno 33) 	Riprendo dai task che mi ero prefissato:
+			
+			Riprendo dal punto 6) Aggiustare il make Json e poi riflettere un po sulle connessioni..
+			ero arrivato a costruire il metodo per la serializzazione degli utenti in caso di aggiornamento dei  dati::
+			Anche la serializzazione della classifica sembra andare.
+			Ho fatto acnhe la serializzazione del game quindi per ora sembra ok, in  caso riguardare
+			
+			
+			7) Va sistemato il client, l interfaccia grafica va fatta piu carina, devo cercare di fare le operazioni di lettura
+			   di dati al meglio possibile, cercare di fare tutto con dei metodi privati a modo
+				
+				Riguardo l estetica della GUI per ora non metto mano, quello che vado ora a sistemare sono la 
+				lettura dei dati che vengono ritornati dal server ::
+				
+				Modifico il metodo readdata in modo che legga da solo la len dei mex
+				timenextword:::: fatto
+				ShowMeRancking :: fatto
+				Sendword :: fatto
+				provo a modificare il sendmestatistiche :: fatto
+			Proivo ora a sistemare un po la gui in modo da renderla piu bella da vedere e facile da usare
+			Idea :
+				Voglio provare a fare in modo che i panel vengano inseriti uno sopra l altro in una riga laterale
+				
+				Alla fine ho deciso di lasciare i panel in due colonne, ora pero è ordinato e colorato, devo colorare
+				il frame iniziale di login e registrazione e inserire il regolamento	
+		Per oggi lascio cosi, devo completare tutto quello che c'è da fare		
+		
+		
+		Nota: devo sistemare il fatto che se un utente fa logout, perde le ciondivisioni, non so se è giusto cosi o va
+		sistemato, da capire.
+		Domani continuo.
+				 
+
+-------------------------------------------------------------------------------------------------------------------------------------------
+
+Giorno 34) 	Riprendo dalla GUI: 
+			Abbellisco il frame iniziale:
+				Oltre al fatto di colorarlo, devo vedere se viene carino separando i panel, voglio anche inserire una sorta
+				di presentazione iniziale e un minimo di regolamento.
+				Inserisco all interno del frame secondario (quello che si apre dopo la login) un tasto HELP che se cliccato
+				fa vedere un testo in cui è presente la spiegazione dei tasti del gioco:: fatto
+				
+				
+				NOta: non riesco ancora a eliminare l eccezzione che viene sollevata quando tento di incollare del testo
+				se non riusciro a gestire questp problema la soluzione sara
+				usare ad esempio
+				
+        			UserTEXTLogin.setTransferHandler(null);
+        			UserTEXTpasslogin.setTransferHandler(null);
+        			con questo metodo posso bloccare il meccanismo di copia e incolla
+
+
+-------------------------------------------------------------------------------------------------------------------------------------------
+
+Giorno 35)	riprendo dal problema dell exception che viene sollevata, il problema consiste nel fatto che il class loader non trova
+		la classe, probabilmente non ho proprio la libreria, ora controllo::
+		
+		Nota: c'è un problema con il comando di visualizzare la data e l ora della prossima parola, non capisco perche mi dice
+		una data sbagliata, questo avviene probabilmente perrche se ad esempio chiudo il server mentre c'è una parola valida, 
+		se lo riapro quando deve essere creata la nuova parola, non sempre funziona correttamente che crea il game subito, 
+		non so perche, devo controllare, il motivo credo dipenda da un problema dovuto all aggiornamento del file di 
+		configurazione che per qualche motivo a volte non funziona correttamente.
+		Il problema mi sa che è semplice, dipende solo dal fatto che quando si crea il game non serializzavo il game, allora
+		quando ripartiva ricaricava il game dal file json che era quello di ieri, ora sembra andare tutto correttamente perche
+		quando creo il game serializzo anche
+		
+		Devo anche aggiungere nella mia lista di task il controllo dio apertura connessione lato client.
+
+		Vediamo ora per l eccezione::
+		Non riesco a levare l eccezione, il punto è che non la da sempre quindi non capisco se è un problema mio o cosa...bohhh
+		A limite disabilito la possibilità di copiare e incollare per l utente
+		
+		******************ORDINE CORRETTO PER COMPILARE E LANCIARE DA TERMINALE IL SERVER CON LE LIBREIRE******************************
+		
+		java -cp JSON/jackson-annotations-2.13.3.jar:JSON/:JSON/jackson-core-2.14.0.jar:JSON/jackson-databind-2.13.3.jar:. 
+		StartServerWordleMain
+	
+		*******************************************************************************************************************************
+		NOTAAAA:::: non capisco perche ma se lancio il server da terminale l eccezzione che cerco di correggere non viene sollevata
+		
+		Allora io vado avanti visto che da terminale non succede nulla, e quello conta....
+		
+		Continuo domani con il resto delle cose....
+		RICORDARSI CHE I TEST SONO IN UNA DIR E IL CODICE CHE USO CON INTELLIJ é SULLA DIR QUELLA USATA FIN ORA
+		
+		ALTRA COSA CHE DEVO FARE, capire perche se faccio il logout nel client i dati condivisi dagli utententi spariscono dalla coda
+-------------------------------------------------------------------------------------------------------------------------------------------
+
+
+Giorno 36) 	Riprendo da dove ero arrivato la scorsa volta
+		Obbiettivi del giorno: 
+		
+		1) Completare il discorso del file di config una volta per tutte sia lato client che lato server:
+			Lato server:
+			Nel file config devo inserire :
+			1) IP e porta multicast :: Fatto
+			2) Porta usata dal server per creare la listening socket (dovra essere la stessa lato client) :: Fatto 
+			
+			Sembra che lato server non ci siano piu info da recuperare dal file di config.
+			
+			Lato client:
+				Devo usare lo stesso algo usato lato client per recuperare il file di config e poi per recuperare i dati dal file,
+				visto che la situazione è cosi, quello che potrei fare è fare una classe che implementi questo meccanismo, 
+				oppure lasciare cosi e duplicare il codice, ora vedo perche lato server ho piu info rispetto al client, quindi 
+				dovrei gestire per bene questa cosa, quello che potrei fare è: creare una classe statica che permetta di 	
+				recuperare i dati del client e del server, per farlo pero devo far si che tale classe nel costruttore, 
+				venga inserito un flag che indica se si tratta del client o del server (forse c'è anche un modo
+				offerto da java che mi dirà lepo, per ora pero faccio cosi come ho detto), comincio dal server:
+				La cosa migliore è fare due classi separate, una per recuperare i dati per il client, e una per 
+				recuperare i dati per il server, visto che poi client e server, saranno inseriti in due cartelle diverse.   
+			
+			Info che devo recuperare lato client:
+			l ip e la porta del server (ip del server "localhost"), l ip e la porta multicast, il resto va bene tutto.	
+			queste info sono condivise con le info del server, come faccio a creare una sola classe per recuperare le info
+			dai file di config sia per server sia per il client::
+			La mia idea è di creare una libreria mia in modo da poter usare la stessa classe sia lato client che lato server, in piu 
+			tale libreria potrebbe essere usata per le classi che hanno in comune i due programmi come ad esempio la classe 
+			uservaloreclassifica e le interfacce per l rmi. Ora che ho capito come implementare una libreria in java
+			devo capire come fare la classe che estrae dal file di configurazione le info che mi servono.
+			Quello che pendo è di fare una classe che il chiamante quando costruisce un oggetto di questa classe deve passare: 
+			il nome del file, il suo path e se è il client o il server.
+			Ora provo a creare la mia libreria::
+			La libreria funziona, ora quindi devo usare lo stesso oggetto preso dalla stessa libreria per recuperare le 
+			info lato client, funziona tutto correttamente, ora come ora è pero disordinato, devo sistemarlo per bene.
+			
+			Ho visto che funziona anche il fatto di inserire nella libreria le interfacce, in questo modo evito di dover
+			duplicare il codice per le classi, lato client e lato server.
+			
+			
+			
+			Nota: devo modificare il metodo che aggiorna la classifica perche devo fare le operazioni anche se ci sono meno di 3
+			utenti in classifica
+			NOta: devo sistemare un controllo lato server nel metodo del sendword,
+			 devo far si che quando invio la parola dopo che controllo se l utente
+			è loggato, devo controllare se ha premuto playwordle e poi se la parola esiste
+			
+			NOTA : le modifiche apportate per qua
+			
+			
+		
+		2) Finire di colorare l interfaccia grafica
+		3) Cercare di capire perche dopo il logout nel client non vengono mantenute le info riguardo la coda delle condivisioni
+		4) vedere la cosa che ho pensato stamani riguardo la sicurezza delle passwd, in teoria quando serializzo non dovrei salvare
+		   in chiaro le passwd
+		 
+		
+		
+		NOTA_ cosa molto importante, cosa succede se salta la connessione???? per ora si pianta tutto, devo farre in modo che se
+		succede sia lato client che lato server venga gestito.
+-------------------------------------------------------------------------------------------------------------------------------------------
+ 

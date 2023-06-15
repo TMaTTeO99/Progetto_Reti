@@ -35,10 +35,10 @@ public class StartGame extends JFrame {
     private ReentrantLock locksuggerimenti = new ReentrantLock();//lock usata per implementare mutua esclusione sulla coda dei suggerimenti
 
     private Registrazione servizio = null;
-    public StartGame() throws Exception {
+    public StartGame(String IP_server, int Port_listening, String IP_Multicast, int Port_Multicast, int PortRMI) throws Exception {
 
         //recupero il servizio di registrazione
-        servizio = (Registrazione) LocateRegistry.getRegistry(6500).lookup("Registrazione");;
+        servizio = (Registrazione) LocateRegistry.getRegistry(PortRMI).lookup("Registrazione");
 
         // Configurazione del frame principale
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);//quando chiudo il frame principale il client termina
@@ -47,7 +47,7 @@ public class StartGame extends JFrame {
         setLayout(new GridLayout());
 
         socket = new Socket();//creo l oggetto socket e mi connetto al server appena avvio
-        try {socket.connect(new InetSocketAddress("localhost", 6501));}
+        try {socket.connect(new InetSocketAddress(IP_server, Port_listening));}
         catch (Exception e) {e.printStackTrace();}
         //creo il pannel main
         JPanel mainPanel = new JPanel();
@@ -112,7 +112,7 @@ public class StartGame extends JFrame {
                     @Override
                     protected void done() {
                         try {
-                            
+
                             Integer response = get();  // Recupero il valore di ritorno del metodo doInBackground
                             switch (response) {
 
@@ -124,13 +124,10 @@ public class StartGame extends JFrame {
                                     JFrame Frame = new JFrame("Wordle Game");
                                     Frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
                                     Frame.setLocation(new Point(200, 200));
-                                   // Frame.setLayout(new BorderLayout());//<--- non c era
 
                                     JPanel mainPanel = new JPanel();
-                                    mainPanel.setLayout(new GridLayout(0, 2));//<-- nuovo
+                                    mainPanel.setLayout(new GridLayout(0, 2));
 
-
-                                    //mainPanel.setLayout(new FlowLayout(FlowLayout.LEFT, 100, 20));<-- quello di prima
 
                                     JButton ShowMeSharing = new JButton("See");
                                     JButton Visualizza = new JButton("See");
@@ -146,7 +143,7 @@ public class StartGame extends JFrame {
                                     //a questo punto quello che faccio è lanciare un thread che sta i ascolto
                                     //dei dati che vengono inviati dal server sul gruppo multicast
                                     //porta e ip dovranno essere dati presi dalfile di config
-                                    Thread multiCast = new Thread(new CaptureUDPmessages("239.0.0.1", 5240, SuggerimentiQueueTemp, locksuggerimenti));
+                                    Thread multiCast = new Thread(new CaptureUDPmessages(IP_Multicast, Port_Multicast, SuggerimentiQueueTemp, locksuggerimenti));
                                     multiCast.start();
 
                                     //Aggiungo gli ascoltatori di azioni ai JButton
@@ -155,11 +152,11 @@ public class StartGame extends JFrame {
                                         public void actionPerformed(ActionEvent e) {
 
                                             JOptionPane.showMessageDialog(null, "Oltre alle ovvie operazioni il gioco consente anche di: \n" +
-                                                                                                        "1) Visualizzare le prime 3 posizioni della classifica quando vengono aggiornate (NOTIFICHE AGGIORNAMENTO CLASSIFICA)\n" +
-                                                                                                        "2) Condividere il risultato della partita (CONDIVIDI RISULTATI)\n" +
-                                                                                                        "3) Visualizzare le condivisioni degli altri utenti (VISUALIZZA CONDIVISIONI UTENTI)\n" +
-                                                                                                        "4) Visualizzare le proprie statistiche (STATISTICHE)\n" +
-                                                                                                        "5) Visualizzare la data e l ora in cui la parola corrente verrà aggiornata (START SESSION)");
+                                                    "1) Visualizzare le prime 3 posizioni della classifica quando vengono aggiornate (NOTIFICHE AGGIORNAMENTO CLASSIFICA)\n" +
+                                                    "2) Condividere il risultato della partita (CONDIVIDI RISULTATI)\n" +
+                                                    "3) Visualizzare le condivisioni degli altri utenti (VISUALIZZA CONDIVISIONI UTENTI)\n" +
+                                                    "4) Visualizzare le proprie statistiche (STATISTICHE)\n" +
+                                                    "5) Visualizzare la data e l ora in cui la parola corrente verrà aggiornata (START SESSION)");
 
                                         }
                                     });
@@ -349,11 +346,10 @@ public class StartGame extends JFrame {
 
                                                 switch(inn.readInt()) {
                                                     case 0 :
-
                                                         servizio.UnRegisryForCallBack(user, skeleton);
                                                         UnicastRemoteObject.unexportObject(notifica, true);
                                                         Frame.dispose();
-                                                        new StartGame();
+                                                        new StartGame(IP_server, Port_listening, IP_Multicast, Port_Multicast, PortRMI);
                                                         break;
                                                     case -1:
                                                         JOptionPane.showMessageDialog(null, "Errore. Username inserito non corretto");
@@ -424,7 +420,7 @@ public class StartGame extends JFrame {
 
                                                     switch(result) {
                                                         case 2 ://caso in cui ho sfruttato l ultimo tentativo e ho perso
-                                                                //devo recuperare la parola tradotta
+                                                            //devo recuperare la parola tradotta
 
                                                             wordTradotta = ReadData(inn);
                                                             JOptionPane.showMessageDialog(null, "Tentativi terminati\n Traduzione: " + wordTradotta);
@@ -441,8 +437,8 @@ public class StartGame extends JFrame {
 
                                                             break;
                                                         case 0 ://caso in cui la parola è stata indovinata
-                                                                // In questo caso lato server dovro inserire la
-                                                                // traduzione della parola che qui andra letta
+                                                            // In questo caso lato server dovro inserire la
+                                                            // traduzione della parola che qui andra letta
 
                                                             wordTradotta = ReadData(inn);
                                                             JOptionPane.showMessageDialog(null, "Vittoria\nTraduzione: " + wordTradotta);
@@ -473,7 +469,6 @@ public class StartGame extends JFrame {
                                         @Override
                                         public void actionPerformed(ActionEvent e) {
 
-                                            //------------------------------------------//
                                             try {
                                                 DataOutputStream ou = new DataOutputStream(new BufferedOutputStream(socket.getOutputStream()));
                                                 DataInputStream inn = new DataInputStream(new BufferedInputStream(socket.getInputStream()));
@@ -607,17 +602,17 @@ public class StartGame extends JFrame {
         panelShowRules.setBorder(BorderFactory.createTitledBorder("OVERVIEW GAME: "));
         panelShowRules.setLayout(new BoxLayout(panelShowRules, BoxLayout.Y_AXIS));
         panelShowRules.add(tmp = new JLabel("<html>Il gioco wordle consiste nel cercare di indovinare una parola inglese formata da 10 lettere.<br>" +
-                                            "Periodicamente viene proposta una nuova parola<br> che l'utente dovrà provare a indovinare in un massimo di 12 tentativi.<br>" +
-                                            "Se la parola scelta dall utente non è presente nel vocabolario del gioco il tentativo non verrà considerato.<br>" +
-                                            "Dopo aver effettuato il login sarà presente il pulsante (HELP) che guiderà l utente per l utilizzo delle altre funzionalità " +
-                                            "proposte dal gioco <br>" +
-                                            "<br>Le regole sono le seguenti: <br>" +
-                                            "<br>1) Prima di effettuare il login è necessario iscriversi<br>" +
-                                            "2) Prima di poter tentare di indovinare una parola è necessario chiedere di giocare<br>" +
-                                            "3) Se un utente chiede di giocare ed effettua il logout prima di aver indovinato la parola la partita è considerata persa<br>" +
-                                            "4) Se un utente esaurisce i 12 tentativi senza indovinare la parola la partita è considerata persa <br>" +
-                                            "5) Se un utente comincia una partita e dubito dopo viene aggiornata la parola del gioco la partita è considerata persa</html>"
-                                            ));
+                "Periodicamente viene proposta una nuova parola<br> che l'utente dovrà provare a indovinare in un massimo di 12 tentativi.<br>" +
+                "Se la parola scelta dall utente non è presente nel vocabolario del gioco il tentativo non verrà considerato.<br>" +
+                "Dopo aver effettuato il login sarà presente il pulsante (HELP) che guiderà l utente per l utilizzo delle altre funzionalità " +
+                "proposte dal gioco <br>" +
+                "<br>Le regole sono le seguenti: <br>" +
+                "<br>1) Prima di effettuare il login è necessario iscriversi<br>" +
+                "2) Prima di poter tentare di indovinare una parola è necessario chiedere di giocare<br>" +
+                "3) Se un utente chiede di giocare ed effettua il logout prima di aver indovinato la parola la partita è considerata persa<br>" +
+                "4) Se un utente esaurisce i 12 tentativi senza indovinare la parola la partita è considerata persa <br>" +
+                "5) Se un utente comincia una partita e dubito dopo viene aggiornata la parola del gioco la partita è considerata persa</html>"
+        ));
         return panelShowRules;
 
     }
@@ -683,7 +678,6 @@ public class StartGame extends JFrame {
         panelLogin.setBorder(BorderFactory.createTitledBorder("Login: "));
         UserTEXTLogin = new JTextField(10);
         UserTEXTpasslogin = new JPasswordField(10);
-
 
         panelLogin.setLayout(new FlowLayout());
         panelLogin.add(new JLabel("Username"));
