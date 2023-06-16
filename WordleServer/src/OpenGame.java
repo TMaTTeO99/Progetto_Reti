@@ -92,7 +92,7 @@ public class OpenGame implements Runnable{
 
                             pars.nextToken();//considero il valore di translation
                             wordTradotta = pars.getText();//recupero la parola tradotta
-                            System.out.println(wordTradotta);
+                            System.out.println(wordTradotta + "  <--- Traduzione");
                             break; //recupero la traaduzione ed esco
                         }
                     }

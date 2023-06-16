@@ -322,22 +322,80 @@ Giorno 36) 	Riprendo da dove ero arrivato la scorsa volta
 			
 			Nota: devo modificare il metodo che aggiorna la classifica perche devo fare le operazioni anche se ci sono meno di 3
 			utenti in classifica
+			
 			NOta: devo sistemare un controllo lato server nel metodo del sendword,
 			 devo far si che quando invio la parola dopo che controllo se l utente
-			è loggato, devo controllare se ha premuto playwordle e poi se la parola esiste
+			è loggato, devo controllare se ha premuto playwordle e poi se la parola esiste :: fatto
 			
 			NOTA : le modifiche apportate per qua
 			
 			
 		
-		2) Finire di colorare l interfaccia grafica
+		2) Finire di colorare l interfaccia grafica:: fatto
+		
 		3) Cercare di capire perche dopo il logout nel client non vengono mantenute le info riguardo la coda delle condivisioni
 		4) vedere la cosa che ho pensato stamani riguardo la sicurezza delle passwd, in teoria quando serializzo non dovrei salvare
-		   in chiaro le passwd
+		   in chiaro le passwd, in teoria anche quando le invio dovrei prima cifrarle, per implementare pero la cifratura delle 
+		   chaivi devo fare in modo che client e server si possano scambiare in modo sicuro una key e poi usare questa key
+		   per poter cifrare le password
 		 
 		
 		
 		NOTA_ cosa molto importante, cosa succede se salta la connessione???? per ora si pianta tutto, devo farre in modo che se
 		succede sia lato client che lato server venga gestito.
+-------------------------------------------------------------------------------------------------------------------------------------------
+
+Giorno 37)	Ricomincio da dove ero arrivato ieri, riguardo al file di config, sembra funzionare tutto.
+		La cosa che non mi piace molto è che usando una sola classe, visto che all interno della classe sono configurate info
+		di default in modo che in caso di errore nel file di config sia il client che il server possano lavorare, allora 
+		il client volendo puo recuperare le info riguardo al server, e questa non è una cosa che va bene. Per evitare questo, 
+		quello che potrei fare è usare magari due interfacce, in modo che lato client si usi un oggetto di una interfaccia, 
+		cosi da non poter accedere alle info del server, e lato server analogamente, anche se dovbendo fornire la libreria al cliente
+		che usa il client in teroia, potrebbe comunque accedere alle info di default del server, per evitare veramente questo 
+		dovrei evitare di usare le info di default del all interno della classe eliminando pero cosi la possibilita di far lavorare 
+		lo stesso client e server anche in caso di cortruzione dei file di config. Oppure una cosa che posso fare è far si che invece 			di cablare i dati di config nella classe che esegue il parsing che quindi è condivisa sia dal client che dal server, 
+		i dati di default li camblo nel server stesso, in caso di errore nel file di confi sollevo un eccezione che risalirà fino al 
+		chiamante della classe per il parsing e si muovera di conseguenza:: Fatto.
+		Sembra che sia riuscito a sistemare.
+		
+		ora riprendo da dove ero rimasto
+
+
+
+
+		devo modificare il metodo che aggiorna la classifica perche devo fare le operazioni anche se ci sono meno di 3
+		utenti in classifica::
+		
+		Fatto.
+			
+	        devo sistemare un controllo lato server nel metodo del sendword,
+		devo far si che quando invio la parola dopo che controllo se l utente
+		è loggato, devo controllare se ha premuto playwordle e poi se la parola esiste :: fatto
+
+		
+		Finire di colorare l interfaccia grafica :: fatto
+		 
+		Cercare di capire perche dopo il logout nel client non vengono mantenute le info riguardo la coda delle condivisioni::
+		
+		Riguardo al fatto che non mantengo le condivisioni quando faccio il logout, dipende dal fatto che per come ho fatto
+		io in caso di logout, viene creato un altro oggetto game, mi andava bene fin ora perche quando faccio il logout, 
+		apparte i dati che ho condiviso io o gli altri le altre info dovevo ristartarle, per fare bene invece a regola non
+		dovrei restartare lo startgame per non perdere le info riguardo la coda delle condivisioni.
+		Un altra cosa che sto pensando è che il mio client lavora solo nel costruttore, questo non credo che sia molto
+		corretto. Forse posso fare in modo di modulare per bene tutto non sviluppando tutto nel costruttore, pero
+		è un operazione che veramente è pesante ora come ora. Potrei provare a fare una prova e vedere se funziona, in realta non
+		dovrebbe nemmeno essere cosi pesante come operazione, in piu potrei fare in modo che i due frame vengano prodotti da 
+		due classi separate in questo modo, devo pero fare attenzione al fatto dei thread in background, Questo lavoro lo potrei 
+		fare domani a modo
+		
+		Nota: per quanto riguarda la sicurezza voglio  fare in modo che la passwd dell utente abbia dei prerequisiti come
+		ad esempio la lunghezza (almeno la lunghezza).
+		Provo un po a modificare il client per vedere se è fattibile cio che ho detto prima sulla sua modulazione :: 
+		
+		
+		
+		   
+
+
 -------------------------------------------------------------------------------------------------------------------------------------------
  

@@ -52,27 +52,9 @@ public class StartGame extends JFrame {
         JPanel mainPanel = new JPanel();
         mainPanel.setLayout(new BoxLayout(mainPanel, BoxLayout.LINE_AXIS));
 
-        //-------------------------------------------------------------------------------------------//
-
-            /**
-             * Sezione in cui provero a comunicare con il server per scambiare la chiave di sessione
-             * Sara una chiave casuale che verra usata per cifrare le passwd e le parole che i client
-             * inviano, non dovrebbe esserci bisogno di cifrare tutto anche se comunque posso provare a cifrare
-             * tutto, devo decidere l algo di scambio di chiave e l algo di cifratura.
-             */
-
-
-
-        //-------------------------------------------------------------------------------------------//
-
-
         //Pulsanti da aggiungere ai pannel del JFrame
         JButton Login = new JButton("Login");
         JButton Registra = new JButton("Registra");
-
-        //domani provo
-
-
 
         //definisco le operazioni che devono effettuare i JButton e le aggiungo
         Login.addActionListener(new ActionListener() {

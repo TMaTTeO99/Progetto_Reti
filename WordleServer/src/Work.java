@@ -232,37 +232,33 @@ public class Work implements Runnable {
 
         u = Registrati.get(username);
         if(u != null && u.getLogin((Integer) Key.attachment())) {//se l utente ha effettuato il login
-            //Controllo che la parola sia presente nel vocabolario, in caso non ci sia ritorno un messaggio di errore
-            if(CheckWord(word)) {
-                //caso in cui l utente non ha prima eseguito il comando playWORDLE oppure ha gia partecipato al gioco
-                //o vincendo la partita oppure esaurendo i tentativi per quella parola
-                int FlagResult = 0;
-                if((FlagResult = Gioco.Tentativo(username)) != 0) {
+            //caso in cui l utente non ha prima eseguito il comando playWORDLE oppure ha gia partecipato al gioco
+            //o vincendo la partita oppure esaurendo i tentativi per quella parola
+            int FlagResult = 0;
+            if((FlagResult = Gioco.Tentativo(username)) != 0) {
 
-                    switch (FlagResult) {
-                        case -1 ://caso in cui l utente non ha selezionato il comando playWORDLE
+                switch (FlagResult) {
+                    case -1 ://caso in cui l utente non ha selezionato il comando playWORDLE
 
-                            WriteErrorOrWinOrSuggestionMessage(dati, "", -1, "");
-                            break;
-                        case -2 ://caso in cui l utente ha gia giocato e ha terminato i tentativi
-
-                            //qui prima di inviare il messaggio devo interrompere la striscia positiva di partite vinte
-                            Registrati.get(username).updateLastConsecutive(false);
-                            WriteErrorOrWinOrSuggestionMessage(dati, "", -2, "");
-                            break;
-                        case -3 ://ha vinto la partita precedentemente
-
-                            WriteErrorOrWinOrSuggestionMessage(dati, "", -3, "");
-                            break;
-                    }
+                        WriteErrorOrWinOrSuggestionMessage(dati, "", -1, "");
+                        break;
+                    case -2 ://caso in cui l utente ha gia giocato e ha terminato i tentativi
+                        //qui prima di inviare il messaggio devo interrompere la striscia positiva di partite vinte
+                        Registrati.get(username).updateLastConsecutive(false);
+                        WriteErrorOrWinOrSuggestionMessage(dati, "", -2, "");
+                        break;
+                    case -3 ://ha vinto la partita precedentemente
+                        WriteErrorOrWinOrSuggestionMessage(dati, "", -3, "");
+                        break;
                 }
-                else {
+            }
+            else {
+                if(CheckWord(word)) {//Controllo che la parola sia presente nel vocabolario, in caso non ci sia ritorno un messaggio di errore
                     //recupero la parola del gioco in muta esclusione
                     ReadWordLock.lock();
                         String GameWord = Gioco.getWord();
                         String wordTradotta = Gioco.getTranslatedWord();
                     ReadWordLock.unlock();
-
 
                     if(GameWord.equals(word)) {//caso in cui il client ha indovinato la parola
 
@@ -314,24 +310,22 @@ public class Work implements Runnable {
 
                         String suggestions = ComputeSuggestions(GameWord, word);//costruisco i suggerimenti per l utente
                         Gioco.getTentativi().get(username).getTryWord().add(suggestions);//aggiungo il tentativo alla sessione dell utente
+                         if(Gioco.gettentativiUtente(username) < 12) {
+                             WriteErrorOrWinOrSuggestionMessage(dati, "", 1, suggestions);//rispondo al client
+                         }
+                         else {//se invece il client ha terminato i tentativi invio al client la traduzione della parola e serializzare la sessione di Game
 
-                        if(Gioco.gettentativiUtente(username) < 12) {
-                            WriteErrorOrWinOrSuggestionMessage(dati, "", 1, suggestions);//rispondo al client
-                        }
-                        else {//se invece il client ha terminato i tentativi invio al client la traduzione della parola e serializzare la sessione di Game
-
-                            SendSerialization('I');
-                            WriteErrorOrWinOrSuggestionMessage(dati, "", 2, wordTradotta);
-                        }
+                             SendSerialization('I');
+                             WriteErrorOrWinOrSuggestionMessage(dati, "", 2, wordTradotta);
+                         }
                     }
                 }
-            }
-            else {
-                WriteErrorOrWinOrSuggestionMessage(dati, "", -4, "");//caso in cui la parola non esiste e il tentativo non viene considerato
+                else {
+                    WriteErrorOrWinOrSuggestionMessage(dati, "", -4, "");//caso in cui la parola non esiste e il tentativo non viene considerato
+                }
             }
         }
         else WriteErrorOrWinOrSuggestionMessage(dati, "", -5, "");
-
     }
     private void PlayWordleMethod(StringTokenizer Tok, PkjData dati) {
 
@@ -480,47 +474,67 @@ public class Work implements Runnable {
             WriteLockClassifica.lock();
 
             //Prima di aggiornare la classifica salvo i nomi degli utenti che si trovano nelle prime 3 posizioni
-            String user1 = null;
-            String user2 = null;
-            String user3 = null;
+            String user1 = null, user2 = null, user3 = null;
+
             int sizeClassifica = Classifica.size();
-            if(sizeClassifica >= 3) {
-                user1 = Classifica.get(0).getUsername();
-                user2 = Classifica.get(1).getUsername();
-                user3 = Classifica.get(2).getUsername();
-            }
-            for(int i = 0; i<sizeClassifica; i++) {
+            switch (sizeClassifica) {
+                case 1 :
+                    //in caso in classifica ci sia un solo utente non devo fare nulla
+                    //la classifica rimane invariata per quanto riguarda le posizioni
+                    //richiamo il metodo sort per aggiornare i dati dell utente ma non
+                    //devo inviare notifiche a nessuno perche le posizioni non variano
+                    sortClassifica(username, tmpu, Wintentativi, sizeClassifica);
+                    break;
+                case 2:
+                    user1 = Classifica.get(0).getUsername();
+                    user2 = Classifica.get(1).getUsername();
+                    sortClassifica(username, tmpu, Wintentativi, sizeClassifica);//aggiorno i dati e ordino la classifica
 
-                //ricerco l utente del quale devo aggiornare lo score
-                UserValoreClassifica temp = Classifica.get(i);
-                if(temp.getUsername().equals(username)) {
-                    temp.UpdateSCore(tmpu.getWinGame(), Wintentativi);
-                    Collections.sort(Classifica);
-                    break;//esco dal ciclo
-                }
-            }
-            //confronto le prime 3 posizioni con quelle precedenti all aggiornamento se sono cambiate invio la notifica
-            if(sizeClassifica >= 3 && (!user1.equals(Classifica.get(0).getUsername()) ||
-                    !user2.equals(Classifica.get(1).getUsername()) ||
-                    !user3.equals(Classifica.get(2).getUsername()))){
-                //in questo caso devo recuperare l oggetto stub e inviare le prime 3 posizioni della classifica al client
-                //ricopio le prime 3 posiszioni della classifica in un ArrayList dello stesso tipo e li invio al client
-                ArrayList<UserValoreClassifica> ClassificaNotifiche = new ArrayList<>();
+                    //nel caso siano cambiate la prima o la seconda posizione
+                    if(!user1.equals(Classifica.get(0).getUsername()) || !user2.equals(Classifica.get(1).getUsername())) {sendNotify(sizeClassifica);}
+                    break;
+                default :
+                    user1 = Classifica.get(0).getUsername();
+                    user2 = Classifica.get(1).getUsername();
+                    user3 = Classifica.get(2).getUsername();
+                    sortClassifica(username, tmpu, Wintentativi, sizeClassifica);//ordino la classifica
 
-                for(int i = 0; i<3; i++) {ClassificaNotifiche.add(Classifica.get(i));}
-
-                for(Utente u : Registrati.values()) {
-
-                    NotificaClient stub = u.getStub();
-                    if(stub != null) {
-                        try {stub.SendNotifica(ClassificaNotifiche);}
-                        catch (Exception e){e.printStackTrace();}
-                    }
-                }
+                    //nel caso siano cambiate la prima o la seconda o la terza posizione
+                    if((!user1.equals(Classifica.get(0).getUsername()) ||
+                            !user2.equals(Classifica.get(1).getUsername()) ||
+                            !user3.equals(Classifica.get(2).getUsername()))) {sendNotify(sizeClassifica);}
+                    break;
             }
         }
         finally {WriteLockClassifica.unlock();}
 
+    }
+    private void sortClassifica(String username, Utente tmpu, int Wintentativi, int sizeClassifica) {
+
+        for(int i = 0; i<sizeClassifica; i++) {
+
+            //ricerco l utente del quale devo aggiornare lo score
+            UserValoreClassifica temp = Classifica.get(i);
+            if(temp.getUsername().equals(username)) {
+                temp.UpdateSCore(tmpu.getWinGame(), Wintentativi);
+                Collections.sort(Classifica);
+                break;//esco dal ciclo
+            }
+        }
+    }
+    private void sendNotify(int Dim) {
+
+        ArrayList<UserValoreClassifica> ClassificaNotifiche = new ArrayList<>();
+
+        for(int i = 0; i<Dim; i++) {ClassificaNotifiche.add(Classifica.get(i));}
+        for(Utente u : Registrati.values()) {
+
+            NotificaClient stub = u.getStub();
+            if(stub != null) {
+                try {stub.SendNotifica(ClassificaNotifiche);}
+                catch (Exception e){e.printStackTrace();}
+            }
+        }
     }
     private void WriteErrorOrWinOrSuggestionMessage(PkjData dati, String method, int error, String Other) {
 

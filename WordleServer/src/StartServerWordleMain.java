@@ -13,10 +13,25 @@ import java.util.concurrent.TimeUnit;
  * Appunti miei che devo copiare nel mio file, ora per prima cosa devo instanziare il server e
  * implementare la registrazione tramite RMI, per ora ho implementato la struttura dati utente e gioco, entrambe implementano serializable
  */
+
 public class StartServerWordleMain {
 
     private static final String PathStart = "../"; //Path della dir da cui cominciare la ricerca del file
+    private static void SetDefaultData(GetDataConfig data) {
 
+        data.setIP_Multicast("239.0.0.1");
+        data.setURLtranslate("https://api.mymemory.translated.net/");
+        data.setLastTimeWord(0);
+        data.setMaxThread(5);
+        data.setTimeStempWord(86400000);
+        data.setPathSerialization("../JsonSerialization");
+        data.setPortExport(6500) ;
+        data.setPort_Multicast(5240);
+        data.setPort_ListeningSocket(6501);
+        data.setIP_server("localhost");
+        data.setPathVocabolario("../vocabolario.txt");
+
+    }
     public static void main(String [] args) {
 
         /**
@@ -47,13 +62,19 @@ public class StartServerWordleMain {
 
         //a questo punto devo effettuare il pars del file
         try {ConfigureData.ReadConfig();}
-        catch (Exception e) {e.printStackTrace();}
+        catch (Exception e) {
+            System.out.println("ERRORE Nel file di configurazione");
+            System.out.println("Verrannno utilizzati i parametri di default per configurare il server");
 
+            //in questo caso aggiungo all oggetto ConfigureData i dati di default per il server
+            SetDefaultData(ConfigureData);
+        }
         //a questo punto ho recuperato le prima info di configurazione
         //tali info le passo al server per l'elaborazione
 
         //prima di istanziare il server leggo il vocabolario e lo inserisco in una struttura dati opportuna
         ArrayList<String> vocabolario = ConfigureData.getVocabolario();
+
         try {
 
             ServerWordle server = new ServerWordle(vocabolario, ConfigureData);

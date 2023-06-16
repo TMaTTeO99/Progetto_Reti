@@ -7,25 +7,25 @@ import java.util.StringTokenizer;
 //classe usata per recuperare i dati di configurazione sia per il client che per il server
 public class GetDataConfig {
 
-    private String URLtranslate = "https://api.mymemory.translated.net/";//Stringa usata poer contenere l url del servizio di traduzione
+    private String URLtranslate;//Stringa usata poer contenere l url del servizio di traduzione
     private long LastTimeWord = 0;//var utilizzata per poter recuperare il tempo in millisecondi dell ultima volta in cui una parola è stata estratta
     private final long DayInMS = 86400000;//conversione di un giorno in millisecondi
     private final long OraInMS = 3600000; //conversione di 24 ore in millisecondi
     private final long MinInMS = 60000; //conversione di 1 minuto in millisecondi
     private final long SecInMS = 1000;
 
-    private int MaxThread = 5;//di default assegno un numero di thread cosi in caso di errore nel file di config
+    private int MaxThread;//di default assegno un numero di thread cosi in caso di errore nel file di config
    							  //iol server comunque puo lavorare
     private long TimeStempWord = 86400000;//24 ore in millisecondi
     private String ConfigureFileName; //nome del file contenente le info di configurazione
-    private String PathSerialization = "../JsonSerialization";
-    private String PathVocabolario = "../vocabolario.txt";
-    private String PathStart = "./"; //Path della dir da cui cominciare la ricerca del file
-    private int PortExport = 6500; // il valore che  assumerà questa var deve essere lo sesso lato client nel suo file dio config
-    private String IP_Multicast = "239.0.0.1";//stringa che conterra l ip del gruppo multicast su cui condividere i risultati del gioco
-    private int Port_Multicast = 5240;//porta usata per la condivisione sul gruppo multicast
-    private int Port_ListeningSocket = 6501;
-    private String IP_server = "localhost";
+    private String PathSerialization;
+    private String PathVocabolario;
+    private String PathStart; //Path della dir da cui cominciare la ricerca del file
+    private int PortExport; // il valore che  assumerà questa var deve essere lo sesso lato client nel suo file dio config
+    private String IP_Multicast;//stringa che conterra l ip del gruppo multicast su cui condividere i risultati del gioco
+    private int Port_Multicast;//porta usata per la condivisione sul gruppo multicast
+    private int Port_ListeningSocket;
+    private String IP_server;
     private File ConfigureFile = null;
 
 
@@ -34,7 +34,7 @@ public class GetDataConfig {
         PathStart = ConfPath;
     }
 
-    private long ToMLS(String arg) {
+    private long ToMLS(String arg) throws Exception{
 
         //il formato della stringa arg è: giorni ore minuti secondi
         long tm = 0;
@@ -48,11 +48,10 @@ public class GetDataConfig {
         return tm;
     }
     //metodo privato per effettuare il pars di ogni linea letta dal file di configurazione
-    private void ParsCLine(String ln) {
+    private void ParsCLine(String ln) throws Exception{
 
         StringTokenizer tok = new StringTokenizer(ln, "=");
         while(tok.hasMoreTokens()) {
-            try {
                 switch(tok.nextToken()) {
                     case "thread" :
                         MaxThread = Integer.parseInt(tok.nextToken());
@@ -89,11 +88,6 @@ public class GetDataConfig {
                         break;
                 }
             }
-            catch (Exception e) {
-                System.out.println("ERRORE Nel file di configurazione");
-                System.out.println("Verrannno utilizzati i parametri di default per configurare il server");
-            }
-        }
     }
     public void ReadConfig() throws Exception{
 
@@ -147,4 +141,17 @@ public class GetDataConfig {
     public int getPort_ListeningSocket() {return Port_ListeningSocket;}
     public String getPathStart() {return PathStart;}
     public String getIP_server() {return IP_server;}
+
+    //metodi per settare i dati all interno dell oggetto nel caso il file di configurazione fosse corrotto
+    public void setURLtranslate(String url) {URLtranslate = url;}
+    public void setLastTimeWord(long ltw) {LastTimeWord = ltw;}
+    public void setMaxThread(int maxT) {MaxThread = maxT;}
+    public void setTimeStempWord(long tsw) {TimeStempWord = tsw;}
+    public void setPathSerialization(String path) {PathSerialization = path;}
+    public void setPortExport(int port) {PortExport = port;}
+    public void setIP_Multicast(String IP) {IP_Multicast = IP;}
+    public void setPort_Multicast(int port) {Port_Multicast = port;}
+    public void setPort_ListeningSocket(int port) {Port_ListeningSocket = port;}
+    public void setIP_server(String IP) {IP_server = IP;}
+    public void setPathVocabolario(String pathVocabolario) {PathVocabolario = pathVocabolario;}
 }

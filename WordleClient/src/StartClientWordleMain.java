@@ -6,7 +6,16 @@ public class StartClientWordleMain {
      * Comincio con l implementazione corretta del client in modo da poter testare correttamente il server
      *
      */
-    private static final int portRMI = 6500;
+    private static void SetDefaultData(GetDataConfig data) {
+
+        data.setIP_Multicast("239.0.0.1");
+        data.setPortExport(6500) ;
+        data.setPort_Multicast(5240);
+        data.setPort_ListeningSocket(6501);
+        data.setIP_server("localhost");
+
+    }
+   // private static final int portRMI = 6500;
     public static void main(String [] args) {
 
 
@@ -20,6 +29,19 @@ public class StartClientWordleMain {
             GetDataConfig dataConfig = new GetDataConfig("configClient.txt", "../");
 
             dataConfig.SearchFile(new File(dataConfig.getPathStart()));
+            if(dataConfig.getConfigureFile() == null) {
+                System.out.println("ERRORE. File di configurazione assente");
+                return;
+            }
+            //a questo punto devo effettuare il pars del file
+            try {dataConfig.ReadConfig();}
+            catch (Exception e) {
+                System.out.println("ERRORE Nel file di configurazione");
+                System.out.println("Verrannno utilizzati i parametri di default per configurare il client");
+
+                //in questo caso aggiungo all oggetto ConfigureData i dati di default per il server
+                SetDefaultData(dataConfig);
+            }
             StartGame game = new StartGame(dataConfig.getIP_server(), dataConfig.getPort_ListeningSocket()
                                             , dataConfig.getIP_Multicast(), dataConfig.getPort_Multicast(), dataConfig.getPortExport());
             /*
@@ -152,7 +174,5 @@ public class StartClientWordleMain {
         catch (Exception e) {
             e.printStackTrace();
         }
-
     }
-
 }
