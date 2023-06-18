@@ -1,0 +1,472 @@
+Login.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                //Definisco il thread per gestire il login tramite una classe anonima in cui inserisco i metodi
+                //doInBackground: lavoro che deve effettuare il thread, è necessario che questo lavoro venga fatto da un thread separato
+                //done metodo per far si che quando il thread termini posso in base all risultato della richiesta venga creato
+                //un nuovo frame o meno
+                SwingWorker<Integer, Void> worker = new SwingWorker<Integer, Void>() {
+                    @Override
+                    protected Integer doInBackground() throws Exception {
+
+                        int returnvalue = 1;
+
+                        usernamelogin = UserTEXTLogin.getText();
+                        String pass = new String(UserTEXTpasslogin.getPassword());//qui prima era getText, l ho modificato
+
+                        if(usernamelogin.length() == 0 || pass.length() == 0)return -4;
+                        try {
+                            DataOutputStream ou = new DataOutputStream(new BufferedOutputStream(socket.getOutputStream()));
+                            DataInputStream inn = new DataInputStream(new BufferedInputStream(socket.getInputStream()));
+                            ou.writeInt((("login:"+ usernamelogin + " " + pass).length())*2);
+                            ou.writeChars("login:" + usernamelogin + " " + pass);
+                            ou.flush();
+                            inn.readInt(); //scarto la len del messaggio
+
+                            switch(inn.readInt()) {
+                                case 0 :
+                                    //ora qua provo a inviare lo stub al server dopo che mi sono registrato ecc
+                                    notifica = new ImplementazioneNotificaClient(Classifica);
+                                    skeleton = (NotificaClient) UnicastRemoteObject.exportObject(notifica, 0);
+                                    servizio.RegisryForCallBack(usernamelogin, skeleton);
+                                    returnvalue = 1;
+                                    break;
+                                case -1:
+                                    returnvalue = -1;
+                                    break;
+                                case -2:
+                                    returnvalue = -2;
+                                    break;
+                                case -3:
+                                    returnvalue = -3;
+                                    break;
+                                case -4 :
+                                    returnvalue = -4;
+                                    break;
+                            }
+                        }
+                        catch (Exception ee) {ee.printStackTrace();}
+
+                        return returnvalue;
+                    }
+                    @Override
+                    protected void done() {
+                        try {
+
+                            Integer response = get();  // Recupero il valore di ritorno del metodo doInBackground
+                            switch (response) {
+
+                                case 1 ://caso in cui la richiesta di login è stata completata
+
+                                    // Chiudo il frame corrente e apro il nuovo frame
+                                    dispose();
+
+                                    JFrame Frame = new JFrame("Wordle Game");
+                                    Frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+                                    Frame.setLocation(new Point(200, 200));
+
+                                    JPanel mainPanel = new JPanel();
+                                    mainPanel.setLayout(new GridLayout(0, 2));
+
+
+                                    JButton ShowMeSharing = new JButton("See");
+                                    JButton Visualizza = new JButton("See");
+                                    JButton Logout = new JButton("Logout");
+                                    JButton Gioca = new JButton("Gioca");
+                                    JButton SendWord = new JButton("Send");
+                                    JButton sendMeStatistics = new JButton("sendMeStatistics");
+                                    JButton ShowMeRancking = new JButton("showMeRanking");
+                                    JButton Share = new JButton("Share");
+                                    JButton TimeNextWord = new JButton("TimeNextWord");
+                                    JButton help = new JButton("Help");
+
+                                    //a questo punto quello che faccio è lanciare un thread che sta i ascolto
+                                    //dei dati che vengono inviati dal server sul gruppo multicast
+                                    //porta e ip dovranno essere dati presi dalfile di config
+                                    Thread multiCast = new Thread(new CaptureUDPmessages(IP_Multicast, Port_Multicast, SuggerimentiQueueTemp, locksuggerimenti));
+                                    multiCast.start();
+
+                                    //Aggiungo gli ascoltatori di azioni ai JButton
+                                    help.addActionListener(new ActionListener() {
+                                        @Override
+                                        public void actionPerformed(ActionEvent e) {
+
+                                            JOptionPane.showMessageDialog(null, "Oltre alle ovvie operazioni il gioco consente anche di: \n" +
+                                                    "1) Visualizzare le prime 3 posizioni della classifica quando vengono aggiornate (NOTIFICHE AGGIORNAMENTO CLASSIFICA)\n" +
+                                                    "2) Condividere il risultato della partita (CONDIVIDI RISULTATI)\n" +
+                                                    "3) Visualizzare le condivisioni degli altri utenti (VISUALIZZA CONDIVISIONI UTENTI)\n" +
+                                                    "4) Visualizzare le proprie statistiche (STATISTICHE)\n" +
+                                                    "5) Visualizzare la data e l ora in cui la parola corrente verrà aggiornata (START SESSION)");
+
+                                        }
+                                    });
+                                    TimeNextWord.addActionListener(new ActionListener() {
+                                        @Override
+                                        public void actionPerformed(ActionEvent e) {
+
+                                            try {
+                                                DataOutputStream ou = new DataOutputStream(new BufferedOutputStream(socket.getOutputStream()));
+                                                DataInputStream inn = new DataInputStream(new BufferedInputStream(socket.getInputStream()));
+
+                                                ou.writeInt((("TimeNextWord:" + usernamelogin).length())*2);
+                                                ou.writeChars("TimeNextWord:" + usernamelogin);
+                                                ou.flush();
+                                                System.out.print(inn.readInt()+ "3");
+                                                switch (inn.readInt()) {
+
+                                                    case 0 :
+
+                                                        //aggiorno la data di quando verra rilasciata la prossima parola da indovinare
+                                                        DataNextWord = new Date(System.currentTimeMillis() + Long.parseLong(ReadData(inn)));
+                                                        NextWordLable.setText(""+DataNextWord);
+
+                                                        break;
+                                                    default :
+                                                        JOptionPane.showMessageDialog(null, "ERRORE");
+                                                        break;
+
+                                                }
+
+                                            }
+                                            catch (Exception ee) {ee.printStackTrace();}
+                                        }
+                                    });
+                                    ShowMeSharing.addActionListener(new ActionListener() {
+                                        @Override
+                                        public void actionPerformed(ActionEvent e) {
+
+                                            //cerco di estrarre dalla coda finche la cosa è piena
+                                            Suggerimenti datiCondivisi = null;
+                                            JFrame shareFrame = new JFrame("SUGGERIMENTI CONDIVISI");
+                                            shareFrame.setLayout(new BoxLayout(shareFrame.getContentPane(), BoxLayout.Y_AXIS));
+                                            shareFrame.setLocation(new Point(300, 300));
+
+                                            try {
+                                                locksuggerimenti.lock();
+                                                if(SuggerimentiQueueTemp.size() != 0) {
+
+                                                    int i = 0;
+
+                                                    System.out.println("PRIMA DEL PANNEL e dopo AWAIT");
+                                                    System.out.println(SuggerimentiQueueTemp.size());
+                                                    while(i < SuggerimentiQueueTemp.size()) {
+
+                                                        //qui devo trovare il modo di visualizzare i suggerimenti in un unico panel
+                                                        shareFrame.add(MakeAllSuggestionsPanel(SuggerimentiQueueTemp.get(i)));
+                                                        i++;
+                                                    }
+
+                                                    shareFrame.setSize(200, 200);
+                                                    shareFrame.setVisible(true);
+                                                }
+                                                else {
+                                                    JOptionPane.showMessageDialog(null, "Nessuna Notifica");
+                                                }
+                                            }
+                                            catch (Exception ex) {ex.printStackTrace();}
+                                            finally {locksuggerimenti.unlock();}
+                                        }
+                                    });
+                                    Share.addActionListener(new ActionListener() {
+                                        @Override
+                                        public void actionPerformed(ActionEvent e) {
+
+                                            try {
+                                                DataOutputStream ou = new DataOutputStream(new BufferedOutputStream(socket.getOutputStream()));
+                                                DataInputStream inn = new DataInputStream(new BufferedInputStream(socket.getInputStream()));
+
+                                                ou.writeInt((("share:"+ usernamelogin).length())*2);
+                                                ou.writeChars("share:" + usernamelogin);
+                                                ou.flush();
+                                                inn.readInt();//scarto la len del messaggio
+
+                                                switch(inn.readInt()) {
+                                                    case 0 :
+                                                        JOptionPane.showMessageDialog(null, "Operazione Completata");
+                                                        break;
+                                                    case -1 :
+                                                        JOptionPane.showMessageDialog(null, "Errore. Giocare al gioco prima di condividere i risultati");
+                                                        break;
+                                                    case -2:
+                                                        JOptionPane.showMessageDialog(null, "Errore. Prima di poter condividere i tentativi bisogna fare almeno un tentativo e terminare la partita");
+                                                        break;
+                                                    case -3 :
+                                                        JOptionPane.showMessageDialog(null, "Errore. Utente non ha effettuato il login");
+                                                        break;
+                                                }
+                                            }
+                                            catch (Exception ee) {ee.printStackTrace();}
+                                        }
+                                    });
+                                    ShowMeRancking.addActionListener(new ActionListener() {
+                                        @Override
+                                        public void actionPerformed(ActionEvent e) {
+
+                                            try {
+                                                DataOutputStream ou = new DataOutputStream(new BufferedOutputStream(socket.getOutputStream()));
+                                                DataInputStream inn = new DataInputStream(new BufferedInputStream(socket.getInputStream()));
+
+                                                ou.writeInt((("showMeRanking:" + usernamelogin).length())*2);
+                                                ou.writeChars("showMeRanking:" + usernamelogin);
+                                                ou.flush();
+                                                inn.readInt();//scarto la len del messaggio
+
+
+                                                switch(inn.readInt()) {
+                                                    case 0 :
+
+                                                        JFrame seePodio = new JFrame("CLASSIFICA");
+                                                        seePodio.setLayout(new BorderLayout());
+                                                        seePodio.setLocation(new Point(300, 300));
+
+                                                        JTextArea info = new JTextArea();
+                                                        info.setEditable(false);
+                                                        JScrollPane scrll = new JScrollPane(info);
+
+                                                        info.append(ReadData(inn));
+
+                                                        seePodio.add(info, BorderLayout.CENTER);
+                                                        seePodio.setSize(200, 200);
+                                                        seePodio.setVisible(true);
+
+                                                        break;
+                                                    case -1:
+                                                        JOptionPane.showMessageDialog(null, "Errore. Impossibile visualizzare la classifica");
+                                                        break;
+                                                }
+                                            }
+                                            catch (Exception ee) {ee.printStackTrace();}
+
+                                        }
+                                    });
+                                    Visualizza.addActionListener(new ActionListener() {
+                                        @Override
+                                        public void actionPerformed(ActionEvent e) {
+
+                                            if(Classifica.getText().equals("Nuova notifica")) {
+
+                                                //recupero il podio
+                                                ArrayList<UserValoreClassifica> ClassNotifica = notifica.GetClassififca();
+                                                JFrame seePodio = new JFrame("PODIO");
+                                                seePodio.setLayout(new BorderLayout());
+
+                                                seePodio.setLocation(new Point(300, 300));
+
+                                                JTextArea info = new JTextArea();
+                                                info.setEditable(false);
+                                                info.setRows(3);
+                                                JScrollPane scrll = new JScrollPane(info);
+                                                for(int i = 0; i<ClassNotifica.size(); i++) {
+                                                    info.append("UTENTE: " + ClassNotifica.get(i).getUsername() + " SCORE: " + ClassNotifica.get(i).getScore() + "\n");
+                                                }
+                                                seePodio.add(info, BorderLayout.CENTER);
+                                                seePodio.setSize(200, 200);
+                                                seePodio.setVisible(true);
+                                                Classifica.setText("Nessuna Notifica");
+
+                                            }
+                                            else {
+                                                JOptionPane.showMessageDialog(null, "Nessuna notifica da visualizzare");
+                                            }
+                                        }
+                                    });
+                                    Logout.addActionListener(new ActionListener() {
+                                        @Override
+                                        public void actionPerformed(ActionEvent e) {
+
+                                            String user = TExtFieldUserLogout.getText();
+                                            try {
+                                                DataOutputStream ou = new DataOutputStream(new BufferedOutputStream(socket.getOutputStream()));
+                                                DataInputStream inn = new DataInputStream(new BufferedInputStream(socket.getInputStream()));
+
+                                                ou.writeInt((("logout:"+ user).length())*2);
+                                                ou.writeChars("logout:" + user);
+                                                ou.flush();
+                                                inn.readInt();//scarto la len del messaggio
+
+                                                switch(inn.readInt()) {
+                                                    case 0 :
+                                                        servizio.UnRegisryForCallBack(user, skeleton);
+                                                        UnicastRemoteObject.unexportObject(notifica, true);
+                                                        Frame.dispose();
+                                                        new StartGame(IP_server, Port_listening, IP_Multicast, Port_Multicast, PortRMI);
+                                                        break;
+                                                    case -1:
+                                                        JOptionPane.showMessageDialog(null, "Errore. Username inserito non corretto");
+                                                        break;
+                                                    case -2:
+                                                        JOptionPane.showMessageDialog(null, "Errore. Per effettuare il logout bisogna prima aver effettuato il login");
+                                                        break;
+                                                    case -3:
+                                                        JOptionPane.showMessageDialog(null, "Errore. Username inserito non corretto");
+                                                        break;
+                                                }
+                                            }
+                                            catch (Exception ee) {ee.printStackTrace();}
+                                        }
+                                    });
+
+                                    Gioca.addActionListener(new ActionListener() {
+                                        @Override
+                                        public void actionPerformed(ActionEvent e) {
+                                            try {
+                                                DataOutputStream ou = new DataOutputStream(new BufferedOutputStream(socket.getOutputStream()));
+                                                DataInputStream inn = new DataInputStream(new BufferedInputStream(socket.getInputStream()));
+
+                                                ou.writeInt((("playWORDLE:"+ usernamelogin).length())*2);
+                                                ou.writeChars("playWORDLE:" + usernamelogin);
+                                                ou.flush();
+                                                inn.readInt();//scarto la len del messaggio
+
+                                                switch(inn.readInt()) {
+                                                    case 0 :
+                                                        JOptionPane.showMessageDialog(null, "Operazione completata. Adesso è possibile provare a indovinare una porola");
+                                                        break;
+                                                    case -1 :
+                                                        JOptionPane.showMessageDialog(null, "Richiesta di giocare gia effettuata. Inserire la guess word");
+                                                        break;
+                                                    case -2 :
+                                                        JOptionPane.showMessageDialog(null, "Tentativi esauriti per questa sessione. Riprovare a giocare in una nuova sessione");
+                                                        break;
+                                                    case -3 :
+                                                        JOptionPane.showMessageDialog(null, "ERROE. L'utente non ha effettuato il login");
+                                                        break;
+                                                }
+                                            }
+                                            catch (Exception ee) {ee.printStackTrace();}
+                                        }
+                                    });
+                                    SendWord.addActionListener(new ActionListener() {
+                                        @Override
+                                        public void actionPerformed(ActionEvent e) {
+
+                                            String word = TextFieldWordSendWord.getText();
+                                            if(word.length() == 0) {
+                                                JOptionPane.showMessageDialog(null, "Errore. Inserire parola");
+                                            }
+                                            else {
+                                                try {
+                                                    DataOutputStream ou = new DataOutputStream(new BufferedOutputStream(socket.getOutputStream()));
+                                                    DataInputStream inn = new DataInputStream(new BufferedInputStream(socket.getInputStream()));
+
+                                                    ou.writeInt((("sendWord:" + usernamelogin + " " + word).length())*2);
+                                                    ou.writeChars("sendWord:" + usernamelogin + " " + word);
+                                                    ou.flush();
+
+                                                    inn.readInt();//scarto la len del messaggio
+
+                                                    int result = inn.readInt();
+                                                    String wordTradotta = null;
+
+                                                    switch(result) {
+                                                        case 2 ://caso in cui ho sfruttato l ultimo tentativo e ho perso
+                                                            //devo recuperare la parola tradotta
+
+                                                            wordTradotta = ReadData(inn);
+                                                            JOptionPane.showMessageDialog(null, "Tentativi terminati\n Traduzione: " + wordTradotta);
+
+
+                                                            break;
+                                                        case 1 ://caso in cui devo ricevere i suggerimenti
+
+                                                            String sug = ReadData(inn);//recupero i suggerimenti
+
+                                                            //a questo punto quello che devo fare è visualizzare i suggerimenti in forma grafica
+                                                            JPanel suggestionPanle = MakeSuggestionsPanel(sug, word);
+                                                            JOptionPane.showMessageDialog(null, suggestionPanle, "Suggerimenti", JOptionPane.PLAIN_MESSAGE);
+
+                                                            break;
+                                                        case 0 ://caso in cui la parola è stata indovinata
+                                                            // In questo caso lato server dovro inserire la
+                                                            // traduzione della parola che qui andra letta
+
+                                                            wordTradotta = ReadData(inn);
+                                                            JOptionPane.showMessageDialog(null, "Vittoria\nTraduzione: " + wordTradotta);
+
+                                                            break;
+                                                        case -1:
+                                                            JOptionPane.showMessageDialog(null, "Errore. Prima di inviare una parola è necessario chiedere di giocare con il tasto gioca");
+                                                            break;
+                                                        case -2:
+                                                            JOptionPane.showMessageDialog(null, "Tentativi esauriti. Aspettare la prossima parola");
+                                                            break;
+                                                        case -3:
+                                                            JOptionPane.showMessageDialog(null, "Parola gia indovinata. Aspettare la prossima parola");
+                                                            break;
+                                                        case -4 :
+                                                            JOptionPane.showMessageDialog(null, "Parola inesistente all interno del gioco. Il tentativo non verrà considerato");
+                                                            break;
+                                                        case -5 :
+                                                            JOptionPane.showMessageDialog(null, "Utente non ha effettuato il login");
+                                                            break;
+                                                    }
+                                                }
+                                                catch (Exception ee) {ee.printStackTrace();}
+                                            }
+                                        }
+                                    });
+                                    sendMeStatistics.addActionListener(new ActionListener() {
+                                        @Override
+                                        public void actionPerformed(ActionEvent e) {
+
+                                            try {
+                                                DataOutputStream ou = new DataOutputStream(new BufferedOutputStream(socket.getOutputStream()));
+                                                DataInputStream inn = new DataInputStream(new BufferedInputStream(socket.getInputStream()));
+
+                                                ou.writeInt((("sendMeStatistics:"+ usernamelogin).length())*2);
+                                                ou.writeChars("sendMeStatistics:" + usernamelogin);
+                                                ou.flush();
+                                                inn.readInt();//scarto la lunghezza del messaggio
+
+                                                if(inn.readInt() == 0){//controllo eventuale messaggio di errore che il server invia
+                                                    String statistic = ReadData(inn);
+                                                    JOptionPane.showMessageDialog(null, statistic);
+                                                }
+                                                else JOptionPane.showMessageDialog(null, "Impossibile visualizzare le statistiche");
+
+                                            }
+                                            catch (Exception ee) {ee.printStackTrace();}
+                                        }
+                                    });
+
+                                    mainPanel.add(makePanelLogout(Logout));
+                                    mainPanel.add(makePanelPlayStart(Gioca));
+                                    mainPanel.add(makePanelSend(SendWord));
+                                    mainPanel.add(makePanelStatistics(sendMeStatistics));
+                                    mainPanel.add(makeSeeNotify(Visualizza));
+                                    mainPanel.add(makePanelShowMeRanking(ShowMeRancking));
+                                    mainPanel.add(makePanelShare(Share));
+                                    mainPanel.add(makePanelNextWord(TimeNextWord));
+                                    mainPanel.add(makePanelShowMeShareing(ShowMeSharing));
+                                    mainPanel.add(makeHelpButton(help));
+
+                                    mainPanel.setBackground(new Color(92, 89, 94));
+                                    Frame.add(mainPanel, BorderLayout.CENTER);//prima non c'era BorderLayout.CENTER
+                                    Frame.setSize(1000, 500);
+                                    Frame.setVisible(true);
+                                    break;
+                                case -1 :
+                                    JOptionPane.showMessageDialog(null, "Errore. Per partecipare al gioco bisogna prima essere iscritti");
+                                    break;
+                                case -2 :
+                                    JOptionPane.showMessageDialog(null, "Errore. Password inserita non corretta");
+                                    break;
+                                case -3 :
+                                    JOptionPane.showMessageDialog(null, "Login gia effettuato");
+                                    break;
+                                case -4:
+                                    JOptionPane.showMessageDialog(null, "Necessario inserire username e password");
+                                    break ;
+                            }
+                        } catch (Exception e) {
+                            // Gestisci eventuali errori di esecuzione della richiesta
+                            System.out.println("CATCH ESTERNO");
+                            e.printStackTrace();
+                        }
+                    }
+                };
+
+                // Avvia il worker
+                worker.execute();
+            }
+        });

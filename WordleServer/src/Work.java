@@ -231,6 +231,7 @@ public class Work implements Runnable {
         word = Tok.nextToken(" ");//recupero parola
 
         u = Registrati.get(username);
+
         if(u != null && u.getLogin((Integer) Key.attachment())) {//se l utente ha effettuato il login
             //caso in cui l utente non ha prima eseguito il comando playWORDLE oppure ha gia partecipato al gioco
             //o vincendo la partita oppure esaurendo i tentativi per quella parola
@@ -239,12 +240,9 @@ public class Work implements Runnable {
 
                 switch (FlagResult) {
                     case -1 ://caso in cui l utente non ha selezionato il comando playWORDLE
-
                         WriteErrorOrWinOrSuggestionMessage(dati, "", -1, "");
                         break;
                     case -2 ://caso in cui l utente ha gia giocato e ha terminato i tentativi
-                        //qui prima di inviare il messaggio devo interrompere la striscia positiva di partite vinte
-                        Registrati.get(username).updateLastConsecutive(false);
                         WriteErrorOrWinOrSuggestionMessage(dati, "", -2, "");
                         break;
                     case -3 ://ha vinto la partita precedentemente
@@ -267,13 +265,11 @@ public class Work implements Runnable {
                         //recupero il numero di tentativi fatti dal giocatore per vinvere l attuale partita
                         int tentativiAttuali = Gioco.gettentativiUtente(username);
 
-                        Utente tmpu = Registrati.get(username);//recupero utente
-
                         //aumento il numero di partite vinte dal utente
-                        tmpu.increasesWinGame();
+                        u.increasesWinGame();
 
                         //ricalcolo la percentuale di partite vinte
-                        tmpu.UpdatePercWingame();
+                        u.UpdatePercWingame();
 
                         String suggestions = ComputeSuggestions(GameWord, word);//costruisco i suggerimenti per l utente
                         Gioco.getTentativi().get(username).getTryWord().add(suggestions);//aggiungo il suggerimento alla sessione dell utente
@@ -282,14 +278,14 @@ public class Work implements Runnable {
                         int tentativiUtente = Gioco.gettentativiUtente(username);
 
                         //ricalcolo la distribuzione
-                        tmpu.setGuesDistribuition(tentativiUtente - 1, (tmpu.getGuesDistribuition(tentativiUtente - 1) + 1));
-                        System.out.println((float) (tmpu.getGuesDistribuition(tentativiUtente - 1) * 100) / (float) tmpu.getWinGame());
+                        u.setGuesDistribuition(tentativiUtente - 1, (u.getGuesDistribuition(tentativiUtente - 1) + 1));
+                        System.out.println((float) (u.getGuesDistribuition(tentativiUtente - 1) * 100) / (float) u.getWinGame());
 
                         //aumento striscia positiva di vittorie
-                        tmpu.updateLastConsecutive(true);
+                        u.updateLastConsecutive(true);
 
                         //aggiorno la classifica
-                        updateClassifica(username, tmpu, tentativiAttuali);
+                        updateClassifica(username, u, tentativiAttuali);
 
                         //segnalo al thread che serializza i dati che un altro utente ha modificato le sue statistiche
                         SendSerialization('U');
@@ -315,7 +311,10 @@ public class Work implements Runnable {
                          }
                          else {//se invece il client ha terminato i tentativi invio al client la traduzione della parola e serializzare la sessione di Game
 
-                             SendSerialization('I');
+                             SendSerialization('I');//serializzo l istanza del game in questo modo non perdo dati riguado la sconfitta del client
+                             u.updateLastConsecutive(false);//aggionro la striscia positiva di vittorie
+                             u.UpdatePercWingame();//ricalcolo la percentuale di partite vinte
+
                              WriteErrorOrWinOrSuggestionMessage(dati, "", 2, wordTradotta);
                          }
                     }
@@ -382,12 +381,14 @@ public class Work implements Runnable {
 
                 if(u.getUserLogin((Integer) Key.attachment()) != null && u.getUserLogin((Integer) Key.attachment()).equals(username)) {
 
+
                     u.setLogin((Integer) Key.attachment(), false);
                     error = 0;
 
-                    //prima di settare di abbandonare il gioco devo controllare se l utente ha provato a partecipare
+                    //prima di settare l abbandono del gioco devo controllare se l utente ha provato a partecipare
                     if(Gioco.IsInGame(username)) {
                         Gioco.SetQuitUtente(username);
+                        u.UpdatePercWingame();//aggionro la percentuale di partite vinte
                         SendSerialization('I');
                     }
                 }
@@ -502,7 +503,7 @@ public class Work implements Runnable {
                     //nel caso siano cambiate la prima o la seconda o la terza posizione
                     if((!user1.equals(Classifica.get(0).getUsername()) ||
                             !user2.equals(Classifica.get(1).getUsername()) ||
-                            !user3.equals(Classifica.get(2).getUsername()))) {sendNotify(sizeClassifica);}
+                            !user3.equals(Classifica.get(2).getUsername()))) {sendNotify(3);}//invio i primi 3 utenti (il podio)
                     break;
             }
         }

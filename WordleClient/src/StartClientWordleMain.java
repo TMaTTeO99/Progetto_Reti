@@ -1,4 +1,5 @@
 import java.io.File;
+import java.util.ArrayList;
 
 public class StartClientWordleMain {
 
@@ -42,8 +43,10 @@ public class StartClientWordleMain {
                 //in questo caso aggiungo all oggetto ConfigureData i dati di default per il server
                 SetDefaultData(dataConfig);
             }
-            StartGame game = new StartGame(dataConfig.getIP_server(), dataConfig.getPort_ListeningSocket()
-                                            , dataConfig.getIP_Multicast(), dataConfig.getPort_Multicast(), dataConfig.getPortExport());
+            ArrayList<Suggerimenti> SuggQueue = new ArrayList<>();//struttura dati per memorizzare le condivisioni degli utenti
+
+            StartLoginRegistrazione game = new StartLoginRegistrazione(dataConfig.getIP_server(), dataConfig.getPort_ListeningSocket()
+                                            , dataConfig.getIP_Multicast(), dataConfig.getPort_Multicast(), dataConfig.getPortExport(), SuggQueue);
             /*
             ImplementazioneNotificaClient notifica = null;
             Registrazione servizio = null;

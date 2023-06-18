@@ -381,17 +381,54 @@ Giorno 37)	Ricomincio da dove ero arrivato ieri, riguardo al file di config, sem
 		io in caso di logout, viene creato un altro oggetto game, mi andava bene fin ora perche quando faccio il logout, 
 		apparte i dati che ho condiviso io o gli altri le altre info dovevo ristartarle, per fare bene invece a regola non
 		dovrei restartare lo startgame per non perdere le info riguardo la coda delle condivisioni.
+		Se invece di restartare setto solo la visibiolità, quello che succede è che praticamente se condivido una volta,
+		risultano due condivisioni, e devo capire perche::
+		
+		
+		
 		Un altra cosa che sto pensando è che il mio client lavora solo nel costruttore, questo non credo che sia molto
 		corretto. Forse posso fare in modo di modulare per bene tutto non sviluppando tutto nel costruttore, pero
 		è un operazione che veramente è pesante ora come ora. Potrei provare a fare una prova e vedere se funziona, in realta non
 		dovrebbe nemmeno essere cosi pesante come operazione, in piu potrei fare in modo che i due frame vengano prodotti da 
 		due classi separate in questo modo, devo pero fare attenzione al fatto dei thread in background, Questo lavoro lo potrei 
-		fare domani a modo
+		fare domani a modo, chat gpt mi ha detto per bene cosa fare:::
+		
+		Nota::: Quando un utente perde devo aggionrare anche la percentuale di partite vinte :: fatto
+		
+		////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+		
+		
+		
+		domande che ho fatto:
+		1) se nel metodo costruttore di una classe invece di soltanto inizializzare variabili, faccio operazioni complesse potrebbe 
+		comportare problemi?
+		2)considerando il problema che hai sollevato, io devo costruire una gui in java con l uso della libreria swing, come posso farlo 
+		correttamente ?
+		3)come gestisco il fatto di dover implementare le operazioni in modo che non diano fastidio ai thread usati dall interfaccia swing
+		4)si pero in questo modo tu hai inserito tutto nel costruttore e prima avevi detto che il costruttore di una classe deve essere 
+		piu semplice possibile, allora come bisogna fare per gestire entrambe le cose, sia il lavoro degli swingworker sia il fatto che 
+		il costruttore della classe deve essere semplice?
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 		
 		Nota: per quanto riguarda la sicurezza voglio  fare in modo che la passwd dell utente abbia dei prerequisiti come
 		ad esempio la lunghezza (almeno la lunghezza).
 		Provo un po a modificare il client per vedere se è fattibile cio che ho detto prima sulla sua modulazione :: 
 		
+		NOTA: ai jpanel che si aprono per visualizzarre classifica condivisioni ecc i panel in cui 
+		possono esserci tante righe devo aggiungere il cosino laterale che mi consente di scorrere il pannello......
 		
 		
 		   
@@ -399,3 +436,38 @@ Giorno 37)	Ricomincio da dove ero arrivato ieri, riguardo al file di config, sem
 
 -------------------------------------------------------------------------------------------------------------------------------------------
  
+Giorno 40)	Riprendo da dover ero arrivato ieri con la sistemazione del client per quantop riguarda il costruttore e l uso 
+		delle lambda expretion:
+		
+		A questo punto ora tutti i button che ho inserito all interno dello switchcase del metodo done
+		dello swingworker del login, lo stesso ho fatto per il resto delle operazioni, quello che vorrei fare ora è prenndere
+		tutte le operazioni che ci sono nel frame che si apre dopo il login e metterle in una classe separata per cercare di 
+		allegerire il codice, devo provare::
+		
+		Nota : Devo sistemare per bene il gruppo sociale, devo capire se il client dopo che fa la logout, se deve ricevere le 
+		condivisioni degli utenti, credo di no, credo che quando si effettua il logout, il client non deve piu ricevere condivisioni, 
+		deve riceverle solo quando è loggato, questa cosa va vista sia lato client che lato server, il server dovrebbe inviare
+		le notifiche solo ai client che sono laggati, e il client se fa la logout a regola non dovrebbe piu tsare in ascolto, dovrei
+		far terminare il thread, la cosa importante è che fra login e logout le condivisioni non devono perdersi comunque
+		
+		Sembra che sono riuscito a separare i due frame, testare a modo perche ho testato poco.
+		Ora provo a vedere il discorso delle condivisioni::
+		Credo che per far si che vengano mantenute memorizzate le confivisioni degli utenti fra un login e un logout, bisogna costruire
+		la coda all interno dello start main e far palleggiare il riferimento fra un frame e un altro, ricordare che va inserito 
+		il carrellino laterale per poter scorrere su e giu sia nel  panel della classifica sia per le notifiche::fatto, c'è pero un
+		altro problema, quando faccio share, al client arrivano piu volte i messaggi, devo capire perche questo comportamento.  
+		
+		Nota : mi è saltata fuori un eccezione e non so perche, riguardo la connessione, è possinile che sia la connessione mia
+		che salta, boh pero da controllare. 
+
+
+-------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+
+
+
+
+ 
+-------------------------------------------------------------------------------------------------------------------------------------------

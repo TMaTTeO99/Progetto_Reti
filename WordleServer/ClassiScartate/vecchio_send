@@ -1,0 +1,113 @@
+private void SendWordMethod(StringTokenizer Tok, PkjData dati) {
+
+        String username = null;
+        String word = null;
+        ByteArrayOutputStream SupportOut = null;
+        Utente u = null;
+
+        username = Tok.nextToken(" ").replace(":", "");//recupero username
+        word = Tok.nextToken(" ");//recupero parola
+
+        u = Registrati.get(username);
+        if(u != null && u.getLogin((Integer) Key.attachment())) {//se l utente ha effettuato il login
+            //Controllo che la parola sia presente nel vocabolario, in caso non ci sia ritorno un messaggio di errore
+            if(CheckWord(word)) {
+                //caso in cui l utente non ha prima eseguito il comando playWORDLE oppure ha gia partecipato al gioco
+                //o vincendo la partita oppure esaurendo i tentativi per quella parola
+                int FlagResult = 0;
+                if((FlagResult = Gioco.Tentativo(username)) != 0) {
+
+                    switch (FlagResult) {
+                        case -1 ://caso in cui l utente non ha selezionato il comando playWORDLE
+
+                            WriteErrorOrWinOrSuggestionMessage(dati, "", -1, "");
+                            break;
+                        case -2 ://caso in cui l utente ha gia giocato e ha terminato i tentativi
+
+                            //qui prima di inviare il messaggio devo interrompere la striscia positiva di partite vinte
+                            Registrati.get(username).updateLastConsecutive(false);
+                            WriteErrorOrWinOrSuggestionMessage(dati, "", -2, "");
+                            break;
+                        case -3 ://ha vinto la partita precedentemente
+
+                            WriteErrorOrWinOrSuggestionMessage(dati, "", -3, "");
+                            break;
+                    }
+                }
+                else {
+                    //recupero la parola del gioco in muta esclusione
+                    ReadWordLock.lock();
+                        String GameWord = Gioco.getWord();
+                        String wordTradotta = Gioco.getTranslatedWord();
+                    ReadWordLock.unlock();
+
+
+                    if(GameWord.equals(word)) {//caso in cui il client ha indovinato la parola
+
+                        Gioco.setWinner(username);//setto i campi  per indicare che per quel utente la parola è stata indovinata
+
+                        //recupero il numero di tentativi fatti dal giocatore per vinvere l attuale partita
+                        int tentativiAttuali = Gioco.gettentativiUtente(username);
+
+                        Utente tmpu = Registrati.get(username);//recupero utente
+
+                        //aumento il numero di partite vinte dal utente
+                        tmpu.increasesWinGame();
+
+                        //ricalcolo la percentuale di partite vinte
+                        tmpu.UpdatePercWingame();
+
+                        String suggestions = ComputeSuggestions(GameWord, word);//costruisco i suggerimenti per l utente
+                        Gioco.getTentativi().get(username).getTryWord().add(suggestions);//aggiungo il suggerimento alla sessione dell utente
+
+                        //recupero i tentativi della partita
+                        int tentativiUtente = Gioco.gettentativiUtente(username);
+
+                        //ricalcolo la distribuzione
+                        tmpu.setGuesDistribuition(tentativiUtente - 1, (tmpu.getGuesDistribuition(tentativiUtente - 1) + 1));
+                        System.out.println((float) (tmpu.getGuesDistribuition(tentativiUtente - 1) * 100) / (float) tmpu.getWinGame());
+
+                        //aumento striscia positiva di vittorie
+                        tmpu.updateLastConsecutive(true);
+
+                        //aggiorno la classifica
+                        updateClassifica(username, tmpu, tentativiAttuali);
+
+                        //segnalo al thread che serializza i dati che un altro utente ha modificato le sue statistiche
+                        SendSerialization('U');
+
+                        //Invio la classifica al thread che serializza per salvare la classifica aggiornata
+                        SendSerialization('C');
+
+                        //invio al thread che serializza la sessione del gioco
+                        SendSerialization('I');
+
+                        //Costruisco il messaggio di parola indovinata
+                        WriteErrorOrWinOrSuggestionMessage(dati, "", 0, wordTradotta);//0 indica parola indovinata
+
+                    }
+                    else {
+                        //a questo punto devo inviare i suggerimenti al client se dopo quest ultimo tentativo ne ha almeno un altro
+                        //devo quindi effettuare il calcolo dei sugerimenti, produrre la risposta e inviarla
+
+                        String suggestions = ComputeSuggestions(GameWord, word);//costruisco i suggerimenti per l utente
+                        Gioco.getTentativi().get(username).getTryWord().add(suggestions);//aggiungo il tentativo alla sessione dell utente
+
+                        if(Gioco.gettentativiUtente(username) < 12) {
+                            WriteErrorOrWinOrSuggestionMessage(dati, "", 1, suggestions);//rispondo al client
+                        }
+                        else {//se invece il client ha terminato i tentativi invio al client la traduzione della parola e serializzare la sessione di Game
+
+                            SendSerialization('I');
+                            WriteErrorOrWinOrSuggestionMessage(dati, "", 2, wordTradotta);
+                        }
+                    }
+                }
+            }
+            else {
+                WriteErrorOrWinOrSuggestionMessage(dati, "", -4, "");//caso in cui la parola non esiste e il tentativo non viene considerato
+            }
+        }
+        else WriteErrorOrWinOrSuggestionMessage(dati, "", -5, "");
+
+    }

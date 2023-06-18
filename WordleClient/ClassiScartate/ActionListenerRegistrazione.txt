@@ -1,0 +1,49 @@
+Registra.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                // Avvia il thread per gestire la richiesta 2
+                SwingWorker<Integer, Void> worker = new SwingWorker<Integer, Void>() {
+                    @Override
+                    protected Integer doInBackground() throws Exception {
+                        try {
+
+                            String user = TextFieldUserRegistra.getText();
+                            String pass = new String(TextFieldPassRegistra.getText());
+                            //Registrazione servizio = (Registrazione) LocateRegistry.getRegistry(6500).lookup("Registrazione");
+
+                            return servizio.registra(user, pass);
+                        }
+                        catch (Exception exce) {exce.printStackTrace();}
+                        return null;
+                    }
+
+                    @Override
+                    protected void done() {
+                        try {
+                            // Ottieni il risultato della richiesta dal server
+                            int response = get();  // o false
+                            switch (response) {
+                                case 1 :
+                                    JOptionPane.showMessageDialog(null, "Registrazione completata");
+                                    break;
+                                case -1:
+                                    JOptionPane.showMessageDialog(null, "Errore nei dati inseriti");
+                                    break;
+                                case 0:
+                                    JOptionPane.showMessageDialog(null, "Username gia utilizzato");
+                                    break;
+                                case 2:
+                                    JOptionPane.showMessageDialog(null, "Errore");
+                                    break;
+                            }
+
+                        } catch (Exception e) {
+                            // Gestisci eventuali errori di esecuzione della richiesta
+                            e.printStackTrace();
+                        }
+                    }
+                };
+                // Avvio il worker
+                worker.execute();
+            }
+        });
