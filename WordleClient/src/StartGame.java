@@ -6,7 +6,7 @@ import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
-import java.net.Socket;
+import java.net.*;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.ArrayList;
 import java.util.Date;
@@ -32,7 +32,9 @@ public class StartGame extends JFrame {
     private Date DataNextWord = new Date(0);
     private ArrayList<Suggerimenti> SuggerimentiQueue;
     private ReentrantLock locksuggerimenti = new ReentrantLock();//lock usata per implementare mutua esclusione sulla coda dei suggerimenti
-
+    private MulticastSocket sockMulticast;
+    private InetSocketAddress addressMulticat;
+    private Thread multiCastThread;//thread usato per recuperare le condivisioni dagli utenti
     public StartGame(String IP_srv, int Port_list, String IP_Mltc, int Port_Mltc, int PrtRMI, Socket sck,
                      String usrname, Registrazione srv, ArrayList<Suggerimenti> SuggQueue) throws Exception{
 
@@ -73,8 +75,10 @@ public class StartGame extends JFrame {
 
         //a questo punto quello che faccio è lanciare un thread che sta i ascolto
         //dei dati che vengono inviati dal server sul gruppo multicast
-        Thread multiCast = new Thread(new CaptureUDPmessages(IP_Multicast, Port_Multicast, SuggerimentiQueue, locksuggerimenti));
-        multiCast.start();
+        sockMulticast = new MulticastSocket(addressMulticat = new InetSocketAddress(IP_Multicast, Port_Multicast));//creo la socket
+        sockMulticast.joinGroup(addressMulticat, null);//non specifico nessuna interfaccia di rete per essere piu generico possibile e mi unisco
+        multiCastThread = new Thread(new CaptureUDPmessages(sockMulticast, SuggerimentiQueue, locksuggerimenti));
+        multiCastThread.start();//lancio il thread che sta in ascolto
 
         Help.addActionListener(e -> {AddHelpSetUp();});
         TimeNextWord.addActionListener(e -> {AddTimeNextWordSetUp();});
@@ -413,7 +417,9 @@ public class StartGame extends JFrame {
                     int returnValue = get().getReturnValue();
                     switch(returnValue) {
                         case 0 :
-                            dispose();
+
+                            StopCaptureUDPMessages();//metodo privato per la terminazione del thread
+                            dispose();//elimino il frame corrente
                             new StartLoginRegistrazione(IP_server, Port_listening, IP_Multicast, Port_Multicast, PortRMI, SuggerimentiQueue);
                             break;
                         case -1:
@@ -884,5 +890,26 @@ public class StartGame extends JFrame {
             return null;
         }
         return new String(data);
+    }
+    private void StopCaptureUDPMessages() {
+
+
+        //qui per far sbloccare dalla receive il thread devo inviare un packet in cui inserisco
+        //la stringa logout, anche gli altri thread degli altri client riceveranno tale stringa
+        //che verrà ignorata, quest ultimo invece riceverà anche una interrupt
+
+        try (DatagramSocket sckStopThread = new DatagramSocket()){
+
+            byte [] data = new String("logout").getBytes();
+            DatagramPacket pkj = new DatagramPacket(data, 0, data.length, addressMulticat);
+
+            multiCastThread.interrupt();//lancio un interruzione che verrà testata nella guardia del while
+            sckStopThread.send(pkj);//invio il messaggio di terminazione per far sbloccare il thread dalla receive
+
+            sockMulticast.leaveGroup(addressMulticat, null);//esco dal gruppo multicast
+
+        }
+        catch (Exception e){e.printStackTrace();}
+
     }
 }

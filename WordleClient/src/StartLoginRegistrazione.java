@@ -233,17 +233,28 @@ public class StartLoginRegistrazione extends JFrame {
 
                     int response = get();
                     switch (response) {
+                        case 2:
+                            JOptionPane.showMessageDialog(null, "Errore");
+                            break;
                         case 1 :
                             JOptionPane.showMessageDialog(null, "Registrazione completata");
-                            break;
-                        case -1:
-                            JOptionPane.showMessageDialog(null, "Errore nei dati inseriti");
                             break;
                         case 0:
                             JOptionPane.showMessageDialog(null, "Username gia utilizzato");
                             break;
-                        case 2:
-                            JOptionPane.showMessageDialog(null, "Errore");
+                        case -1:
+                            JOptionPane.showMessageDialog(null, "Errore. Inserire username");
+                            break;
+                        case -2:
+                            JOptionPane.showMessageDialog(null, "Errore. Inserire password");
+                            break;
+                        case -3:
+                            JOptionPane.showMessageDialog(null, "Errore. La password deve essere di almeno 5 caratteri e deve contenere" +
+                                                                                        "un numero e una lettera maiuscola");
+                            break;
+                        case -4:
+                            JOptionPane.showMessageDialog(null, "Errore. La password deve essere di almeno 5 caratteri e deve contenere" +
+                                                                                        "un numero e una lettera maiuscola");
                             break;
                     }
 

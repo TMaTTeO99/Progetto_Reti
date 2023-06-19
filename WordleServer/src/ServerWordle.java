@@ -8,6 +8,7 @@ import java.nio.channels.SocketChannel;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
+import java.security.Key;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.locks.Lock;
@@ -144,26 +145,7 @@ public class ServerWordle{
             System.out.println(u);
         }
     }
-    /**
-     * Metodo temporaneo che uso ora per testare se il servizio di notifica funziona, tale servizio dovra essere attivato
-     * in seguito ad un login e disattivato in seguito ad una logout
-     */
-    public void sendNotifica() {
-        /**
-         * per ora invio la notifica agli utenti registrati, quando implemento il login verra usata una struttura dati
-         * per tenere traccia degli utenti loggati => mandero la notifica per quegli utenti che sono loggati, quindi
-         * a questo punto per ora non uso nemmeno la readlock per la lettura tanto poi dovro usare altre lock
-         */
-      /*  Set<Map.Entry<String, Utente>> utenti = Registrati.entrySet();
-        for (Map.Entry<String, Utente> u : utenti) {
-            try {
-                u.getValue().getStub().SendNotifica(-1);
-            }
-            catch (Exception e) {e.printStackTrace();}
-        }
 
-       */
-    }
     /**
      * Metodo per effettuare la chiusura del servizio RMI,
      * quando tale servizio viene chiuso il server viene spento
@@ -201,6 +183,11 @@ public class ServerWordle{
             //se il client ha chiuso la connessione cancello la chiave dal selettore
             if(channel.read(LenMexBuffer) == -1) {
                 key.cancel();
+                //qui ora nel caso in cui un client chiada la connessione in modo brusco devo eliminare il suo stub
+                //devo prima cercare il client che ha chiuso la connessione
+                Utente releasedUtente = searchUtente((Integer) key.attachment());
+                if(releasedUtente != null)releasedUtente.RemoveSTub();
+
                 return null;//ritorno null quando il client ha chiuso la connessione e quindi non devo produrre risposte
             }
             //altrimenti recupero i dati
@@ -216,5 +203,13 @@ public class ServerWordle{
         catch (Exception e) {e.printStackTrace();}
 
         return Dati;
+    }
+    private Utente searchUtente(int ID) {
+
+        for(Utente u : Registrati.values()) {//cerco nella struttura dati in cui sono presenti tutti i client
+            //per verificare che ho trovato l utente corretto controllando l id in allegato al channel
+            if(u.getLoginChannel().get(ID) != null) return u;
+        }
+        return null;
     }
 }

@@ -13,8 +13,6 @@ public class Utente implements Serializable {
 
 
     private HashMap<Integer, InfoLogin> LoginChannel = new HashMap<>();
-    //private int ID_CHANNEL = -1;
-    //private boolean login = false; //variabile che indica se l'utente è loggato o meno, Nota: a jackson da noia se scrivo Login
     private String Username = null;
     private String Passswd = null;
     private int Games = 0;//partite giocate

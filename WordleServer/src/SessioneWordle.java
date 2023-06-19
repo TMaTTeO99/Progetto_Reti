@@ -32,7 +32,7 @@ public class SessioneWordle implements Serializable {
         }
         return 0;//0 indica richiesta di playWORDLE andata a buon fine
     }
-    public int Tentativo(String username) {
+    public int Tentativo(String username) {//metodo usato per incrementare i tentativi effettuati
 
         InfoSessioneUtente info = Tentativi.get(username);
 
@@ -45,11 +45,16 @@ public class SessioneWordle implements Serializable {
         if(info.getTentativi() >= 12) return -2;//caso in cui l utente ha gia giocato e ha terminato i tentativi
         return -3; //ha vinto la partita precedentemente
     }
-    public void setWinner(String UserName) {
+    public void setWinner(String UserName) {//metodo usato per settare che l utente ha vinto la partita
         InfoSessioneUtente tmp = Tentativi.get(UserName);
         tmp.setResultGame(true);
     }
-    public void SetQuitUtente(String username) {
+    public boolean IsInGame(String username) {//metodo usato per controllare se l utente è in gioco
+        InfoSessioneUtente u = Tentativi.get(username);
+        if(u != null) return !u.getQuitGame() && u.getTentativi() >= 0 && u.getTentativi() < 12;
+        return false;
+    }
+    public void SetQuitUtente(String username) {//metodo usato per settare che l utente ha abbandonato la partita
         InfoSessioneUtente tmpInfo = Tentativi.get(username);
         if (tmpInfo != null) {tmpInfo.setQuitGame(true);}
     }
@@ -70,9 +75,4 @@ public class SessioneWordle implements Serializable {
     public ConcurrentHashMap<String, InfoSessioneUtente> getTentativi() {return Tentativi;}
     public InfoSessioneUtente getInfoGameUtente(String username) {return Tentativi.get(username);}
     public void setTentativi(ConcurrentHashMap<String, InfoSessioneUtente> tentativi) {Tentativi = tentativi;}
-    public boolean IsInGame(String username) {
-        InfoSessioneUtente u = Tentativi.get(username);
-        if(u != null) return !u.getQuitGame() && u.getTentativi() >= 0 && u.getTentativi() < 12;
-        return false;
-    }
 }

@@ -17,28 +17,27 @@ import java.util.concurrent.locks.ReentrantLock;
 public class CaptureUDPmessages implements Runnable{
 
     private final int MAX_SIZE = 256;//utilizzo una dimensione per datagrampacket di 256 byte
-    private InetSocketAddress address;
     private Lock lock;
     private ArrayList<Suggerimenti> SuggerimentiQueue;
-    public CaptureUDPmessages(String IP_multicast, int port, ArrayList<Suggerimenti> SuggQueue, ReentrantLock lck) throws Exception{
-        address = new InetSocketAddress(IP_multicast, port);
+    private MulticastSocket socket;
+    public CaptureUDPmessages(MulticastSocket sckM, ArrayList<Suggerimenti> SuggQueue, ReentrantLock lck) throws Exception{
+
         SuggerimentiQueue = SuggQueue;
         lock = lck;
+        socket = sckM;
     }
 
     public void run() {
 
 
-        try (MulticastSocket sock = new MulticastSocket(address)){
-
-            sock.joinGroup(address, null);//non specifico nessuna interfaccia di rete per essere piu generico possibile
+        try {
 
             while(!Thread.interrupted()) {//finche il thread non riceve un interruzione continua a ciclare
 
                 byte [] datiDaricevere = new byte[MAX_SIZE];//byte array in cui verranno inseriti i dati dedl packet
 
                 DatagramPacket packet = new DatagramPacket(datiDaricevere, 0, MAX_SIZE);
-                sock.receive(packet);//recupero il packet
+                socket.receive(packet);//recupero il packet
                 System.out.print("PACKETTO RICEVUTO");
                 //leggo i dati dal paket tramite datainputstream
                 try(DataInputStream in = new DataInputStream(new ByteArrayInputStream(packet.getData()))) {
@@ -49,23 +48,30 @@ public class CaptureUDPmessages implements Runnable{
 
                     //Ora faccio solo dei test per vedere lato server e lato client se funzionano bene:
                     System.out.println(tentativiUtente + " tentativi ricevuti");
+                    if(!tentativiUtente.equals("logout")) {
 
-                    //qui ora devo usare un tokenizzatore per poter recuperare ogni tentativo, alla fine della lista dei tentativi
-                    //verra inserito il nome dell utente
-                    Suggerimenti sugg = new Suggerimenti();
-                    StringTokenizer tok = new StringTokenizer(tentativiUtente, " ");
+                        //qui ora controllo se ho ricevuto i dati dal server o è il client stesso che sta facendo il logout.
+                        //controllo quindi che dati ho ricevuto,
 
-                    sugg.setUtente(tok.nextToken());
-                    while(tok.hasMoreTokens()) {sugg.addSuggerimento(tok.nextToken());}
+                        //qui ora devo usare un tokenizzatore per poter recuperare ogni tentativo
+                        //all inizio della stringa inviata dal server è presente il nome dell utente
 
-                    lock.lock();
+                        Suggerimenti sugg = new Suggerimenti();
+                        StringTokenizer tok = new StringTokenizer(tentativiUtente, " ");
+
+                        sugg.setUtente(tok.nextToken());//recupero il nome dell utente
+                        while(tok.hasMoreTokens()) {sugg.addSuggerimento(tok.nextToken());}
+
+                        lock.lock();
                         SuggerimentiQueue.add(sugg);
-                    lock.unlock();
+                        lock.unlock();
+                    }
+                    else System.out.println("Chido ricezione condivisioni");
                 }
                 catch (Exception e) {e.printStackTrace();}
-
             }
         }
         catch (Exception e) {e.printStackTrace();}
+        System.out.println("ESCO DAL RUN :)");
     }
 }

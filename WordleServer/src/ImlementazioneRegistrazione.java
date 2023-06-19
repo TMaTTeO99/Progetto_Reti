@@ -20,15 +20,12 @@ public class ImlementazioneRegistrazione extends RemoteServer implements Registr
         LockClassifcaWrite = LckClss;
         LockClassifcaRead = LckClassRd;
     }
-
-    //NOTA: posso ritornare un valore intero invece che booleano per far
-    //      capire al client cosa è successo in caso di registrazione fallita
-    //      per motivi diversi da quelli presenti ora, potrebbe essere una feature
     public int registra(String username, String passwd) throws RemoteException {
 
-        //caso in cui il client ha inserito dati non corretti, STOP_THREAD è usato all interno del codice per far terminare
-        //il thread che serializza i dati quindi è un username non disponibile per gli utenti
-        if(username.length() == 0 || passwd.length() == 0 || username.equals("STOP_THREAD")) return -1;
+        int flag_Passwd = Integer.MAX_VALUE;//MAX_VALUE valore di inizializzazione
+
+        //caso in cui il client ha inserito dati non corretti
+        if((flag_Passwd = ChckInput(username, passwd)) != 0)return flag_Passwd;
 
         try {
             if(Registrati.putIfAbsent(username, new Utente(username, passwd)) == null) {
@@ -49,6 +46,22 @@ public class ImlementazioneRegistrazione extends RemoteServer implements Registr
             e.printStackTrace();
             return 2;
         }
+    }
+    private int ChckInput(String username, String passwd) {
+
+        int flagnumber = 0, flaguppercase = 0;
+
+        if(username.length() == 0) return -1;
+        if(passwd.length() == 0) return -2;
+        if(passwd.length() < 5) return -3;
+        char [] pass = passwd.toCharArray();
+        for(int i = 0; i < pass.length; i++) {
+            if((int)pass[i] >= 65 && (int)pass[i] <= 90)flaguppercase = 1;
+            if((int)pass[i] >= 48 && (int)pass[i] <= 57)flagnumber = 1;
+        }
+        if(flaguppercase != 1 || flagnumber != 1)return -4;
+
+        return 0;
     }
     public void RegisryForCallBack(String username, NotificaClient stub) throws RemoteException {
         Registrati.get(username).setStub(stub);

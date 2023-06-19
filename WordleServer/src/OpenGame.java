@@ -46,7 +46,7 @@ public class OpenGame implements Runnable{
                     Thread.sleep(time - (currenttime - lasttime));
                 }
                 String tmp = Vocabolario.get(randword.nextInt(Vocabolario.size()));
-
+                System.out.println("Parola del gioco " + tmp);
                 lock.lock();
                      Game.setWord(tmp);
                      Game.setTranslatedWord(TranslateService(tmp));

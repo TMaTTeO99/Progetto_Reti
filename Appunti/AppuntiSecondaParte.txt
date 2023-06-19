@@ -143,7 +143,7 @@ Giorno 32): 	Comincio con le operazioni di rifinitura:
 			
 			
 			7) Va sistemato il client, l interfaccia grafica va fatta piu carina, devo cercare di fare le operazioni di lettura
-			   di dati al meglio possibile, cercare di fare tutto con dei metodi privati a modo
+			   di dati al meglio possibile, cercare di fare tutto con dei metodi privati a modo 
 			
 			8) Devo cercare di sistemare tutti i worning, sia nel client che nel server.
 			
@@ -459,6 +459,40 @@ Giorno 40)	Riprendo da dover ero arrivato ieri con la sistemazione del client pe
 		
 		Nota : mi è saltata fuori un eccezione e non so perche, riguardo la connessione, è possinile che sia la connessione mia
 		che salta, boh pero da controllare. 
+
+
+-------------------------------------------------------------------------------------------------------------------------------------------
+
+
+Giorno 41)	Riprendo da dove ero arrivato ieri con il problema dei dati condivisi in piu:
+		Se ad esempio un utente condivide i suoi dati, e li visualizza ok. Se pero accedo con un altro utente e quest ultimo
+		vodivide i propri risultati, quando li visualizza, vengono visualizzati i dati del primo utente correttamente e 
+		i suoi sono doppi, 
+		Siccome quando faccio il logout devo uscire dal gruppo di multicast, allora devo far terminare il thread che sta in ascolto
+		per farlo, siccome quest ultimo sarà bloccato sulla receive devo farlo sbloccare inviando un datagrampacket e 
+		poi dopo inviare una interrupt cosi esce dal while e termina. Per fare cio devo inviare nel packet una stringa
+		di terminazione, userò : "logout". ::: Fatto.
+		
+		Ora devo vedere il problema dell eccezione che viene lanciata quando si devono mandare le notifiche, mi sa che si tratta 
+		di un problema di concorrenza fra il tread che fa la unregistryfornotify e il thread worker che invia i dati, 
+		ora controllo ma credo che il problema sia questo, in pratica credo che il server provi a inviare la notifica con stub
+		di client che non sono piu connessi. Il problema ora è che è difficile far saltare fuori l eccezione perche è un problema 
+		di concorrenza. Posso però evitare di sincronizzare semplicemente controllando se l utente è loggato, inoltre, quando 
+		un client si disconnette (quindi per la lettura mi viene ritornato -1) devo eliminare lo stub da quel client, 
+		Per farlo devo, o modificare tutto il codice, e usare l username come attach per tutte le operazioni per cui lo uso
+		oppure devo fare una ricerca, devo usare l id che sto usando, e per ogni utente presente nella hash map, devo prendere
+		controllare se hanno l attach all interno, quindi in questo modo io ho trovato l utente corretto, allora elimino lo stub.
+		Penso che farò cosi. :: fatto.
+		
+		Lista cose da fare: 
+		1) controllare perche a volte la traduzione della parola non funziona bene
+		2) implementare la terminazione del server
+		3) implementare la cifratura dei dati
+		4) Far si che sul file json i dati vengano salvati non in chiaro
+		5) Aggiunge i carrellli laterali ai panel del client
+		6) Testare, per farlo dovrei creare un client che prenda l input da terminale
+		
+
 
 
 -------------------------------------------------------------------------------------------------------------------------------------------

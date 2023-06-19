@@ -531,7 +531,8 @@ public class Work implements Runnable {
         for(Utente u : Registrati.values()) {
 
             NotificaClient stub = u.getStub();
-            if(stub != null) {
+            if(u.getLogin((Integer)Key.attachment()) && stub != null) {
+                System.out.println("Sto per inviare il podio al client:: " + u.getUsername());
                 try {stub.SendNotifica(ClassificaNotifiche);}
                 catch (Exception e){e.printStackTrace();}
             }
