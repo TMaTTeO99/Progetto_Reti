@@ -1,4 +1,5 @@
 import java.io.File;
+import java.math.BigInteger;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
@@ -51,9 +52,12 @@ public class ServerWordle{
     //per i test li lascio cosi, poi devo recuperarli dal file di config
     private int PortMulticast, Port_Listening;
     private String IP_multicast;
+    private GetDataConfig dataConfig;
+    private HashMap<Integer, BigInteger> SecurityKeys = new HashMap<>();//struttura dati che conterrà le chiavi di sicurezza associate alle connessioni
 
-    public ServerWordle(ArrayList<String> Vocabolario, GetDataConfig dataConfig) throws Exception{
+    public ServerWordle(ArrayList<String> Vocabolario, GetDataConfig dataConf) throws Exception{
 
+        dataConfig = dataConf;
         PortMulticast = dataConfig.getPort_Multicast();
         IP_multicast = dataConfig.getIP_Multicast();
         Port_Listening = dataConfig.getPort_ListeningSocket();
@@ -82,11 +86,6 @@ public class ServerWordle{
 
     }
 
-    /**
-     *  Metodo centrale del server per permettere il login e le future operazioni,
-     *  Nota: per ora le info che dovranno poi essere raccolte dal file di config le
-     *  definisco qui diretamente nel moetodo StartServer
-     * */
     public void StartServer() {
 
         try (ServerSocketChannel AcceptSocket = ServerSocketChannel.open()) {//clausola try with resource per per chiudere la socket in caso di terminazione
@@ -125,7 +124,8 @@ public class ServerWordle{
                         PkjData dati = null;
                         if((dati = ReadRequest(ReadyKey)) != null) {//se la lettura della richiesta è andata a buon fine lancio i worker
                             pool.execute(new Work(ReadyKey, Registrati, dati, Words, Game, ReadWordLock, DaSerializzare,
-                                                  Classifica, ReadLockClassifica, WriteLockClassifca, IP_multicast, PortMulticast));
+                                                  Classifica, ReadLockClassifica, WriteLockClassifca, IP_multicast, PortMulticast,
+                                                    dataConfig, SecurityKeys));
                         }
                     }
                 }

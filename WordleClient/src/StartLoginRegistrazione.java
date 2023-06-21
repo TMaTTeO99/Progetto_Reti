@@ -1,5 +1,7 @@
 import javax.swing.*;
 import java.awt.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.DataInputStream;
@@ -8,6 +10,7 @@ import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.rmi.registry.LocateRegistry;
 import java.util.ArrayList;
+import java.util.Random;
 
 public class StartLoginRegistrazione extends JFrame {
 
@@ -25,14 +28,18 @@ public class StartLoginRegistrazione extends JFrame {
     private int Port_Multicast;
     private int PortRMI;
     private ArrayList<Suggerimenti> SuggerimentiQueue;
-    public StartLoginRegistrazione(String IP_srv, int Port_list, String IP_Mltc, int Port_Mltc, int PrtRMI, ArrayList<Suggerimenti> SuggQueue) throws Exception {
+    private GetDataConfig dataConfig;
+    private long SecurityKey;//chiave di sessione
+    private int c;//variabiile che conterra intero random usato per il protocollo DH
+    public StartLoginRegistrazione(GetDataConfig dataCon, ArrayList<Suggerimenti> SuggQueue) throws Exception {
 
         //recupero all inetrno delle var di istanza le info che servono al client
-        IP_server = IP_srv;
-        Port_listening = Port_list;
-        IP_Multicast = IP_Mltc;
-        Port_Multicast = Port_Mltc;
-        PortRMI = PrtRMI;
+        dataConfig = dataCon;
+        IP_server = dataConfig.getIP_server();
+        Port_listening = dataConfig.getPort_ListeningSocket();
+        IP_Multicast = dataConfig.getIP_Multicast();
+        Port_Multicast = dataConfig.getPort_Multicast();
+        PortRMI = dataConfig.getPortExport();
         SuggerimentiQueue = SuggQueue;
 
         //recupero il servizio di registrazione
@@ -48,21 +55,34 @@ public class StartLoginRegistrazione extends JFrame {
         try {socket.connect(new InetSocketAddress(IP_server, Port_listening));}
         catch (Exception e) {e.printStackTrace();}
 
+
+        //-------------------------------------------------------------------------------------------//
+
+        //invio al server C
+        if(!SendAndRicevereSecurityData()) {
+            //qui in caso di fallimento di comunicazione con il server chiudo il client con un messaggio
+            //potrei costruire un minimo panel che indica al client che si sta caricando il client
+            //lo vedo dopo
+            socket.close();
+            System.out.println("Errore scambio chiave di sicurezza della sessione");
+            return;
+
+        }
+        System.out.println(SecurityKey + " Chiave di sicurezza");
+        /**
+         * Sezione in cui provero a comunicare con il server per scambiare la chiave di sessione
+         * Sara una chiave casuale che verra usata per cifrare le passwd e le parole che i client
+         * inviano, non dovrebbe esserci bisogno di cifrare tutto anche se comunque posso provare a cifrare
+         * tutto, devo decidere l algo di scambio di chiave e l algo di cifratura.
+         */
+
+        //-------------------------------------------------------------------------------------------//
+
+
+
         //creo il pannel main
         JPanel mainPanel = new JPanel();
         mainPanel.setLayout(new BoxLayout(mainPanel, BoxLayout.LINE_AXIS));
-
-        //-------------------------------------------------------------------------------------------//
-
-            /**
-             * Sezione in cui provero a comunicare con il server per scambiare la chiave di sessione
-             * Sara una chiave casuale che verra usata per cifrare le passwd e le parole che i client
-             * inviano, non dovrebbe esserci bisogno di cifrare tutto anche se comunque posso provare a cifrare
-             * tutto, devo decidere l algo di scambio di chiave e l algo di cifratura.
-             */
-
-        //-------------------------------------------------------------------------------------------//
-
 
         //Pulsanti da aggiungere ai pannel del JFrame
         JButton Login = new JButton("Login");
@@ -115,6 +135,10 @@ public class StartLoginRegistrazione extends JFrame {
         UserTEXTLogin = new JTextField(10);
         UserTEXTpasslogin = new JPasswordField(10);
 
+        //uso classi anionime per permettere all utente di poter usare invio da tastiera
+        UserTEXTLogin.addActionListener(new ActionListener() {@Override public void actionPerformed(ActionEvent e) {log.doClick();}});
+        UserTEXTpasslogin.addActionListener(new ActionListener() {@Override public void actionPerformed(ActionEvent e) {log.doClick();}});
+
         panelLogin.setLayout(new FlowLayout());
         panelLogin.add(new JLabel("Username"));
         panelLogin.add(UserTEXTLogin);
@@ -132,6 +156,10 @@ public class StartLoginRegistrazione extends JFrame {
         panelRegistra.setBorder(BorderFactory.createTitledBorder("Registrazione:"));
         TextFieldUserRegistra = new JTextField(10);
         TextFieldPassRegistra = new JPasswordField(10);
+
+        //uso classi anionime per permettere all utente di poter usare invio da tastiera
+        TextFieldUserRegistra.addActionListener(new ActionListener() {@Override public void actionPerformed(ActionEvent e) {reg.doClick();}});
+        TextFieldPassRegistra.addActionListener(new ActionListener() {@Override public void actionPerformed(ActionEvent e) {reg.doClick();}});
 
         panelRegistra.setLayout(new FlowLayout());
         panelRegistra.add(new JLabel("Username"));
@@ -184,7 +212,7 @@ public class StartLoginRegistrazione extends JFrame {
                         case 0 ://caso in cui l utente ha effettuato il login con successo.
 
                             dispose();// Chiudo il frame corrente
-                            new StartGame(IP_server, Port_listening, IP_Multicast, Port_Multicast, PortRMI, socket, usernamelogin, servizio, SuggerimentiQueue);
+                            new StartGame(dataConfig, socket, usernamelogin, servizio, SuggerimentiQueue);
                             break;
                         case -1 :
                             JOptionPane.showMessageDialog(null, "Errore. Per partecipare al gioco bisogna prima essere iscritti");
@@ -198,6 +226,9 @@ public class StartLoginRegistrazione extends JFrame {
                         case -4:
                             JOptionPane.showMessageDialog(null, "Necessario inserire username e password");
                             break ;
+                        case -10:
+                            JOptionPane.showMessageDialog(null, "Errore server");
+                            break;
                     }
                 }
                 catch (Exception e) {
@@ -256,6 +287,9 @@ public class StartLoginRegistrazione extends JFrame {
                             JOptionPane.showMessageDialog(null, "Errore. La password deve essere di almeno 5 caratteri e deve contenere" +
                                                                                         "un numero e una lettera maiuscola");
                             break;
+                        case -10:
+                            JOptionPane.showMessageDialog(null, "Errore server");
+                            break;
                     }
 
                 }
@@ -264,6 +298,70 @@ public class StartLoginRegistrazione extends JFrame {
         };
         // Avvio il worker
         worker.execute();
+    }
+    private long Compute_C(int g, int p) {
+
+        Random rnd = new Random();
+        c = 0;
+        c = rnd.nextInt((p-1) - 2) + 2;
+        System.out.println(c + " c piccolo");
+        return (long )Math.pow(g, c) % p;
+
+    }
+    private boolean SendAndRicevereSecurityData() {
+
+        int flag = 0, lendata = 0;
+        String nameMethod = "dataforkey:";
+
+        //calcolo C per il protocollo DH
+        long C = Compute_C(dataConfig.getG(), dataConfig.getP());
+        long S = 0;
+
+        try{
+
+            DataInputStream in = new DataInputStream(new BufferedInputStream(socket.getInputStream()));
+            DataOutputStream ou = new DataOutputStream(new BufferedOutputStream(socket.getOutputStream()));
+
+            ou.writeInt(((("dataforkey:"+ C ).length()) * 2));
+            ou.writeChars("dataforkey:"+C);
+            ou.flush();
+            in.readInt(); //scarto la len del messaggio
+            flag = in.readInt();
+
+            if(flag != 0) {
+
+                String key = ReadData(in);
+                if(key != null) {S = Long.parseLong(key);}
+
+                System.out.println("DATI CHE RICEVO "+ S);
+                System.out.println("DATI CHE MANDO" + C);
+
+            }
+            else return false;//caso di errore
+        }
+        catch (Exception e) {
+            e.printStackTrace();
+            return false;
+        }
+        SecurityKey = (long) Math.pow(S, c) % dataConfig.getP();
+        return true;
+    }
+    private String ReadData(DataInputStream inn) {
+
+        char [] data = null;
+        try {
+            int read = 0, len = inn.readInt();
+            data = new char[len];
+            while(read < len) {
+                data[read] = inn.readChar();
+                read++;
+            }
+        }
+        catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+        return new String(data);
     }
 
     /*Da capire bene a cosa serve questa cosa

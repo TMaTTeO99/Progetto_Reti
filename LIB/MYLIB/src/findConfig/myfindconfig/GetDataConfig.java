@@ -25,6 +25,8 @@ public class GetDataConfig {
     private String IP_Multicast;//stringa che conterra l ip del gruppo multicast su cui condividere i risultati del gioco
     private int Port_Multicast;//porta usata per la condivisione sul gruppo multicast
     private int Port_ListeningSocket;
+    private int P;
+    private int G;
     private String IP_server;
     private File ConfigureFile = null;
 
@@ -86,6 +88,12 @@ public class GetDataConfig {
                     case "IP_server":
                         IP_server = tok.nextToken();
                         break;
+                    case "P_number" :
+                        P = Integer.parseInt(tok.nextToken());
+                        break;
+                    case "G_generator" :
+                        G = Integer.parseInt(tok.nextToken());
+                        break;
                 }
             }
     }
@@ -142,7 +150,14 @@ public class GetDataConfig {
     public String getPathStart() {return PathStart;}
     public String getIP_server() {return IP_server;}
 
+    public int getG() {return G;}
+
+    public int getP() {return P;}
+
     //metodi per settare i dati all interno dell oggetto nel caso il file di configurazione fosse corrotto
+
+    public void setP(int p) {P = p;}
+    public void setG(int g) {G = g;}
     public void setURLtranslate(String url) {URLtranslate = url;}
     public void setLastTimeWord(long ltw) {LastTimeWord = ltw;}
     public void setMaxThread(int maxT) {MaxThread = maxT;}

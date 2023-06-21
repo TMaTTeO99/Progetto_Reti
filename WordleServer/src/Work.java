@@ -1,4 +1,5 @@
 import java.io.*;
+import java.math.BigInteger;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetSocketAddress;
@@ -13,20 +14,26 @@ import java.util.concurrent.locks.Lock;
 
 public class Work implements Runnable {
 
-    private SelectionKey Key;//variabile utilizzata per reperire e settare i dati per le comunicazioni come ad es il channell e l attach
-    private ConcurrentHashMap<String, Utente> Registrati;
-    private PkjData Dati;
-    private SessioneWordle Gioco;
-    private Lock ReadWordLock;
-    private ArrayList<String> Words;
-    private LinkedBlockingDeque<DataToSerialize> DaSerializzare;
+    private SelectionKey Key;//key per recuperare il channel
+    private ConcurrentHashMap<String, Utente> Registrati;//utenti del gioco
+    private PkjData Dati;//pachetto che conterra le risposte per il client
+    private SessioneWordle Gioco;//sessione corrente del gioco
+    private Lock ReadWordLock;//readlock usata per laccedere in mutua esclusione alla sessione del gioco
+    private ArrayList<String> Words;//parole del vocabolario
+    private LinkedBlockingDeque<DataToSerialize> DaSerializzare;//cosa usata per dire al thread che serializza quando e cosa serializzare
     private ArrayList<UserValoreClassifica> Classifica;
-    private Lock ReadLockClassifica;
-    private Lock WriteLockClassifica;
+    private Lock ReadLockClassifica;//readlock per l istanza della classifica
+    private Lock WriteLockClassifica;//writelock per l istanza della classifica
     private InetSocketAddress AddressMulticastClients;//InetSocketaddress usato per inviare ai client del gruppo multicast i tentativi
+    private GetDataConfig dataConfig;
+    private HashMap<Integer, BigInteger> SecurityKeys;
+    private int s;//variabile usata per creare la chiave per il protocollo DH
     public Work(SelectionKey k, ConcurrentHashMap<String, Utente> R, PkjData dati, ArrayList<String> Vocabolario,
                 SessioneWordle g, Lock RWLock, LinkedBlockingDeque<DataToSerialize> daserializzare, ArrayList<UserValoreClassifica> Clss,
-                Lock RDLock, Lock WRLock, String IPMulticast, int PortMulticast) {
+                Lock RDLock, Lock WRLock, String IPMulticast, int PortMulticast, GetDataConfig dataConf, HashMap<Integer, BigInteger> ScrtyKeys) {
+
+
+        dataConfig = dataConf;
         Key = k;
         Registrati = R;
         Dati = dati;
@@ -38,10 +45,9 @@ public class Work implements Runnable {
         ReadLockClassifica = RDLock;
         WriteLockClassifica = WRLock;
         AddressMulticastClients = new InetSocketAddress(IPMulticast, PortMulticast);
+        SecurityKeys = ScrtyKeys;
     }
     public void run() {
-
-        //per implementare la soluzione non bloccante devo per prima cosa recuperare l attached e il channel
 
         SocketChannel channel = (SocketChannel) Key.channel();//recupero il channel
 
@@ -77,19 +83,41 @@ public class Work implements Runnable {
                 case "TimeNextWord":
                     SendTimeWordMethod(Tok, Dati);
                     break;
+                case "dataforkey":
+                    SendAndRicevereSecurityData(Tok, Dati);
+                    break;
             }
+            //qui invio la risposta al client
+            try {SendDataToClient(channel);}
+            catch (Exception e) {e.printStackTrace();}
         }
-        catch (Exception e) {e.printStackTrace();}
+        catch (Exception e) {
 
-        //qui ora prima di chiudere invio i dati al client
-        try {
-            int flag = 0;//flag per far terminare la scrittura dei dati nel caso il client chiuda la connessione anche se verra sollevata una eccezione
-            while((flag = channel.write(ByteBuffer.wrap(Dati.getAnswer()))) != Dati.getIdxAnswer() && flag != -1);
+            e.printStackTrace();
+
+            //caso in cui viene sollevata un eccezione in uno dei metodi che elaborano la risposta al client
+            WriteErrorOrWinOrSuggestionMessage(Dati, "", -10, "");
+            try {SendDataToClient(channel);}
+            catch (Exception ee) {ee.printStackTrace();}
         }
-        catch (Exception e) {e.printStackTrace();}
+
     }
 
     //Metodi privati usati per costruire la risposta corretta
+    private void SendAndRicevereSecurityData(StringTokenizer Tok, PkjData dati) {
+
+        long C = Long.parseLong(Tok.nextToken(" ").replace(":", ""));//recupero il dato del client
+
+        //calcolo S per il protocollo DH
+        long S = Compute_S(dataConfig.getG(), dataConfig.getP());
+        long keySecurity = (long) Math.pow(C, s) % dataConfig.getP();
+
+        SecurityKeys.put((Integer) Key.attachment(), new BigInteger(String.valueOf(keySecurity)));
+        System.out.println("Dati che mando " + S);
+        System.out.println("Dati che ricevo " + C);
+        System.out.println(keySecurity + " Chiave di sicurezza");
+        WriteErrorOrWinOrSuggestionMessage(dati, "", 1, String.valueOf(S));
+    }
     private void SendTimeWordMethod(StringTokenizer Tok, PkjData dati) {
 
         String username = null;
@@ -197,7 +225,7 @@ public class Work implements Runnable {
         if(u != null && !u.getLogin((Integer) Key.attachment())) {
             WriteErrorOrWinOrSuggestionMessage(dati, "", -1, "");
         }
-        else {
+        else if(u != null) {
             //controllo se l utente in questo momento sta giocando
             if(Gioco.IsInGame(username)){
                 GameUtente = u.getGame() - 1;
@@ -216,9 +244,10 @@ public class Work implements Runnable {
             int [] TmpGuessDistrib = u.getGuesDistribuition();
             for(int i = 0; i<12; i++) {answer = answer.concat("Vinte in " + (i+1) + " tentativi == " + Integer.toString(TmpGuessDistrib[i]) + "\n");}
 
-            System.out.println(answer);
+            System.out.println(answer);//stampa che poi va eliminata
             WriteErrorOrWinOrSuggestionMessage(dati, "", 0, answer);
         }
+        else WriteErrorOrWinOrSuggestionMessage(dati, "", -1, "");//se u non è registrato
     }
     private void SendWordMethod(StringTokenizer Tok, PkjData dati) {
 
@@ -541,17 +570,17 @@ public class Work implements Runnable {
     private void WriteErrorOrWinOrSuggestionMessage(PkjData dati, String method, int error, String Other) {
 
         int lendati = method.length() + Other.length();//lunghezza dei dati
-        dati.allocAnswer(lendati + 8 );//lunghezza dei dati + 4 byte per contenere la lunghezza del messaggio e l'intero finale che indica lo stato dell operazione
+        dati.allocAnswer(lendati + 8 );//lunghezza dei dati + 4 byte per contenere la lunghezza del messaggio e 4 per l'intero finale che indica lo stato dell operazione
         ByteArrayOutputStream SupportOut = new ByteArrayOutputStream();
 
         try (DataOutputStream OutWriter = new DataOutputStream(SupportOut)){
 
             OutWriter.writeInt(lendati + 8);
-            OutWriter.writeChars(method);
-            OutWriter.writeInt(error);
-            OutWriter.writeInt(Other.length());
-            OutWriter.writeChars(Other);
-            dati.SetAnswer(SupportOut.toByteArray());
+            OutWriter.writeChars(method);//nome dell eventiale nome del metodo anche se non usato (tipicamente stringa vuota)
+            OutWriter.writeInt(error);//scrivo l intero che indica il tipo di operazione
+            OutWriter.writeInt(Other.length());//scrivo lunghezza di eventuali dati aggiuntivi
+            OutWriter.writeChars(Other);//scrivo i dati
+            dati.SetAnswer(SupportOut.toByteArray());//inserisco i byte scitti nell pacchetto dati da inviare
 
         }
         catch (Exception e) {e.printStackTrace();}
@@ -607,6 +636,21 @@ public class Work implements Runnable {
                 CheckChars(UWchar, Lettera, GWchar, idx += 1, idxlettera, terminazione, consigli, trovata);
             }
         }
+    }
+    private long Compute_S(int g, int p) {
+
+        Random rnd = new Random();
+        s = 0;
+        s = rnd.nextInt((p-1) - 2) + 2;
+        System.out.println(s + " s piccolo");
+        return (long )Math.pow(g, s) % p;
+
+    }
+    private void SendDataToClient(SocketChannel channel) throws Exception {
+
+        int flag = 0;//flag per far terminare la scrittura dei dati nel caso il client chiuda la connessione anche se verra sollevata una eccezione
+        while((flag = channel.write(ByteBuffer.wrap(Dati.getAnswer()))) != Dati.getIdxAnswer() && flag != -1);
+
     }
     private long CalculateTime(long currentW, long nextW) {
         return (nextW - ( System.currentTimeMillis() - currentW));

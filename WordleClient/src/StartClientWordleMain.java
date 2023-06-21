@@ -1,4 +1,5 @@
 import java.io.File;
+import java.math.BigInteger;
 import java.util.ArrayList;
 
 public class StartClientWordleMain {
@@ -7,6 +8,22 @@ public class StartClientWordleMain {
      * Comincio con l implementazione corretta del client in modo da poter testare correttamente il server
      *
      */
+    private static boolean IsGenerator(Integer g, Integer p) {
+
+        for (int i = 1; i < p - 1; i++) {
+            int result = (int) Math.pow(g, i) % p;
+            if (result == 1) {return false;}
+        }
+        return true;
+    }
+    private static boolean CheckPG(Integer p, Integer g) {
+
+        BigInteger Pbig = new BigInteger(String.valueOf(p));
+        if(Pbig.isProbablePrime(10)) {//uso una precisione di 10 in modo che P sia primo con probabilità 1 - (1/4)^10
+            return IsGenerator(g, p);
+        }
+        return false;
+    }
     private static void SetDefaultData(GetDataConfig data) {
 
         data.setIP_Multicast("239.0.0.1");
@@ -14,6 +31,8 @@ public class StartClientWordleMain {
         data.setPort_Multicast(5240);
         data.setPort_ListeningSocket(6501);
         data.setIP_server("localhost");
+        data.setG(2);
+        data.setP(13);
 
     }
    // private static final int portRMI = 6500;
@@ -45,8 +64,13 @@ public class StartClientWordleMain {
             }
             ArrayList<Suggerimenti> SuggQueue = new ArrayList<>();//struttura dati per memorizzare le condivisioni degli utenti
 
-            StartLoginRegistrazione game = new StartLoginRegistrazione(dataConfig.getIP_server(), dataConfig.getPort_ListeningSocket()
-                                            , dataConfig.getIP_Multicast(), dataConfig.getPort_Multicast(), dataConfig.getPortExport(), SuggQueue);
+
+              //controllo se P e G recuperati dal file di config sono corretti per lo scambio della chiave si sessione
+            if(!CheckPG(dataConfig.getP(), dataConfig.getG())) {//in caso non siano corretti uso i vaoli di default
+               dataConfig.setG(2);
+               dataConfig.setP(13);
+            }
+            StartLoginRegistrazione game = new StartLoginRegistrazione(dataConfig, SuggQueue);
             /*
             ImplementazioneNotificaClient notifica = null;
             Registrazione servizio = null;

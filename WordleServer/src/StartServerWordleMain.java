@@ -3,6 +3,7 @@
 //server ad ogni riavvio del server
 
 import java.io.*;
+import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Set;
@@ -17,6 +18,23 @@ import java.util.concurrent.TimeUnit;
 public class StartServerWordleMain {
 
     private static final String PathStart = "../"; //Path della dir da cui cominciare la ricerca del file
+
+    private static boolean IsGenerator(Integer g, Integer p) {
+
+        for (int i = 1; i < p - 1; i++) {
+            int result = (int) Math.pow(g, i) % p;
+            if (result == 1) {return false;}
+        }
+        return true;
+    }
+    private static boolean CheckPG(Integer p, Integer g) {
+
+        BigInteger Pbig = new BigInteger(String.valueOf(p));
+        if(Pbig.isProbablePrime(10)) {//uso una precisione di 10 in modo che P sia primo con probabilità 1 - (1/4)^10
+            return IsGenerator(g, p);
+        }
+        return false;
+    }
     private static void SetDefaultData(GetDataConfig data) {
 
         data.setIP_Multicast("239.0.0.1");
@@ -30,6 +48,8 @@ public class StartServerWordleMain {
         data.setPort_ListeningSocket(6501);
         data.setIP_server("localhost");
         data.setPathVocabolario("../vocabolario.txt");
+        data.setG(2);
+        data.setP(13);
 
     }
     public static void main(String [] args) {
@@ -69,8 +89,10 @@ public class StartServerWordleMain {
             //in questo caso aggiungo all oggetto ConfigureData i dati di default per il server
             SetDefaultData(ConfigureData);
         }
-        //a questo punto ho recuperato le prima info di configurazione
-        //tali info le passo al server per l'elaborazione
+        if(!CheckPG(ConfigureData.getP(), ConfigureData.getG())) {//in caso non siano corretti uso i vaoli di default
+            ConfigureData.setG(2);
+            ConfigureData.setP(13);
+        }
 
         //prima di istanziare il server leggo il vocabolario e lo inserisco in una struttura dati opportuna
         ArrayList<String> vocabolario = ConfigureData.getVocabolario();

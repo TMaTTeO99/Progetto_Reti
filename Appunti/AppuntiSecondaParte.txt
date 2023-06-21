@@ -490,8 +490,12 @@ Giorno 41)	Riprendo da dove ero arrivato ieri con il problema dei dati condivisi
 		3) implementare la cifratura dei dati
 		4) Far si che sul file json i dati vengano salvati non in chiaro
 		5) Aggiunge i carrellli laterali ai panel del client
-		6) Testare, per farlo dovrei creare un client che prenda l input da terminale
+		6) Devo anche aggiungere il fatto di poter fare usare il tasto invio
+		7) Testare, per farlo dovrei creare un client che prenda l input da terminale
+		8) Cominciare a scrivere la relazione.
 		
+		DOMANI COMINCIO DA CLIENT TESTUALE
+		Domani faccio tutto.
 
 
 
@@ -499,9 +503,120 @@ Giorno 41)	Riprendo da dove ero arrivato ieri con il problema dei dati condivisi
 
 
 
+Giorno 42)	Riprendo da dove ero arrivato ieri::
+		Lista cose da fare: 
+		1) controllare perche a volte la traduzione della parola non funziona bene
+		2) implementare la terminazione del server
+		3) implementare la cifratura dei dati
+		4) Far si che sul file json i dati vengano salvati non in chiaro
+		5) Aggiunge i carrellli laterali ai panel del client
+		6) Devo anche aggiungere il fatto di poter fare usare il tasto invio
+		7) Testare, per farlo dovrei creare un client che prenda l input da terminale
+		8) Cominciare a scrivere la relazione.
+		
+		implemento un client per testare::
+		
+		Siccome lo scopo è solo testare il server, quello che devo fare è::
+		
+		Fare molte operazioni in contemporanea, fra queste devo fare::
+			a) registrazione
+			b) login
+			c) fare tasto gioca
+			d) inviare parola
+			e) condividere i risultati
+			f) visualizzare la classifica
+			g) farmi inviare la classifica
+			h) farmi inviare le statistiche
+			Devo fare in modo che le operazioni siano anche fatte male per essere sicuro che
+			funzioni tutto::
+			
+			Ogni risultato deve essere scritto in un file, devo lanciare piu client in contemporanea che facciano tutto
+			:: comincio
+			
+			
+			pattern per testare ::
+			1) 	1 sdd Matt99 dapperness
+			2) 	2 ww ww dasypaedal
+			3) 	3 as as
 
+			Comincio con questi e poi faccio gli altri due
+				
+			
+			*********************** Attenzione ***********************
 
-
-
+			Trovato bug lato server nel metodo che invia le statistiche, devo controllarer meglio se u != null
+			alrimenti puo saltare tutto :. fatto
+			
+			
+			Trovato altro bug, quando invio la risposta al client devo controllare l eccezione, se viene sollevata
+			devo inviare un merssaggio di errore al client:: va sistemato
+ 	
+ 			In generale sembra reggere bene quindi sono abbasta contento, mi ha abbastanza convinto, devo controllare ora quel fatto
+ 			della risposta, domani inventare qualche altro test, e poi continuare con i task
+ 			Cominciare domani dalla traduzione della parola
  
+-------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+Giorno 43)	Ricomincio da dove ero arrivato ieri:
+			
+			Trovato bug lato server nel metodo che invia le statistiche, devo controllarer meglio se u != null
+			alrimenti puo saltare tutto :. Fatto,  credo che tale bug saltasse fuori perche facevo una richiesta di statistiche
+			con un utente non iscirtto :::: ok avevo ragione mi sa....
+			
+			
+			Trovato altro bug, quando invio la risposta al client devo controllare l eccezione, se viene sollevata
+			devo inviare un merssaggio di errore al client, va sistemato::
+			
+			Ho aggiunto un errore -10 che invia al client in caso di errore nei metodi che creano la ripsosta
+			
+			Per quanto riguarda i test sembra che vada tutto bene riguardo la concorrenza.
+			
+			FORSE c'è qualcosa che non va con l apertura del game, se accendo il server, poi passa il tempo di next word, forase 
+			non prende bene il tempo e non apre la parola nuova all apertura, mo vedo, stasera devo vedere perche non vorrei fosse una 
+			roba che non ho considerato di quando si passa da un giorno a un altro.. 
+			Sembra che l errore lo dia solo a cavallo di 2 giorni, stasera devo controllare.
+			
+
+		Lista cose da fare: 
+		1) controllare perche a volte la traduzione della parola non funziona bene
+	
+	
+		2) implementare la terminazione del server
+	
+	
+		3) implementare la cifratura dei dati :: 
+			Comincio ::
+			Devo scegliere come generare una chiave, come scambiarla e chi deve generarla e poi inviarla::
+			
+			Per poter scambiare la chiave credo che usero il protocollo DH : per farlo si devono usare 
+			1) P : numero primo molto grande 
+			2) G : generatore di Zp
+			
+			Bisogna quindi scegliere un numero primo P e un suo generatore da inserire nel file di configurazione, devo quindi
+			: 
+			1) modificare la classe dentro la mia libreria per poter recuperare i dati:: fatto(uso due numeri 2 come g e 13 come P)
+				//ricordare che nel file di config vanno usati g generatore di p e p numero primo
+				//andrebbero controllati prima di usarli.
+				Fatto
+			2) Ora che ho recuperato i dati dal file di config correttamente
+			3) devo eseguire Il protocollo DH :: Fatto
+			4) Devo ora usare le chiave per cifrare i dati con AES :: 
+		
+	
+		4) Far si che sul file json i dati vengano salvati non in chiaro
+		
+		
+		5) Aggiunge i carrelli laterali ai panel del client :: Fatto
+		
+		6) Devo anche aggiungere il fatto di poter fare usare il tasto invio :: fatto.
+		
+		7) Testare, per farlo dovrei creare un client che prenda l input da terminale :: fatto
+		
+		
+		8) Cominciare a scrivere la relazione.
+
+
+
 -------------------------------------------------------------------------------------------------------------------------------------------

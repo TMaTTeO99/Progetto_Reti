@@ -35,14 +35,16 @@ public class StartGame extends JFrame {
     private MulticastSocket sockMulticast;
     private InetSocketAddress addressMulticat;
     private Thread multiCastThread;//thread usato per recuperare le condivisioni dagli utenti
-    public StartGame(String IP_srv, int Port_list, String IP_Mltc, int Port_Mltc, int PrtRMI, Socket sck,
+    private GetDataConfig dataConfig;
+    public StartGame(GetDataConfig dataCon, Socket sck,
                      String usrname, Registrazione srv, ArrayList<Suggerimenti> SuggQueue) throws Exception{
 
-        IP_server = IP_srv;
-        Port_listening = Port_list;
-        IP_Multicast = IP_Mltc;
-        Port_Multicast = Port_Mltc;
-        PortRMI = PrtRMI;
+        dataConfig = dataCon;
+        IP_server = dataConfig.getIP_server();;
+        Port_listening = dataConfig.getPort_ListeningSocket();
+        IP_Multicast = dataConfig.getIP_Multicast();
+        Port_Multicast = dataConfig.getPort_Multicast();
+        PortRMI = dataConfig.getPortExport();
         socket = sck;
         usernamelogin = usrname;
         servizio = srv;
@@ -148,21 +150,24 @@ public class StartGame extends JFrame {
 
                             JFrame seePodio = new JFrame("CLASSIFICA");
                             seePodio.setLayout(new BorderLayout());
-                            seePodio.setLocation(new Point(300, 300));
+                            seePodio.setLocation(new Point(800, 300));
 
                             JTextArea info = new JTextArea();
                             info.setEditable(false);
                             JScrollPane scrll = new JScrollPane(info);
 
-                            info.append(ReadData(pckage.getInn()));
 
-                            seePodio.add(info, BorderLayout.CENTER);
-                            seePodio.setSize(200, 200);
+                            seePodio.add(scrll, BorderLayout.CENTER);
+                            info.append(ReadData(pckage.getInn()));
+                            seePodio.setSize(250, 300);
                             seePodio.setVisible(true);
 
                             break;
                         case -1:
                             JOptionPane.showMessageDialog(null, "Errore. Impossibile visualizzare la classifica");
+                            break;
+                        case -10:
+                            JOptionPane.showMessageDialog(null, "Errore server");
                             break;
                     }
                 }
@@ -214,6 +219,9 @@ public class StartGame extends JFrame {
                         case -3 :
                             JOptionPane.showMessageDialog(null, "Errore. Utente non ha effettuato il login");
                             break;
+                        case -10:
+                            JOptionPane.showMessageDialog(null, "Errore server");
+                            break;
                     }
                 }
                 catch (Exception e) {e.printStackTrace();}
@@ -230,9 +238,11 @@ public class StartGame extends JFrame {
             @Override
             protected Void doInBackground() throws Exception {
 
-                //cerco di estrarre dalla coda finche la cosa è piena
-                Suggerimenti datiCondivisi = null;
                 JFrame shareFrame = new JFrame("SUGGERIMENTI CONDIVISI");
+                JPanel main = new JPanel();
+
+                main.setLayout(new BoxLayout(main, BoxLayout.Y_AXIS));
+
                 shareFrame.setLayout(new BoxLayout(shareFrame.getContentPane(), BoxLayout.Y_AXIS));
                 shareFrame.setLocation(new Point(300, 300));
 
@@ -247,10 +257,13 @@ public class StartGame extends JFrame {
                         while(i < SuggerimentiQueue.size()) {
 
                             //qui devo trovare il modo di visualizzare i suggerimenti in un unico panel
-                            shareFrame.add(MakeAllSuggestionsPanel(SuggerimentiQueue.get(i)));
+                            main.add(MakeAllSuggestionsPanel(SuggerimentiQueue.get(i)));
                             i++;
                         }
 
+                        JScrollPane scrollBar = new JScrollPane(main);
+                        scrollBar.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_ALWAYS);
+                        shareFrame.setContentPane(scrollBar);
                         shareFrame.setSize(200, 200);
                         shareFrame.setVisible(true);
                     }
@@ -420,7 +433,7 @@ public class StartGame extends JFrame {
 
                             StopCaptureUDPMessages();//metodo privato per la terminazione del thread
                             dispose();//elimino il frame corrente
-                            new StartLoginRegistrazione(IP_server, Port_listening, IP_Multicast, Port_Multicast, PortRMI, SuggerimentiQueue);
+                            new StartLoginRegistrazione(dataConfig, SuggerimentiQueue);
                             break;
                         case -1:
                             JOptionPane.showMessageDialog(null, "Errore. Username inserito non corretto");
@@ -433,6 +446,9 @@ public class StartGame extends JFrame {
                             break;
                         case -4:
                             JOptionPane.showMessageDialog(null, "Errore");
+                            break;
+                        case -10:
+                            JOptionPane.showMessageDialog(null, "Errore server");
                             break;
                     }
                 }
@@ -491,6 +507,9 @@ public class StartGame extends JFrame {
                             break;
                         case -4:
                             JOptionPane.showMessageDialog(null, "ERROE.");
+                            break;
+                        case -10:
+                            JOptionPane.showMessageDialog(null, "Errore server");
                             break;
                     }
                 }
@@ -589,6 +608,9 @@ public class StartGame extends JFrame {
                             break;
                         case -7 :
                             JOptionPane.showMessageDialog(null, "Errore");
+                            break;
+                        case -10:
+                            JOptionPane.showMessageDialog(null, "Errore server");
                             break;
                     }
                 }
@@ -702,6 +724,7 @@ public class StartGame extends JFrame {
         return panelShare;
     }
     private JPanel makePanelShowMeRanking(JButton ShowMeRancking) {
+
 
         JPanel panelShowRanking = new JPanel();
         panelShowRanking.setPreferredSize(new Dimension(20, 20));
