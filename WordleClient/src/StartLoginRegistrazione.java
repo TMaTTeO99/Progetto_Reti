@@ -29,9 +29,9 @@ public class StartLoginRegistrazione extends JFrame {
     private int PortRMI;
     private ArrayList<Suggerimenti> SuggerimentiQueue;
     private GetDataConfig dataConfig;
-    private long SecurityKey;//chiave di sessione
-    private int c;//variabiile che conterra intero random usato per il protocollo DH
-    public StartLoginRegistrazione(GetDataConfig dataCon, ArrayList<Suggerimenti> SuggQueue) throws Exception {
+    private String SecurityKey;//chiave di sessione
+    private int ID_Channel;
+    public StartLoginRegistrazione(GetDataConfig dataCon, ArrayList<Suggerimenti> SuggQueue, int ID) throws Exception {
 
         //recupero all inetrno delle var di istanza le info che servono al client
         dataConfig = dataCon;
@@ -57,7 +57,7 @@ public class StartLoginRegistrazione extends JFrame {
 
 
         //-------------------------------------------------------------------------------------------//
-
+        System.out.println("G: " + dataConfig.getG() + " " + "p: " + dataConfig.getP());
         //invio al server C
         if(!SendAndRicevereSecurityData()) {
             //qui in caso di fallimento di comunicazione con il server chiudo il client con un messaggio
@@ -190,8 +190,14 @@ public class StartLoginRegistrazione extends JFrame {
                 try {
                     DataOutputStream ou = new DataOutputStream(new BufferedOutputStream(socket.getOutputStream()));
                     DataInputStream inn = new DataInputStream(new BufferedInputStream(socket.getInputStream()));
-                    ou.writeInt((("login:"+ usernamelogin + " " + pass).length())*2);
-                    ou.writeChars("login:" + usernamelogin + " " + pass);
+
+                    //cifro i dati
+                    byte [] d = SecurityClass.encrypt(usernamelogin + " " + pass, SecurityKey);
+
+
+                    ou.writeInt(d.length + ("login:".length() * 2));
+                    ou.writeChars("login:");
+                    ou.write(d, 0, d.length);
                     ou.flush();
                     inn.readInt(); //scarto la len del messaggio
                     returnvalue = inn.readInt();//recupero il valore di ritorno dal server
@@ -212,7 +218,7 @@ public class StartLoginRegistrazione extends JFrame {
                         case 0 ://caso in cui l utente ha effettuato il login con successo.
 
                             dispose();// Chiudo il frame corrente
-                            new StartGame(dataConfig, socket, usernamelogin, servizio, SuggerimentiQueue);
+                            new StartGame(dataConfig, socket, usernamelogin, servizio, SuggerimentiQueue, ID_Channel);
                             break;
                         case -1 :
                             JOptionPane.showMessageDialog(null, "Errore. Per partecipare al gioco bisogna prima essere iscritti");
@@ -250,9 +256,13 @@ public class StartLoginRegistrazione extends JFrame {
 
                     String user = TextFieldUserRegistra.getText();
                     String pass = new String(TextFieldPassRegistra.getText());
-                    //Registrazione servizio = (Registrazione) LocateRegistry.getRegistry(6500).lookup("Registrazione");
 
-                    return servizio.registra(user, pass);
+                    //cifro i dati
+                    byte [] usernameByte = SecurityClass.encrypt(user, SecurityKey);
+                    byte [] passwdByte = SecurityClass.encrypt(pass, SecurityKey);
+
+                    return servizio.registra(usernameByte, passwdByte, ID_Channel);
+
                 }
                 catch (Exception exce) {exce.printStackTrace();}
                 return null;
@@ -299,22 +309,13 @@ public class StartLoginRegistrazione extends JFrame {
         // Avvio il worker
         worker.execute();
     }
-    private long Compute_C(int g, int p) {
-
-        Random rnd = new Random();
-        c = 0;
-        c = rnd.nextInt((p-1) - 2) + 2;
-        System.out.println(c + " c piccolo");
-        return (long )Math.pow(g, c) % p;
-
-    }
     private boolean SendAndRicevereSecurityData() {
 
-        int flag = 0, lendata = 0;
+        int flag = 0, lendata = 0, c = -1;
         String nameMethod = "dataforkey:";
 
         //calcolo C per il protocollo DH
-        long C = Compute_C(dataConfig.getG(), dataConfig.getP());
+        long C = SecurityClass.Compute_C(dataConfig.getG(), dataConfig.getP());
         long S = 0;
 
         try{
@@ -326,8 +327,10 @@ public class StartLoginRegistrazione extends JFrame {
             ou.writeChars("dataforkey:"+C);
             ou.flush();
             in.readInt(); //scarto la len del messaggio
-            flag = in.readInt();
+            ID_Channel = in.readInt();//recupero l'id da usare per la registrazione
+            System.out.println(ID_Channel + " iD channel che ricevo");
 
+            flag = in.readInt();
             if(flag != 0) {
 
                 String key = ReadData(in);
@@ -343,7 +346,13 @@ public class StartLoginRegistrazione extends JFrame {
             e.printStackTrace();
             return false;
         }
-        SecurityKey = (long) Math.pow(S, c) % dataConfig.getP();
+        try {c = SecurityClass.getSecret();}
+        catch (NullPointerException e) {
+            e.printStackTrace();
+            return false;
+        }
+        SecurityKey = Long.toBinaryString(SecurityClass.powInModulo(S, c, dataConfig.getP()));
+        while(SecurityKey.length() < 16){SecurityKey += '0';}//se la chiave è < 128 bit faccio pudding
         return true;
     }
     private String ReadData(DataInputStream inn) {
@@ -362,6 +371,24 @@ public class StartLoginRegistrazione extends JFrame {
             return null;
         }
         return new String(data);
+    }
+    private byte [] ReadDataByte(DataInputStream inn) {
+
+        byte [] data = null;
+        try {
+            int read = 0, len = inn.readInt();
+            System.out.println(len + " <-- len dei dati che arrivano");
+            data = new byte[len];
+            while(read < len) {
+                data[read] = inn.readByte();
+                read++;
+            }
+        }
+        catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+        return data;
     }
 
     /*Da capire bene a cosa serve questa cosa

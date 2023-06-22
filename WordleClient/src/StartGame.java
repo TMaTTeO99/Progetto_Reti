@@ -36,8 +36,9 @@ public class StartGame extends JFrame {
     private InetSocketAddress addressMulticat;
     private Thread multiCastThread;//thread usato per recuperare le condivisioni dagli utenti
     private GetDataConfig dataConfig;
+    private int ID_Channel;
     public StartGame(GetDataConfig dataCon, Socket sck,
-                     String usrname, Registrazione srv, ArrayList<Suggerimenti> SuggQueue) throws Exception{
+                     String usrname, Registrazione srv, ArrayList<Suggerimenti> SuggQueue, int ID) throws Exception{
 
         dataConfig = dataCon;
         IP_server = dataConfig.getIP_server();;
@@ -49,6 +50,7 @@ public class StartGame extends JFrame {
         usernamelogin = usrname;
         servizio = srv;
         SuggerimentiQueue = SuggQueue;
+        ID_Channel = ID;
 
         //Mi registro per il servizio di notifica
         notifica = new ImplementazioneNotificaClient(Classifica);
@@ -433,7 +435,7 @@ public class StartGame extends JFrame {
 
                             StopCaptureUDPMessages();//metodo privato per la terminazione del thread
                             dispose();//elimino il frame corrente
-                            new StartLoginRegistrazione(dataConfig, SuggerimentiQueue);
+                            new StartLoginRegistrazione(dataConfig, SuggerimentiQueue, ID_Channel);
                             break;
                         case -1:
                             JOptionPane.showMessageDialog(null, "Errore. Username inserito non corretto");

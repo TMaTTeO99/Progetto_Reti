@@ -1,6 +1,7 @@
 import java.rmi.RemoteException;
 import java.rmi.server.RemoteServer;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.locks.Lock;
@@ -11,28 +12,36 @@ public class ImlementazioneRegistrazione extends RemoteServer implements Registr
     private Lock LockClassifcaWrite;//lock per per la classifica in scrittura
     private Lock LockClassifcaRead;//lock per per la classifica in lettura
     private ArrayList<UserValoreClassifica> Classifica;
+    private HashMap<Integer, String> SecurityKeys;//hashmap di chiavi di sessione
 
     public ImlementazioneRegistrazione(ConcurrentHashMap<String, Utente> R, LinkedBlockingDeque<DataToSerialize> Lst,
-                                       ArrayList<UserValoreClassifica> Clss, Lock LckClss, Lock LckClassRd) {
+                                       ArrayList<UserValoreClassifica> Clss, Lock LckClss, Lock LckClassRd, HashMap<Integer, String> ScrtKeys) {
         Registrati = R;
         DaSerializzare = Lst;
         Classifica = Clss;
         LockClassifcaWrite = LckClss;
         LockClassifcaRead = LckClassRd;
+        SecurityKeys = ScrtKeys;
     }
-    public int registra(String username, String passwd) throws RemoteException {
+    public int registra(byte [] username, byte [] passwd, int ID) throws RemoteException {
 
         int flag_Passwd = Integer.MAX_VALUE;//MAX_VALUE valore di inizializzazione
+        String key = SecurityKeys.get(ID);
+
+        //decifro i dati
+
+        String usnameString = SecurityClass.decrypt(username, key);
+        String passString = SecurityClass.decrypt(passwd, key);
 
         //caso in cui il client ha inserito dati non corretti
-        if((flag_Passwd = ChckInput(username, passwd)) != 0)return flag_Passwd;
+        if((flag_Passwd = ChckInput(usnameString, passString)) != 0)return flag_Passwd;
 
         try {
-            if(Registrati.putIfAbsent(username, new Utente(username, passwd)) == null) {
-                DaSerializzare.put(new DataToSerialize(username, 'N'));//il char N indica che sta per arrivare un username
+            if(Registrati.putIfAbsent(usnameString, new Utente(usnameString, passString)) == null) {
+                DaSerializzare.put(new DataToSerialize(usnameString, 'N'));//il char N indica che sta per arrivare un username
 
                 LockClassifcaWrite.lock();
-                    Classifica.add(new UserValoreClassifica(username, 0));//inserisco in classifica l utente appena registrato con score 0
+                    Classifica.add(new UserValoreClassifica(usnameString, 0));//inserisco in classifica l utente appena registrato con score 0
                 LockClassifcaWrite.unlock();
 
                 LockClassifcaRead.lock();

@@ -53,7 +53,7 @@ public class ServerWordle{
     private int PortMulticast, Port_Listening;
     private String IP_multicast;
     private GetDataConfig dataConfig;
-    private HashMap<Integer, BigInteger> SecurityKeys = new HashMap<>();//struttura dati che conterrà le chiavi di sicurezza associate alle connessioni
+    private HashMap<Integer, String> SecurityKeys = new HashMap<>();//struttura dati che conterrà le chiavi di sicurezza associate alle connessioni
 
     public ServerWordle(ArrayList<String> Vocabolario, GetDataConfig dataConf) throws Exception{
 
@@ -78,7 +78,7 @@ public class ServerWordle{
 
         pool = (ThreadPoolExecutor) Executors.newFixedThreadPool(dataConfig.getMaxThread());//pool di thread per eseguire i diversi task
 
-        ObjEsportato = new ImlementazioneRegistrazione(Registrati, DaSerializzare, Classifica, WriteLockClassifca, ReadLockClassifica);//creo l' oggetto da esportare
+        ObjEsportato = new ImlementazioneRegistrazione(Registrati, DaSerializzare, Classifica, WriteLockClassifca, ReadLockClassifica, SecurityKeys);//creo l' oggetto da esportare
         Skeleton = (Registrazione) UnicastRemoteObject.exportObject(ObjEsportato, 0);
         RegistroRMI = LocateRegistry.createRegistry(dataConfig.getPortExport());
         RegistroRMI.bind("Registrazione", Skeleton);

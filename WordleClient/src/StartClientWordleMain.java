@@ -70,7 +70,7 @@ public class StartClientWordleMain {
                dataConfig.setG(2);
                dataConfig.setP(13);
             }
-            StartLoginRegistrazione game = new StartLoginRegistrazione(dataConfig, SuggQueue);
+            StartLoginRegistrazione game = new StartLoginRegistrazione(dataConfig, SuggQueue, -1);
             /*
             ImplementazioneNotificaClient notifica = null;
             Registrazione servizio = null;

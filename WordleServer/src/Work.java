@@ -1,5 +1,4 @@
 import java.io.*;
-import java.math.BigInteger;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetSocketAddress;
@@ -26,12 +25,10 @@ public class Work implements Runnable {
     private Lock WriteLockClassifica;//writelock per l istanza della classifica
     private InetSocketAddress AddressMulticastClients;//InetSocketaddress usato per inviare ai client del gruppo multicast i tentativi
     private GetDataConfig dataConfig;
-    private HashMap<Integer, BigInteger> SecurityKeys;
-    private int s;//variabile usata per creare la chiave per il protocollo DH
+    private HashMap<Integer, String> SecurityKeys;
     public Work(SelectionKey k, ConcurrentHashMap<String, Utente> R, PkjData dati, ArrayList<String> Vocabolario,
                 SessioneWordle g, Lock RWLock, LinkedBlockingDeque<DataToSerialize> daserializzare, ArrayList<UserValoreClassifica> Clss,
-                Lock RDLock, Lock WRLock, String IPMulticast, int PortMulticast, GetDataConfig dataConf, HashMap<Integer, BigInteger> ScrtyKeys) {
-
+                Lock RDLock, Lock WRLock, String IPMulticast, int PortMulticast, GetDataConfig dataConf, HashMap<Integer, String> ScrtyKeys) {
 
         dataConfig = dataConf;
         Key = k;
@@ -46,21 +43,27 @@ public class Work implements Runnable {
         WriteLockClassifica = WRLock;
         AddressMulticastClients = new InetSocketAddress(IPMulticast, PortMulticast);
         SecurityKeys = ScrtyKeys;
+
     }
     public void run() {
 
         SocketChannel channel = (SocketChannel) Key.channel();//recupero il channel
 
         try {
-
             //recupero il token e il metodo della richiesta
             StringTokenizer Tok = new StringTokenizer(new String(Dati.getRequest(), StandardCharsets.UTF_16), ":");
             String Method = Tok.nextToken();//recupero l'operazione che il client ha richiesto
 
+            //in tutti gli altri casi prima di accedere ai metodi per produrre la risposta vanno
+            //prima decifrati i dati
+
             switch (Method) {
 
                 case "login" :
-                    LoginMethod(Tok, Dati);
+
+                    StringTokenizer newTok = new StringTokenizer(GetDatiCifreati(("login:".length() * 2), Dati), ":");
+                    LoginMethod(newTok, Dati);
+
                     break;
                 case "logout" :
                     LogoutMethod(Tok, Dati);
@@ -83,7 +86,7 @@ public class Work implements Runnable {
                 case "TimeNextWord":
                     SendTimeWordMethod(Tok, Dati);
                     break;
-                case "dataforkey":
+                case "dataforkey"://in questo caso i dati non sono cifrati perche ancora si sta creando la key
                     SendAndRicevereSecurityData(Tok, Dati);
                     break;
             }
@@ -96,7 +99,7 @@ public class Work implements Runnable {
             e.printStackTrace();
 
             //caso in cui viene sollevata un eccezione in uno dei metodi che elaborano la risposta al client
-            WriteErrorOrWinOrSuggestionMessage(Dati, "", -10, "");
+            Write_No_Cipher(Dati, "", -10, "");
             try {SendDataToClient(channel);}
             catch (Exception ee) {ee.printStackTrace();}
         }
@@ -107,16 +110,55 @@ public class Work implements Runnable {
     private void SendAndRicevereSecurityData(StringTokenizer Tok, PkjData dati) {
 
         long C = Long.parseLong(Tok.nextToken(" ").replace(":", ""));//recupero il dato del client
-
+        int s = -1;
         //calcolo S per il protocollo DH
-        long S = Compute_S(dataConfig.getG(), dataConfig.getP());
-        long keySecurity = (long) Math.pow(C, s) % dataConfig.getP();
+        long S = SecurityClass.Compute_C(dataConfig.getG(), dataConfig.getP());
+        try {
+            s = SecurityClass.getSecret();
+            String keySecurity = Long.toBinaryString(SecurityClass.powInModulo(C, s, dataConfig.getP()));
+            while(keySecurity.length() < 16){keySecurity += '0';}//se la chiave è < 128 bit faccio pudding
+            SecurityKeys.put((Integer) Key.attachment(), keySecurity);
 
-        SecurityKeys.put((Integer) Key.attachment(), new BigInteger(String.valueOf(keySecurity)));
-        System.out.println("Dati che mando " + S);
-        System.out.println("Dati che ricevo " + C);
-        System.out.println(keySecurity + " Chiave di sicurezza");
-        WriteErrorOrWinOrSuggestionMessage(dati, "", 1, String.valueOf(S));
+            //System.out.println("G: " + dataConfig.getG() + " " + "p: " + dataConfig.getP());
+            //System.out.println("Dati che mando " + S);
+            //System.out.println("Dati che ricevo " + C);
+            //System.out.println(keySecurity + " Chiave di sicurezza");
+            //al posto di questo metodo devo usare un altro metodo per inviare i dati al client
+
+            //Write_No_Cipher(dati, String.valueOf((Integer) Key.attachment()), 1, String.valueOf(S));
+
+
+            //*****************************************************************
+
+            /**
+             *
+             queste istruzioni devono essere messe in un metodo specifico
+             in modo da poter inviare risposte di errore per l attuale metodo
+             */
+
+            String String_S = String.valueOf(S);
+            int lendati = String_S.length();//lunghezza dei dati
+            dati.allocAnswer(lendati + 12 );//lunghezza dei dati + 4 byte per contenere la lunghezza del messaggio ,4 per l'intero finale che indica lo stato dell operazione e 4 per l ID del channel
+
+            ByteArrayOutputStream SupportOut = new ByteArrayOutputStream();
+            try (DataOutputStream OutWriter = new DataOutputStream(SupportOut)){
+
+                OutWriter.writeInt(lendati + 8);
+                OutWriter.writeInt((Integer) Key.attachment());
+                OutWriter.writeInt(1);//scrivo l intero che indica il tipo di operazione
+                OutWriter.writeInt(String_S.length());//scrivo lunghezza di eventuali dati aggiuntivi
+                OutWriter.writeChars(String_S);//scrivo i dati
+                dati.SetAnswer(SupportOut.toByteArray());//inserisco i byte scitti nell pacchetto dati da inviare
+            }
+            catch (Exception e){e.printStackTrace();}
+
+            //*****************************************************************
+
+        }
+        catch (NullPointerException e) {
+            e.printStackTrace();
+            Write_No_Cipher(dati, "", 0, "");
+        }
     }
     private void SendTimeWordMethod(StringTokenizer Tok, PkjData dati) {
 
@@ -134,10 +176,10 @@ public class Work implements Runnable {
             //metodo privato per effettuare il calcolo dell tempo di produzione della nuova parola
             long nextwClient = CalculateTime(currentW, nextW);
 
-            WriteErrorOrWinOrSuggestionMessage(dati, "", 0, Long.toString(nextwClient));
+            Write_No_Cipher(dati, "", 0, Long.toString(nextwClient));
 
         }
-        else WriteErrorOrWinOrSuggestionMessage(dati, "", -1, "");
+        else Write_No_Cipher(dati, "", -1, "");
 
     }
     private void showRankingMethod(StringTokenizer Tok, PkjData dati) {
@@ -155,9 +197,9 @@ public class Work implements Runnable {
                     answer = answer.concat("USER: " + temp.getUsername() + " SCORE: " + temp.getScore() + "\n");
                 }
             ReadLockClassifica.unlock();
-            WriteErrorOrWinOrSuggestionMessage(dati, "", 0, answer);
+            Write_No_Cipher(dati, "", 0, answer);
         }
-        else WriteErrorOrWinOrSuggestionMessage(dati, "", -1, "");
+        else Write_No_Cipher(dati, "", -1, "");
 
     }
     private void ShareMethod(StringTokenizer Tok, PkjData dati) {
@@ -192,17 +234,17 @@ public class Work implements Runnable {
                         DatagramPacket pkj = new DatagramPacket(byteAnswer, 0, byteAnswer.length, AddressMulticastClients);
                         sock.send(pkj);
 
-                        WriteErrorOrWinOrSuggestionMessage(dati, "", 0, "");
+                        Write_No_Cipher(dati, "", 0, "");
                     }
                     catch (Exception e) {e.printStackTrace();}
                 }
                 else {
-                    WriteErrorOrWinOrSuggestionMessage(dati, "", -2, "");//caso in cui l utente è ancora in gioco
+                    Write_No_Cipher(dati, "", -2, "");//caso in cui l utente è ancora in gioco
                 }
             }
-            else WriteErrorOrWinOrSuggestionMessage(dati, "", -1, "");//caso in cui l utente non ha partecipato al gioco
+            else Write_No_Cipher(dati, "", -1, "");//caso in cui l utente non ha partecipato al gioco
         }
-        else WriteErrorOrWinOrSuggestionMessage(dati, "", -3, "");//caso in cui l utente non ha effettuato il login
+        else Write_No_Cipher(dati, "", -3, "");//caso in cui l utente non ha effettuato il login
 
     }
     private void SendStatisticsMethod(StringTokenizer Tok, PkjData dati) {
@@ -223,7 +265,7 @@ public class Work implements Runnable {
 
         //utente non ha effettuato il login
         if(u != null && !u.getLogin((Integer) Key.attachment())) {
-            WriteErrorOrWinOrSuggestionMessage(dati, "", -1, "");
+            Write_No_Cipher(dati, "", -1, "");
         }
         else if(u != null) {
             //controllo se l utente in questo momento sta giocando
@@ -245,9 +287,9 @@ public class Work implements Runnable {
             for(int i = 0; i<12; i++) {answer = answer.concat("Vinte in " + (i+1) + " tentativi == " + Integer.toString(TmpGuessDistrib[i]) + "\n");}
 
             System.out.println(answer);//stampa che poi va eliminata
-            WriteErrorOrWinOrSuggestionMessage(dati, "", 0, answer);
+            Write_No_Cipher(dati, "", 0, answer);
         }
-        else WriteErrorOrWinOrSuggestionMessage(dati, "", -1, "");//se u non è registrato
+        else Write_No_Cipher(dati, "", -1, "");//se u non è registrato
     }
     private void SendWordMethod(StringTokenizer Tok, PkjData dati) {
 
@@ -269,13 +311,13 @@ public class Work implements Runnable {
 
                 switch (FlagResult) {
                     case -1 ://caso in cui l utente non ha selezionato il comando playWORDLE
-                        WriteErrorOrWinOrSuggestionMessage(dati, "", -1, "");
+                        Write_No_Cipher(dati, "", -1, "");
                         break;
                     case -2 ://caso in cui l utente ha gia giocato e ha terminato i tentativi
-                        WriteErrorOrWinOrSuggestionMessage(dati, "", -2, "");
+                        Write_No_Cipher(dati, "", -2, "");
                         break;
                     case -3 ://ha vinto la partita precedentemente
-                        WriteErrorOrWinOrSuggestionMessage(dati, "", -3, "");
+                        Write_No_Cipher(dati, "", -3, "");
                         break;
                 }
             }
@@ -326,7 +368,7 @@ public class Work implements Runnable {
                         SendSerialization('I');
 
                         //Costruisco il messaggio di parola indovinata
-                        WriteErrorOrWinOrSuggestionMessage(dati, "", 0, wordTradotta);//0 indica parola indovinata
+                        Write_No_Cipher(dati, "", 0, wordTradotta);//0 indica parola indovinata
 
                     }
                     else {
@@ -336,7 +378,7 @@ public class Work implements Runnable {
                         String suggestions = ComputeSuggestions(GameWord, word);//costruisco i suggerimenti per l utente
                         Gioco.getTentativi().get(username).getTryWord().add(suggestions);//aggiungo il tentativo alla sessione dell utente
                          if(Gioco.gettentativiUtente(username) < 12) {
-                             WriteErrorOrWinOrSuggestionMessage(dati, "", 1, suggestions);//rispondo al client
+                             Write_No_Cipher(dati, "", 1, suggestions);//rispondo al client
                          }
                          else {//se invece il client ha terminato i tentativi invio al client la traduzione della parola e serializzare la sessione di Game
 
@@ -344,16 +386,16 @@ public class Work implements Runnable {
                              u.updateLastConsecutive(false);//aggionro la striscia positiva di vittorie
                              u.UpdatePercWingame();//ricalcolo la percentuale di partite vinte
 
-                             WriteErrorOrWinOrSuggestionMessage(dati, "", 2, wordTradotta);
+                             Write_No_Cipher(dati, "", 2, wordTradotta);
                          }
                     }
                 }
                 else {
-                    WriteErrorOrWinOrSuggestionMessage(dati, "", -4, "");//caso in cui la parola non esiste e il tentativo non viene considerato
+                    Write_No_Cipher(dati, "", -4, "");//caso in cui la parola non esiste e il tentativo non viene considerato
                 }
             }
         }
-        else WriteErrorOrWinOrSuggestionMessage(dati, "", -5, "");
+        else Write_No_Cipher(dati, "", -5, "");
     }
     private void PlayWordleMethod(StringTokenizer Tok, PkjData dati) {
 
@@ -392,7 +434,7 @@ public class Work implements Runnable {
         else {
             error = -3;
         }
-        WriteErrorOrWinOrSuggestionMessage(dati, "", error, "");
+        Write_No_Cipher(dati, "", error, "");
 
     }
     private void LogoutMethod(StringTokenizer Tok, PkjData dati) {
@@ -426,7 +468,7 @@ public class Work implements Runnable {
             else {error = -2; } //-2 indica che l utente non è loggato
         }
         else error = -1;;// -1 indica utente non registrato
-        WriteErrorOrWinOrSuggestionMessage(dati, "", error, "");
+        Write_No_Cipher(dati, "", error, "");
     }
     private void LoginMethod(StringTokenizer Tok, PkjData dati) {
 
@@ -452,12 +494,12 @@ public class Work implements Runnable {
                 else error = -2;//-2 indica che l utente non ha inserito correttamente la passwd
             }
             else error = -1;// -1 indica utente non registrato
-            WriteErrorOrWinOrSuggestionMessage(dati, "", error, "");
+            Write_No_Cipher(dati, "", error, "");
         }
         catch (Exception e) {//in caso venga sollevata un eccezione
             if(e instanceof NoSuchElementException) {//se viene sollevata perche l utente non ha inserito correttamente
                                                     //i dati
-                WriteErrorOrWinOrSuggestionMessage(dati, "", -4, "");
+                Write_No_Cipher(dati, "", -4, "");
             }
             else e.printStackTrace();
         }
@@ -567,7 +609,7 @@ public class Work implements Runnable {
             }
         }
     }
-    private void WriteErrorOrWinOrSuggestionMessage(PkjData dati, String method, int error, String Other) {
+    private void Write_No_Cipher(PkjData dati, String method, int error, String Other) {
 
         int lendati = method.length() + Other.length();//lunghezza dei dati
         dati.allocAnswer(lendati + 8 );//lunghezza dei dati + 4 byte per contenere la lunghezza del messaggio e 4 per l'intero finale che indica lo stato dell operazione
@@ -582,6 +624,25 @@ public class Work implements Runnable {
             OutWriter.writeChars(Other);//scrivo i dati
             dati.SetAnswer(SupportOut.toByteArray());//inserisco i byte scitti nell pacchetto dati da inviare
 
+        }
+        catch (Exception e) {e.printStackTrace();}
+
+    }
+    private void Cipher_AND_Write(PkjData dati, String method, int error, String Other) {
+
+        int lendati = method.length() + Other.length();//lunghezza dei dati
+        dati.allocAnswer(lendati + 8 );//lunghezza dei dati + 4 byte per contenere la lunghezza del messaggio e 4 per l'intero finale che indica lo stato dell operazione
+        ByteArrayOutputStream SupportOut = new ByteArrayOutputStream();
+
+        try (DataOutputStream OutWriter = new DataOutputStream(SupportOut)){
+
+            String KeySecurity = SecurityKeys.get((Integer) Key.attachment());
+            System.out.println("Len dei dati che mando ----> " + (lendati + 2));
+            OutWriter.writeInt(lendati + 2);//prima inivavo interi ora invio stringhe come numeri => +2 e non +8
+
+            byte [] datiCifrati = SecurityClass.encrypt(method + String.valueOf(error) + String.valueOf(Other.length()) + Other, KeySecurity);
+            OutWriter.write(datiCifrati, 0, datiCifrati.length);
+            dati.SetAnswer(SupportOut.toByteArray());//inserisco i byte scitti nell pacchetto dati da inviare
         }
         catch (Exception e) {e.printStackTrace();}
     }
@@ -637,13 +698,16 @@ public class Work implements Runnable {
             }
         }
     }
-    private long Compute_S(int g, int p) {
+    private String GetDatiCifreati(int position, PkjData Dati) {
 
-        Random rnd = new Random();
-        s = 0;
-        s = rnd.nextInt((p-1) - 2) + 2;
-        System.out.println(s + " s piccolo");
-        return (long )Math.pow(g, s) % p;
+        String securityKey = SecurityKeys.get((Integer) Key.attachment());//recupero la chiave di sessione
+        byte [] req = new byte[Dati.getRequest().length - position];//uso un array di supporto
+
+        //copio i dati nell array di supporto che contiene i dati cifrati
+        System.arraycopy(Dati.getRequest(), position, req, 0, Dati.getRequest().length - position);
+
+        //decifro i dati
+        return SecurityClass.decrypt(req, securityKey);
 
     }
     private void SendDataToClient(SocketChannel channel) throws Exception {

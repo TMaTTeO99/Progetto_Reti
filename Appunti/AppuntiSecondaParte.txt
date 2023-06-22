@@ -620,3 +620,45 @@ Giorno 43)	Ricomincio da dove ero arrivato ieri:
 
 
 -------------------------------------------------------------------------------------------------------------------------------------------
+
+Giorno 44)	Riprendo da dove ero arrivato ieri::
+		Devo sistemare bene la generazione della key::	
+		Credo che funzioni ora, uso i long e il metodo corretto per il calcolo delle potenze in modulo
+		Ora devo usare la chiave per cifrare i dati::
+		
+		Siccome la fase di cifratura e decifrazione pervade tutto il programma devo stare attento::
+		
+		Comincio a implementare i metodi di cifratura sia lato client che lato server, potrei anche usare una classe 
+		nuova da inserire nella mia libreria per fare tutte le operazioni di creazione della chiave e la cifratura dei dati:::
+		Fatto
+		
+		Ora nel file inserisco i metodi per cifrare e decifrare , devo capire pero bene quella cosa di associare la chiave all connessione
+		credo che possa essere fatto tranquillamente, provo ::
+		
+		Ora devo capire bene come fare con l invio e la lettura dei dati perche il metodo che cifra restituisce un byte []
+		io invece inviano stringhe, per la lettura invece io sapendo il protocollo adottato leggevo i dati per come 
+		arrivavano, ora per far funzionare tutto devo modificare un po::
+		
+		Riprendo dopo  riguardo l invio dei dati cifrati lato server :::::
+		
+		I dati arrivano cifrati al server, quindi, la prima cosa che devo fare è lato server leggere i dati e decifrarli::
+		Parto dalla classe ServerWordle:: in questa classe non sembra essererci niente da cambiare
+		Passo alla classe work
+		
+		
+		NOTA: devo modificare il metodo che setta la risposta che il server invia, poi devo creare un altro metodo per 
+		inviare i dati per la costuzione iniziale dei dati
+		Devo fare due metodi, uno per inviare dati cifrati e uno per inviare dati non cifrati, in questo modo
+		nel caso in cui sia necessario cifrare lo faccio, altrimenti no.
+		Ora sono arrivato al punto di dover cifrare i dati per quanto riguarda la registrazione, per farlo devo effettuare 
+		alcune modifiche::
+		Quando il client si connette per generare la key di sessione il server deve inviare al client anche l intero
+		che ha usato per identificare la connessione:: fatto
+		Implementata sicurezza per la registrazione e per il login, da capire ora dova va fatta la cifratura dei dati
+		Penso che le cose che vanno cifrate sono le risposte che il server invia quando un utente manda una parola e le statistiche 
+		
+		Continuo Domani::.
+		 
+
+
+-------------------------------------------------------------------------------------------------------------------------------------------
