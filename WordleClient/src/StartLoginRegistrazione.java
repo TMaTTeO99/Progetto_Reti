@@ -10,7 +10,6 @@ import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.rmi.registry.LocateRegistry;
 import java.util.ArrayList;
-import java.util.Random;
 
 public class StartLoginRegistrazione extends JFrame {
 
@@ -192,12 +191,12 @@ public class StartLoginRegistrazione extends JFrame {
                     DataInputStream inn = new DataInputStream(new BufferedInputStream(socket.getInputStream()));
 
                     //cifro i dati
-                    byte [] d = SecurityClass.encrypt(usernamelogin + " " + pass, SecurityKey);
+                    byte [] dataCipeherd = SecurityClass.encrypt(usernamelogin + " " + pass, SecurityKey);
 
 
-                    ou.writeInt(d.length + ("login:".length() * 2));
+                    ou.writeInt(dataCipeherd.length + ("login:".length() * 2));
                     ou.writeChars("login:");
-                    ou.write(d, 0, d.length);
+                    ou.write(dataCipeherd, 0, dataCipeherd.length);
                     ou.flush();
                     inn.readInt(); //scarto la len del messaggio
                     returnvalue = inn.readInt();//recupero il valore di ritorno dal server
@@ -218,7 +217,7 @@ public class StartLoginRegistrazione extends JFrame {
                         case 0 ://caso in cui l utente ha effettuato il login con successo.
 
                             dispose();// Chiudo il frame corrente
-                            new StartGame(dataConfig, socket, usernamelogin, servizio, SuggerimentiQueue, ID_Channel);
+                            new StartGame(dataConfig, socket, usernamelogin, servizio, SuggerimentiQueue, SecurityKey, ID_Channel);
                             break;
                         case -1 :
                             JOptionPane.showMessageDialog(null, "Errore. Per partecipare al gioco bisogna prima essere iscritti");
@@ -372,24 +371,7 @@ public class StartLoginRegistrazione extends JFrame {
         }
         return new String(data);
     }
-    private byte [] ReadDataByte(DataInputStream inn) {
 
-        byte [] data = null;
-        try {
-            int read = 0, len = inn.readInt();
-            System.out.println(len + " <-- len dei dati che arrivano");
-            data = new byte[len];
-            while(read < len) {
-                data[read] = inn.readByte();
-                read++;
-            }
-        }
-        catch (Exception e) {
-            e.printStackTrace();
-            return null;
-        }
-        return data;
-    }
 
     /*Da capire bene a cosa serve questa cosa
     A regolòa questo pezzo di codice dovrei inserirlo delntro lo start client main

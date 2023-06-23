@@ -51,6 +51,7 @@ public class Work implements Runnable {
 
         try {
             //recupero il token e il metodo della richiesta
+            StringTokenizer newTok = null;
             StringTokenizer Tok = new StringTokenizer(new String(Dati.getRequest(), StandardCharsets.UTF_16), ":");
             String Method = Tok.nextToken();//recupero l'operazione che il client ha richiesto
 
@@ -61,32 +62,40 @@ public class Work implements Runnable {
 
                 case "login" :
 
-                    StringTokenizer newTok = new StringTokenizer(GetDatiCifreati(("login:".length() * 2), Dati), ":");
+                    newTok = new StringTokenizer(GetDatiCifreati(("login:".length() * 2), Dati), ":");
                     LoginMethod(newTok, Dati);
-
                     break;
                 case "logout" :
+
                     LogoutMethod(Tok, Dati);
                     break;
                 case "playWORDLE" :
+
                     PlayWordleMethod(Tok, Dati);
                     break;
                 case "sendWord" :
-                    SendWordMethod(Tok, Dati);
+
+                    newTok = new StringTokenizer(GetDatiCifreati(("sendWord:".length() * 2), Dati), ":");
+                    SendWordMethod(newTok, Dati);
                     break;
                 case "sendMeStatistics":
+
                     SendStatisticsMethod(Tok, Dati);
                     break;
                 case "share":
+
                     ShareMethod(Tok, Dati);
                     break;
                 case "showMeRanking":
+
                     showRankingMethod(Tok, Dati);
                     break;
                 case "TimeNextWord":
+
                     SendTimeWordMethod(Tok, Dati);
                     break;
                 case "dataforkey"://in questo caso i dati non sono cifrati perche ancora si sta creando la key
+
                     SendAndRicevereSecurityData(Tok, Dati);
                     break;
             }
@@ -287,7 +296,7 @@ public class Work implements Runnable {
             for(int i = 0; i<12; i++) {answer = answer.concat("Vinte in " + (i+1) + " tentativi == " + Integer.toString(TmpGuessDistrib[i]) + "\n");}
 
             System.out.println(answer);//stampa che poi va eliminata
-            Write_No_Cipher(dati, "", 0, answer);
+            Cipher_AND_Write(dati, "", 0, answer);
         }
         else Write_No_Cipher(dati, "", -1, "");//se u non è registrato
     }
@@ -300,7 +309,7 @@ public class Work implements Runnable {
 
         username = Tok.nextToken(" ").replace(":", "");//recupero username
         word = Tok.nextToken(" ");//recupero parola
-
+        System.out.println(username + " " + word);
         u = Registrati.get(username);
 
         if(u != null && u.getLogin((Integer) Key.attachment())) {//se l utente ha effettuato il login
@@ -368,7 +377,7 @@ public class Work implements Runnable {
                         SendSerialization('I');
 
                         //Costruisco il messaggio di parola indovinata
-                        Write_No_Cipher(dati, "", 0, wordTradotta);//0 indica parola indovinata
+                        Cipher_AND_Write(dati, "", 0, wordTradotta);//0 indica parola indovinata
 
                     }
                     else {
@@ -377,17 +386,18 @@ public class Work implements Runnable {
 
                         String suggestions = ComputeSuggestions(GameWord, word);//costruisco i suggerimenti per l utente
                         Gioco.getTentativi().get(username).getTryWord().add(suggestions);//aggiungo il tentativo alla sessione dell utente
-                         if(Gioco.gettentativiUtente(username) < 12) {
-                             Write_No_Cipher(dati, "", 1, suggestions);//rispondo al client
-                         }
-                         else {//se invece il client ha terminato i tentativi invio al client la traduzione della parola e serializzare la sessione di Game
+                        if(Gioco.gettentativiUtente(username) < 12) {
+                            System.out.println("Corretto");
+                            Cipher_AND_Write(dati, "", 1, suggestions);//rispondo al client
+                        }
+                        else {//se invece il client ha terminato i tentativi invio al client la traduzione della parola e serializzare la sessione di Game
 
-                             SendSerialization('I');//serializzo l istanza del game in questo modo non perdo dati riguado la sconfitta del client
-                             u.updateLastConsecutive(false);//aggionro la striscia positiva di vittorie
-                             u.UpdatePercWingame();//ricalcolo la percentuale di partite vinte
+                            SendSerialization('I');//serializzo l istanza del game in questo modo non perdo dati riguado la sconfitta del client
+                            u.updateLastConsecutive(false);//aggionro la striscia positiva di vittorie
+                            u.UpdatePercWingame();//ricalcolo la percentuale di partite vinte
 
-                             Write_No_Cipher(dati, "", 2, wordTradotta);
-                         }
+                            Cipher_AND_Write(dati, "", 2, wordTradotta);
+                        }
                     }
                 }
                 else {
@@ -612,7 +622,7 @@ public class Work implements Runnable {
     private void Write_No_Cipher(PkjData dati, String method, int error, String Other) {
 
         int lendati = method.length() + Other.length();//lunghezza dei dati
-        dati.allocAnswer(lendati + 8 );//lunghezza dei dati + 4 byte per contenere la lunghezza del messaggio e 4 per l'intero finale che indica lo stato dell operazione
+        dati.allocAnswer(lendati + 12);
         ByteArrayOutputStream SupportOut = new ByteArrayOutputStream();
 
         try (DataOutputStream OutWriter = new DataOutputStream(SupportOut)){
@@ -630,19 +640,22 @@ public class Work implements Runnable {
     }
     private void Cipher_AND_Write(PkjData dati, String method, int error, String Other) {
 
+
         int lendati = method.length() + Other.length();//lunghezza dei dati
-        dati.allocAnswer(lendati + 8 );//lunghezza dei dati + 4 byte per contenere la lunghezza del messaggio e 4 per l'intero finale che indica lo stato dell operazione
+        dati.allocAnswer(lendati + 12 );//lunghezza dei dati + 4 byte per contenere la lunghezza del messaggio e 4 per l'intero finale che indica lo stato dell operazione
         ByteArrayOutputStream SupportOut = new ByteArrayOutputStream();
 
         try (DataOutputStream OutWriter = new DataOutputStream(SupportOut)){
 
             String KeySecurity = SecurityKeys.get((Integer) Key.attachment());
-            System.out.println("Len dei dati che mando ----> " + (lendati + 2));
-            OutWriter.writeInt(lendati + 2);//prima inivavo interi ora invio stringhe come numeri => +2 e non +8
+            byte [] datiCifrati = SecurityClass.encrypt(method + Other, KeySecurity);
 
-            byte [] datiCifrati = SecurityClass.encrypt(method + String.valueOf(error) + String.valueOf(Other.length()) + Other, KeySecurity);
+            OutWriter.writeInt(datiCifrati.length + 8);
+            OutWriter.writeInt(error);
+            OutWriter.writeInt(datiCifrati.length);
             OutWriter.write(datiCifrati, 0, datiCifrati.length);
             dati.SetAnswer(SupportOut.toByteArray());//inserisco i byte scitti nell pacchetto dati da inviare
+
         }
         catch (Exception e) {e.printStackTrace();}
     }

@@ -55,6 +55,7 @@ public class ServerWordle{
     private GetDataConfig dataConfig;
     private HashMap<Integer, String> SecurityKeys = new HashMap<>();//struttura dati che conterrà le chiavi di sicurezza associate alle connessioni
 
+    private HashMap<Integer, PkjData> ListPackages = new HashMap<>();//HashMap usata per contenere i pacchetti che contengono le richieste dei client
     public ServerWordle(ArrayList<String> Vocabolario, GetDataConfig dataConf) throws Exception{
 
         dataConfig = dataConf;
@@ -171,38 +172,113 @@ public class ServerWordle{
     //metodo utilizzato per leggere i dati che arrivano dalla richiesta
     private PkjData ReadRequest(SelectionKey key) {
 
-        SocketChannel channel = (SocketChannel)key.channel();//recupero il channel
-        byte [] LenMexByte = new byte[SIZE_SIZE];//alloc un byte[] per contenere len dei dati che sono arrivati
-        ByteBuffer LenMexBuffer = ByteBuffer.wrap(LenMexByte);//uso un ByteBuffer per poter leggere tale dimensione
-        PkjData Dati = new PkjData();//creo un pacchetto dati che conterrà la richiesta
-        int flag = 0;//flag per controllare che mentre leggo i dati il client nnon chiudi la connessione
-
-
-        //controllo che il client non abbia chiuso la connessione per un qualsiasi motivo
+        //controllo se esiste gia il pacchetto nella HashMap
         try {
-            //se il client ha chiuso la connessione cancello la chiave dal selettore
-            if(channel.read(LenMexBuffer) == -1) {
-                key.cancel();
-                //qui ora nel caso in cui un client chiada la connessione in modo brusco devo eliminare il suo stub
-                //devo prima cercare il client che ha chiuso la connessione
-                Utente releasedUtente = searchUtente((Integer) key.attachment());
-                if(releasedUtente != null)releasedUtente.RemoveSTub();
 
-                return null;//ritorno null quando il client ha chiuso la connessione e quindi non devo produrre risposte
+            int flag = 0;
+            PkjData TestDati = null;
+            SocketChannel channel = (SocketChannel)key.channel();//recupero il channel
+
+            if((TestDati = ListPackages.get((Integer) key.attachment())) == null) {//se il pacchetto associato alla connessione non è presente devo cominciare a costruirlo da zero
+
+
+                TestDati = new PkjData();//creo un pacchetto dati che conterrà la richiesta
+
+
+                //se il client ha chiuso la connessione cancello la chiave dal selettore e lo stub
+                //ritorno null quando il client ha chiuso la connessione e quindi non devo produrre risposte
+                if(!ReadCheckClose(channel, TestDati, key)) {return null;}
+                if(!TestDati.getLenMexBuffer().hasRemaining()) {//caso in cui è stata letta tutta la len dei dati
+
+                    //comincio la lettura dei dati della richiesta
+
+                    TestDati.getLenMexBuffer().flip();//resetto position per poter leggere dal ByteBuffer
+                    TestDati.allocRequest(TestDati.getLenMexBuffer().getInt());//alloco il vettore che conterrà la richiesta
+
+                    //leggo e controllo che durante la lettura il client non chiudi la connessione
+
+                    switch(ReadReceivedData(channel, TestDati, key)) {
+                        case 0 :
+                            return TestDati;
+                        case 1 :
+                            ListPackages.put((Integer) key.attachment(), TestDati);//inserisco i dati in lista
+                            break;
+                        default ://non faccio nulla
+                            break;
+                    }
+                    return null;
+                }
+                else {//caso in cui non tutta la lunghezza dei dati in arrivo è stata letta
+
+                    ListPackages.put((Integer) key.attachment(), TestDati);//inserisco i dati in lista
+                    return null;
+                }
             }
-            //altrimenti recupero i dati
-            LenMexBuffer.flip();//resetto position per poter leggere dal ByteBuffer
-            Dati.allocRequest(LenMexBuffer.getInt());//alloco il vettore che conterrà la richiesta
+            else {//caso in cui il pacchetto associato alla connessioone è gia presente nella struttura dati
 
-            ByteBuffer RequestBuff = ByteBuffer.wrap(Dati.getRequest());//uso un ByteBuffer per leggere la richiesta
+                if(TestDati.getLenMexBuffer().hasRemaining()) {//controllo se ha terminato di leggere la dimensione dei dati
 
-            //leggo e controllo che durante la lettura il client non chiudi la connessione
-            while((flag = channel.read(RequestBuff)) != Dati.getRequest().length && flag != -1);
-            if(flag == -1) return null;//se il client chiude la connessione ritorno null
+                    //in caso ancora bisogna leggere la dim dei dati
+                    ReadCheckClose(channel, TestDati, key);//in questo caso non controllo nulla tanto comunque non devo produrre risposte
+
+                    return null;//ritorno null cosi alla prossima iterazione riproverà a leggere
+                }
+                else {//caso in cui ha terminato la lettura dei dati riguardo la dimensione
+
+                    switch(ReadReceivedData(channel, TestDati, key)) {
+
+                        case 0 :
+                            return TestDati;
+                        case 1 :
+                            ListPackages.put((Integer) key.attachment(), TestDati);//inserisco i dati in lista
+                            break;
+                        default ://non faccio nulla
+                            break;
+                    }
+                    return null;
+                }
+            }
         }
-        catch (Exception e) {e.printStackTrace();}
+        catch (Exception e) {
+            e.printStackTrace();
+            key.cancel();//cancello la chiave dal selettore
+            Utente releasedUtente = searchUtente((Integer) key.attachment());//elimino lo stub
+            if(releasedUtente != null)releasedUtente.RemoveSTub();
 
-        return Dati;
+            return null;
+        }
+    }
+    private int ReadReceivedData(SocketChannel channel, PkjData TestDati, SelectionKey key) throws Exception{
+
+        int flag = 0;
+
+        flag = channel.read(TestDati.getRequestBuff());
+
+        if(flag == TestDati.getRequest().length) {return 0;}
+        else if(flag != -1 && flag < TestDati.getRequest().length) {return 1;}
+        else if(flag == -1){
+
+            key.cancel();//cancello la chiave dal selettore
+
+            //devo prima cercare il client che ha chiuso la connessione
+            Utente releasedUtente = searchUtente((Integer) key.attachment());
+            if(releasedUtente != null)releasedUtente.RemoveSTub();
+        }
+        return -1;
+    }
+    private boolean ReadCheckClose(SocketChannel channel, PkjData TestDati, SelectionKey key) throws Exception{
+
+        if(channel.read(TestDati.getLenMexBuffer()) == -1) {//qui ora nel caso in cui un client chiada la connessione in modo brusco devo eliminare il suo stub
+
+            key.cancel();//cancello la chiave dal selettore
+
+            //devo prima cercare il client che ha chiuso la connessione
+            Utente releasedUtente = searchUtente((Integer) key.attachment());
+            if(releasedUtente != null)releasedUtente.RemoveSTub();
+
+            return false;
+        }
+        return true;
     }
     private Utente searchUtente(int ID) {
 

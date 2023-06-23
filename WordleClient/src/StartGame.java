@@ -2,10 +2,7 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.io.BufferedInputStream;
-import java.io.BufferedOutputStream;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
+import java.io.*;
 import java.net.*;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.ArrayList;
@@ -37,9 +34,13 @@ public class StartGame extends JFrame {
     private Thread multiCastThread;//thread usato per recuperare le condivisioni dagli utenti
     private GetDataConfig dataConfig;
     private int ID_Channel;
+    private String SecurityKey;//chiave di sessione
     public StartGame(GetDataConfig dataCon, Socket sck,
-                     String usrname, Registrazione srv, ArrayList<Suggerimenti> SuggQueue, int ID) throws Exception{
+                     String usrname, Registrazione srv,
+                     ArrayList<Suggerimenti> SuggQueue,
+                     String ScrtKey, int ID) throws Exception{
 
+        SecurityKey = ScrtKey;
         dataConfig = dataCon;
         IP_server = dataConfig.getIP_server();;
         Port_listening = dataConfig.getPort_ListeningSocket();
@@ -539,13 +540,17 @@ public class StartGame extends JFrame {
                         DataOutputStream ou = new DataOutputStream(new BufferedOutputStream(socket.getOutputStream()));
                         DataInputStream inn = new DataInputStream(new BufferedInputStream(socket.getInputStream()));
 
-                        ou.writeInt((("sendWord:" + usernamelogin + " " + word).length())*2);
-                        ou.writeChars("sendWord:" + usernamelogin + " " + word);
+                        byte [] dataCipeherd = SecurityClass.encrypt(usernamelogin + " " + word, SecurityKey);
+
+                        ou.writeInt(dataCipeherd.length + (("sendWord:").length())*2);
+                        ou.writeChars("sendWord:");
+                        ou.write(dataCipeherd, 0, dataCipeherd.length);
                         ou.flush();
 
                         inn.readInt();//scarto la len del messaggio
+                        returnValue = inn.readInt();//recupero il valore di ritorno
+                        System.out.println(returnValue);
 
-                        returnValue = inn.readInt();
                         pckage = new ReturnPackage(returnValue, inn);
 
 
@@ -565,17 +570,18 @@ public class StartGame extends JFrame {
                     String wordTradotta = null;
                     ReturnPackage pckage = get();
                     int returnValue = pckage.getReturnValue();
+
                     switch(returnValue) {
                         case 2 ://caso in cui ho sfruttato l ultimo tentativo e ho perso
                             //devo recuperare la parola tradotta
 
-                            wordTradotta = ReadData(pckage.getInn());
+                            wordTradotta = SecurityClass.decrypt(ReadDataByte(pckage.getInn()), SecurityKey);
                             JOptionPane.showMessageDialog(null, "Tentativi terminati\n Traduzione: " + wordTradotta);
 
                             break;
                         case 1 ://caso in cui devo ricevere i suggerimenti
 
-                            String sug = ReadData(pckage.getInn());//recupero i suggerimenti
+                            String sug = SecurityClass.decrypt(ReadDataByte(pckage.getInn()), SecurityKey);//recupero i suggerimenti
 
                             //a questo punto quello che devo fare è visualizzare i suggerimenti in forma grafica
                             JPanel suggestionPanle = MakeSuggestionsPanel(sug, word);
@@ -586,7 +592,7 @@ public class StartGame extends JFrame {
                             // In questo caso lato server dovro inserire la
                             // traduzione della parola che qui andra letta
 
-                            wordTradotta = ReadData(pckage.getInn());
+                            wordTradotta = SecurityClass.decrypt(ReadDataByte(pckage.getInn()), SecurityKey);
                             JOptionPane.showMessageDialog(null, "Vittoria\nTraduzione: " + wordTradotta);
 
                             break;
@@ -655,7 +661,7 @@ public class StartGame extends JFrame {
 
                     ReturnPackage pckage = get();
                     if(pckage.getReturnValue() == 0){//controllo eventuale messaggio di errore che il server invia
-                        String statistic = ReadData(pckage.getInn());
+                        String statistic = SecurityClass.decrypt(ReadDataByte(pckage.getInn()), SecurityKey);
                         JOptionPane.showMessageDialog(null, statistic);
                     }
                     else JOptionPane.showMessageDialog(null, "Impossibile visualizzare le statistiche");
@@ -936,5 +942,23 @@ public class StartGame extends JFrame {
         }
         catch (Exception e){e.printStackTrace();}
 
+    }
+    private byte [] ReadDataByte(DataInputStream inn) {
+
+        byte [] data = null;
+        try {
+            int read = 0, len = inn.readInt();
+
+            data = new byte[len];
+            while(read < len) {
+                data[read] = inn.readByte();
+                read++;
+            }
+        }
+        catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+        return data;
     }
 }

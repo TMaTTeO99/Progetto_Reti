@@ -33,6 +33,8 @@ public class ImlementazioneRegistrazione extends RemoteServer implements Registr
         String usnameString = SecurityClass.decrypt(username, key);
         String passString = SecurityClass.decrypt(passwd, key);
 
+        if(usnameString == null || passString == null)return 2;//caso in cui decifrazione dei dati fallisce
+
         //caso in cui il client ha inserito dati non corretti
         if((flag_Passwd = ChckInput(usnameString, passString)) != 0)return flag_Passwd;
 
@@ -53,7 +55,7 @@ public class ImlementazioneRegistrazione extends RemoteServer implements Registr
         }
         catch (Exception e){
             e.printStackTrace();
-            return 2;
+            return 2;//caso in cui c'è un errore generico
         }
     }
     private int ChckInput(String username, String passwd) {

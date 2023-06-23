@@ -602,7 +602,7 @@ Giorno 43)	Ricomincio da dove ero arrivato ieri:
 				Fatto
 			2) Ora che ho recuperato i dati dal file di config correttamente
 			3) devo eseguire Il protocollo DH :: Fatto
-			4) Devo ora usare le chiave per cifrare i dati con AES :: 
+			4) Devo ora usare le chiave per cifrare i dati con AES :: fatto
 		
 	
 		4) Far si che sul file json i dati vengano salvati non in chiaro
@@ -657,8 +657,42 @@ Giorno 44)	Riprendo da dove ero arrivato ieri::
 		Implementata sicurezza per la registrazione e per il login, da capire ora dova va fatta la cifratura dei dati
 		Penso che le cose che vanno cifrate sono le risposte che il server invia quando un utente manda una parola e le statistiche 
 		
-		Continuo Domani::.
+		
 		 
+-------------------------------------------------------------------------------------------------------------------------------------------
+
+Giorno 45)
+
+		Riprendo da dove ero arrivato ieri::
+		Nota: è sorto un problema riguardo la lettura dei dati, non ha senso entrare in un while per leggere tutti i dati
+		se sto usando NIO, devo quindi trovare il modo di risolvere:: fatto
+		
+		Ora riprendo il discorso della protezione dei dati ::
+
+		Devo capire quando i dati devono essere protetti da cifratura ::
+		
+		Credo che i dati che devo proteggere sono apparte username e passwd, dovrei proteggere:
+		1) le risposte del server al client riguardo le richieste delle parole ::
+			Provo::
+			Lato client: 
+				a)inviati dati cifrati
+				b)ricevuti
+				
+			Lato server:
+				a)decifrati dati ricevuti
+				b)cifrati dati che manda
+				
+		I dati vengono trasmessi pero ora c'è un problema con il ritorno di mex
+		
+		:: risolto
+		
+		2) L invio delle statistiche del client  
+		
+		:: fatto
+		
+		
+		Domani continuo con il resto, dovrei esserci quasi
 
 
 -------------------------------------------------------------------------------------------------------------------------------------------
+
