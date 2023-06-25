@@ -24,10 +24,11 @@ public class GetDataConfig {
     private int PortExport; // il valore che  assumerà questa var deve essere lo sesso lato client nel suo file dio config
     private String IP_Multicast;//stringa che conterra l ip del gruppo multicast su cui condividere i risultati del gioco
     private int Port_Multicast;//porta usata per la condivisione sul gruppo multicast
-    private int Port_ListeningSocket;
-    private int P;
-    private int G;
-    private String IP_server;
+    private int Port_ListeningSocket;//porta usata dal server per accettare le connessioni dei client
+    private int P;//Intero P usato nel protocollo DH per creare la chiave di cifratura
+    private int G;//intero G usaato come generatore di Zp del protocollo DH per creare la chiave di cifratura
+    private int AfterUpDate;//campo che indica dopo quanti uitenti che hanno aggiornato i loro dato aggiornare il file json
+    private String IP_server;//ip address del server
     private File ConfigureFile = null;
 
 
@@ -94,6 +95,9 @@ public class GetDataConfig {
                     case "G_generator" :
                         G = Integer.parseInt(tok.nextToken());
                         break;
+                    case "AfterUpDate":
+                        AfterUpDate = Integer.parseInt(tok.nextToken());
+                        break;
                 }
             }
     }
@@ -149,13 +153,13 @@ public class GetDataConfig {
     public int getPort_ListeningSocket() {return Port_ListeningSocket;}
     public String getPathStart() {return PathStart;}
     public String getIP_server() {return IP_server;}
-
     public int getG() {return G;}
-
     public int getP() {return P;}
+    public int getAfterUpDate() {return AfterUpDate;}
 
     //metodi per settare i dati all interno dell oggetto nel caso il file di configurazione fosse corrotto
 
+    public void setAfterUpDate(int Aupdate) {AfterUpDate = Aupdate;}
     public void setP(int p) {P = p;}
     public void setG(int g) {G = g;}
     public void setURLtranslate(String url) {URLtranslate = url;}

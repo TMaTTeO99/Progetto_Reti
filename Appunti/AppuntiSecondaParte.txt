@@ -605,17 +605,16 @@ Giorno 43)	Ricomincio da dove ero arrivato ieri:
 			4) Devo ora usare le chiave per cifrare i dati con AES :: fatto
 		
 	
-		4) Far si che sul file json i dati vengano salvati non in chiaro
 		
 		
-		5) Aggiunge i carrelli laterali ai panel del client :: Fatto
+		4) Aggiunge i carrelli laterali ai panel del client :: Fatto
 		
-		6) Devo anche aggiungere il fatto di poter fare usare il tasto invio :: fatto.
+		5) Devo anche aggiungere il fatto di poter fare usare il tasto invio :: fatto.
 		
-		7) Testare, per farlo dovrei creare un client che prenda l input da terminale :: fatto
+		6) Testare, per farlo dovrei creare un client che prenda l input da terminale :: fatto
 		
 		
-		8) Cominciare a scrivere la relazione.
+		7) Cominciare a scrivere la relazione.
 
 
 
@@ -696,3 +695,53 @@ Giorno 45)
 
 -------------------------------------------------------------------------------------------------------------------------------------------
 
+
+Giorno 46)	Riprecndo da dove ero arrivato:
+		
+		Nota: devo fare in modo che il costruttore dalla classe che permette di registrarsi e fare il login non faccia 
+		l operazine di creazione della chiave, perche questo rallenta l interfaccia grafica, la chiave di sessione deve 
+		essere prodotta nella classe che fa lo start :: Fatto
+		
+		sembra andare ( TESTARE IN CONTINUAZIONEEEE tutto)
+		
+		NOTA: devo aggiungere il parametro di config che indica quando serializzare gli utenti in base a quantoi utennti hanno
+		aggiornato le loro statistiche :: fatto.
+		
+		Ora provo a salvare sul file json le password non in chiaro :: 
+		per farlo, quello che devo fare è serializzare un utente che abbia tutti i parametri uguali a quello presente in mem
+		ma con la password cifrata, per la cifratura su internet dice che posso usare la sha-256,  
+		
+		provo::
+		
+		
+		
+		NOTA IMPORTANTISSIMA::::: *********************************************************************************************
+		Anche se Registrati è una concurrent hashmap quando recupero un utente dalla hashmap, a questo punto non è piu 
+		sicuro l accesso al dato, quindi devo implementare la sincronizzazione per bene cazzzzzoooooooooo........
+		***********************************************************************************************************************
+		
+		Ho creato nella classe utente delle read write lock, se si vuole settare i campi dentro l utente si usa 
+		la write lock e ok, se si vuole leggere i campi dell utente, ho creato un mnetodo getreadlock, in questo modo il thread recupera 
+		la lock, fa lock, legge i dati e poi fa unlock e cosi dovrei aver risolto, devo pero fare la parte della read
+		mo vado a mangiare..
+		
+		Ricomincio:: per ora penso agli utenti, dopo devo controllare bene riguardo la sessione del game e le info relative ad ogni 
+		utente, devo verificare ser vale lo stesso discorso
+		
+		Per gli utenti dovrei aver sistemato.
+		Ho sistemato anche la scrittura delle password 
+		Mi è saltata fuori pero l eccezione di quando mi registro pero non so perche, credo che possa dipendere dalla generazione
+		di una chiave sbagliata, puo essere che devo aumentare la precisione riguardo la generazione del numero P primo  
+		Tale eccezione viene sollevata perche client e server generano chiavi diverse, quindi devo sistemare questo problema
+		
+		DOMANI CONTINUO::
+		Devo sistemare lo scambio della chiave
+		Devo sistemare la concorrenza riguardo la sessione del game e i dati della sessione dell utente
+		Dare uno sguardo alla traduzione
+		Testare tutto in continuazione 
+		Iniziare la relazione 
+		
+		 
+
+
+-------------------------------------------------------------------------------------------------------------------------------------------

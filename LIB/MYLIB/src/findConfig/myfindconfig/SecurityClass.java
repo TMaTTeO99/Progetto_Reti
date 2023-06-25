@@ -45,7 +45,7 @@ public class SecurityClass {
 
         byte [] dati = null;
         try {
-            Cipher cphr = Cipher.getInstance("AES");
+            Cipher cphr = Cipher.getInstance("AES/ECB/PKCS5Padding");
             SecretKeySpec sKey = new SecretKeySpec(key.getBytes(StandardCharsets.UTF_8), "AES");
             cphr.init(Cipher.ENCRYPT_MODE, sKey);
             dati = cphr.doFinal(message.getBytes(StandardCharsets.UTF_8));
@@ -60,7 +60,7 @@ public class SecurityClass {
 
         String dati = null;
         try {
-            Cipher cphr = Cipher.getInstance("AES");
+            Cipher cphr = Cipher.getInstance("AES/ECB/PKCS5Padding");
             SecretKeySpec sKey = new SecretKeySpec(key.getBytes(StandardCharsets.UTF_8), "AES");
             cphr.init(Cipher.DECRYPT_MODE, sKey);
             dati = new String(cphr.doFinal(message), StandardCharsets.UTF_8);

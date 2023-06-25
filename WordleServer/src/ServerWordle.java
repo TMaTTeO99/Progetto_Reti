@@ -1,7 +1,4 @@
-import java.io.File;
-import java.math.BigInteger;
 import java.net.InetSocketAddress;
-import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
@@ -9,7 +6,6 @@ import java.nio.channels.SocketChannel;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
-import java.security.Key;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.locks.Lock;
@@ -17,7 +13,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 public class ServerWordle{
     private static final int SIZE_SIZE = 4;//variabile per indicare il numero dio byte di un int, serve per legere i dati che arrivano
-    private Registry RegistroRMI;
+    private Registry RegistroRMI;//registro usato per esportare i metodi remoti
     private Registrazione Skeleton;
     private ExecutorService pool;
     private ConcurrentHashMap<String, Utente> Registrati; // Lista che conterrà gli utenti registrati
@@ -65,12 +61,12 @@ public class ServerWordle{
 
         Classifica = new ArrayList<>();
         Game = new SessioneWordle();
-        Registrati = new ConcurrentHashMap<>(); //creo il set degli utenti registrati con concurrenthashmap, per ora lascio i parametri di default
+        Registrati = new ConcurrentHashMap<>(); //struttura dati che conterrà gli utenti del gioco
         DaSerializzare = new LinkedBlockingDeque<>();
 
         //lancio i thread separati dal threadpool
         threadGame = new Thread(new OpenGame(dataConfig.getTimeStempWord(), dataConfig.getLastTimeWord(), Vocabolario, dataConfig.getConfigureFile(), Game, WriteWordLock, dataConfig.getURLtranslate(), DaSerializzare));
-        threadSerialize = new Thread(new MakeJson(Registrati, DaSerializzare, dataConfig.getPathSerialization(), ReadWordLock, Game, Classifica, ReadLockClassifica));
+        threadSerialize = new Thread(new MakeJson(Registrati, DaSerializzare, dataConfig.getPathSerialization(), ReadWordLock, Game, Classifica, ReadLockClassifica, dataConf.getAfterUpDate()));
 
         threadGame.start();
         threadSerialize.start();
@@ -91,8 +87,8 @@ public class ServerWordle{
 
         try (ServerSocketChannel AcceptSocket = ServerSocketChannel.open()) {//clausola try with resource per per chiudere la socket in caso di terminazione
 
-            Selector selector = Selector.open();//istanza diuu Selector per poter fare multiplaxing delle connessioni
-            AcceptSocket.bind(new InetSocketAddress(Port_Listening));//Porta Temporanea
+            Selector selector = Selector.open();//istanza di Selector per poter fare multiplaxing delle connessioni
+            AcceptSocket.bind(new InetSocketAddress(Port_Listening));
             AcceptSocket.configureBlocking(false);//setto il canale come non bloccante
             AcceptSocket.register(selector, SelectionKey.OP_ACCEPT);//registro la ServerSocketChannel per operazione di Accept
             Integer ID_Channel = 0;//intero per identificare la connessione
@@ -107,7 +103,7 @@ public class ServerWordle{
                 while(IteratorKey.hasNext()) {//scorro su tutto l'iteratore
 
                     SelectionKey ReadyKey = IteratorKey.next();//recupero la chiave su cui è pronta l'operazione
-                    IteratorKey.remove();//rimuvo la chiave dall iteratore per non avere "inconsistenza"
+                    IteratorKey.remove();//rimuvo la chiave dall iteratore
 
 
                     if(ReadyKey.isAcceptable() && ReadyKey.isValid()) {//caso in un operazione di accept non ritorna null
@@ -136,38 +132,6 @@ public class ServerWordle{
         catch (Exception e){e.printStackTrace();}
 
     }
-
-    /**
-     * Metodo temporaneo per vedere se la registrazione dei client funziona
-     */
-    public void PrintRegistrati() {
-        Set<String> UtentiRegistrati = Registrati.keySet();
-        for (String u : UtentiRegistrati) {
-            System.out.println(u);
-        }
-    }
-
-    /**
-     * Metodo per effettuare la chiusura del servizio RMI,
-     * quando tale servizio viene chiuso il server viene spento
-     */
-    /*public void ShutDownRMI() throws Exception{
-
-        Metodo da adattare alle modifiche effettuate
-
-        sendNotifica();
-        DaSerializzare.put("STOP_THREAD");
-        RegistroRMI.unbind("Registrazione");
-        UnicastRemoteObject.unexportObject(ObjEsportato, true);
-        System.out.println("Chiusura servizsio RMI");//stampa di prova
-        pool.shutdown();
-        while(!pool.isTerminated()){
-            pool.awaitTermination(60L, TimeUnit.MILLISECONDS);
-        }
-        PrintRegistrati();
-    }
-
-     */
 
     //metodo utilizzato per leggere i dati che arrivano dalla richiesta
     private PkjData ReadRequest(SelectionKey key) {
@@ -284,7 +248,9 @@ public class ServerWordle{
 
         for(Utente u : Registrati.values()) {//cerco nella struttura dati in cui sono presenti tutti i client
             //per verificare che ho trovato l utente corretto controllando l id in allegato al channel
-            if(u.getLoginChannel().get(ID) != null) return u;
+            u.getReadLock().lock();
+                if(u.getLoginChannel().get(ID) != null) return u;
+            u.getReadLock().unlock();
         }
         return null;
     }

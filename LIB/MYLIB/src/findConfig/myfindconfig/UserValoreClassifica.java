@@ -19,7 +19,7 @@ public class UserValoreClassifica implements Comparable<UserValoreClassifica>, S
     public void setUsername(String usn) {username = usn;}
     public String getUsername() {return username;}
 
-    @Override //per decidere l ordine se crescente o decrrescente, bisogna cambiarre questo metodo
+    @Override 
     public int compareTo(UserValoreClassifica o) {return Float.compare(o.getScore(), score);}
 
     //Metodo per aggiornare direttamente dalloggetto lo score del giocatore

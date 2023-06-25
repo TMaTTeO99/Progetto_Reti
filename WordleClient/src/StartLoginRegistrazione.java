@@ -6,7 +6,6 @@ import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
-import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.rmi.registry.LocateRegistry;
 import java.util.ArrayList;
@@ -18,24 +17,23 @@ public class StartLoginRegistrazione extends JFrame {
     private JPasswordField UserTEXTpasslogin;
     private JTextField TextFieldUserRegistra;
     private JTextField TextFieldPassRegistra;
-    private JLabel Classifica = new JLabel("Nessuna Notifica");
+    private JLabel Classifica = new JLabel("Nessuna Notifica");//Jlable usata per avvertire l utente dell arrivo di una notifica
     private String usernamelogin;
     private Registrazione servizio = null;
-    private String IP_server;
     private String IP_Multicast;
-    private int Port_listening;
     private int Port_Multicast;
     private int PortRMI;
-    private ArrayList<Suggerimenti> SuggerimentiQueue;
-    private GetDataConfig dataConfig;
-    private String SecurityKey;//chiave di sessione
-    private int ID_Channel;
-    public StartLoginRegistrazione(GetDataConfig dataCon, ArrayList<Suggerimenti> SuggQueue, int ID) throws Exception {
+    private ArrayList<Suggerimenti> SuggerimentiQueue;//coda che conterrà i tentativi che gli utenti condividono
+    private GetDataConfig dataConfig;//oggetto che contiene i dati di configurazione
+    private String SecurityKey;//chiave di sessione per la cifratura
+    private int ID_Channel;//ID che il server assegna alla connessione del client
+    public StartLoginRegistrazione(GetDataConfig dataCon, ArrayList<Suggerimenti> SuggQueue, int ID, String SecKey, Socket sck) throws Exception {
 
         //recupero all inetrno delle var di istanza le info che servono al client
+
+        socket = sck;
+        SecurityKey = SecKey;
         dataConfig = dataCon;
-        IP_server = dataConfig.getIP_server();
-        Port_listening = dataConfig.getPort_ListeningSocket();
         IP_Multicast = dataConfig.getIP_Multicast();
         Port_Multicast = dataConfig.getPort_Multicast();
         PortRMI = dataConfig.getPortExport();
@@ -49,35 +47,6 @@ public class StartLoginRegistrazione extends JFrame {
         setTitle("Wordle");
         setLocation(new Point(200, 200));
         setLayout(new GridLayout());
-
-        socket = new Socket();//creo l oggetto socket e mi connetto al server appena avvio
-        try {socket.connect(new InetSocketAddress(IP_server, Port_listening));}
-        catch (Exception e) {e.printStackTrace();}
-
-
-        //-------------------------------------------------------------------------------------------//
-        System.out.println("G: " + dataConfig.getG() + " " + "p: " + dataConfig.getP());
-        //invio al server C
-        if(!SendAndRicevereSecurityData()) {
-            //qui in caso di fallimento di comunicazione con il server chiudo il client con un messaggio
-            //potrei costruire un minimo panel che indica al client che si sta caricando il client
-            //lo vedo dopo
-            socket.close();
-            System.out.println("Errore scambio chiave di sicurezza della sessione");
-            return;
-
-        }
-        System.out.println(SecurityKey + " Chiave di sicurezza");
-        /**
-         * Sezione in cui provero a comunicare con il server per scambiare la chiave di sessione
-         * Sara una chiave casuale che verra usata per cifrare le passwd e le parole che i client
-         * inviano, non dovrebbe esserci bisogno di cifrare tutto anche se comunque posso provare a cifrare
-         * tutto, devo decidere l algo di scambio di chiave e l algo di cifratura.
-         */
-
-        //-------------------------------------------------------------------------------------------//
-
-
 
         //creo il pannel main
         JPanel mainPanel = new JPanel();
@@ -305,83 +274,8 @@ public class StartLoginRegistrazione extends JFrame {
                 catch (Exception e) {e.printStackTrace();}
             }
         };
-        // Avvio il worker
+        //Avvio il worker
         worker.execute();
     }
-    private boolean SendAndRicevereSecurityData() {
-
-        int flag = 0, lendata = 0, c = -1;
-        String nameMethod = "dataforkey:";
-
-        //calcolo C per il protocollo DH
-        long C = SecurityClass.Compute_C(dataConfig.getG(), dataConfig.getP());
-        long S = 0;
-
-        try{
-
-            DataInputStream in = new DataInputStream(new BufferedInputStream(socket.getInputStream()));
-            DataOutputStream ou = new DataOutputStream(new BufferedOutputStream(socket.getOutputStream()));
-
-            ou.writeInt(((("dataforkey:"+ C ).length()) * 2));
-            ou.writeChars("dataforkey:"+C);
-            ou.flush();
-            in.readInt(); //scarto la len del messaggio
-            ID_Channel = in.readInt();//recupero l'id da usare per la registrazione
-            System.out.println(ID_Channel + " iD channel che ricevo");
-
-            flag = in.readInt();
-            if(flag != 0) {
-
-                String key = ReadData(in);
-                if(key != null) {S = Long.parseLong(key);}
-
-                System.out.println("DATI CHE RICEVO "+ S);
-                System.out.println("DATI CHE MANDO" + C);
-
-            }
-            else return false;//caso di errore
-        }
-        catch (Exception e) {
-            e.printStackTrace();
-            return false;
-        }
-        try {c = SecurityClass.getSecret();}
-        catch (NullPointerException e) {
-            e.printStackTrace();
-            return false;
-        }
-        SecurityKey = Long.toBinaryString(SecurityClass.powInModulo(S, c, dataConfig.getP()));
-        while(SecurityKey.length() < 16){SecurityKey += '0';}//se la chiave è < 128 bit faccio pudding
-        return true;
-    }
-    private String ReadData(DataInputStream inn) {
-
-        char [] data = null;
-        try {
-            int read = 0, len = inn.readInt();
-            data = new char[len];
-            while(read < len) {
-                data[read] = inn.readChar();
-                read++;
-            }
-        }
-        catch (Exception e) {
-            e.printStackTrace();
-            return null;
-        }
-        return new String(data);
-    }
-
-
-    /*Da capire bene a cosa serve questa cosa
-    A regolòa questo pezzo di codice dovrei inserirlo delntro lo start client main
-    public static void main(String[] args) {
-        SwingUtilities.invokeLater(new Runnable() {
-            public void run() {
-                ClientFrame clientFrame = new ClientFrame();
-                clientFrame.setVisible(true);
-            }
-        });
-    }*/
 
 }

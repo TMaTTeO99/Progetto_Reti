@@ -1,13 +1,10 @@
 import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 
 import java.io.Serializable;
 import java.util.concurrent.ConcurrentHashMap;
 
 //Classe che implementa serializable in modo tale da poter salvare la sessione corrente di gioco
-//ogni volta che il server viene chiuso. La serializzazione di tale struttura dati deve essere effettuata
-//come ultima operazione in modo da poter poi recuperare dal file json l'oggeto
+//ogni volta che il server viene chiuso
 public class SessioneWordle implements Serializable {
 
     private String word; //parola di una sessione di gioco
@@ -15,15 +12,16 @@ public class SessioneWordle implements Serializable {
     private long currentTime;//variabile per tenere traccia del tempo della parola corrente del gioco
     private long nextTime;//variabile che indica dopo quanto tempo verra creata la nuova parola
 
-    private ConcurrentHashMap<String, InfoSessioneUtente> Tentativi;//dovro cambiare nome alla variabile
+    private ConcurrentHashMap<String, InfoSessioneUtente> Tentativi;
 
     @JsonCreator
     public SessioneWordle() {Tentativi = new ConcurrentHashMap<>();}
 
+    //metodo usato per l operazione di PlayWordle che il client richiede
     public int setGame(String username) {
 
-        InfoSessioneUtente tmpInfo = Tentativi.get(username);
-        if(tmpInfo == null) {
+        InfoSessioneUtente tmpInfo = Tentativi.get(username);//recupero l e info dell utente per questa sessione
+        if(tmpInfo == null) {//se non ci sono info significa che il client non ha partecipato al gioco per questa sessione
             Tentativi.put(username, new InfoSessioneUtente(0, false));
         }
         else {
@@ -34,12 +32,12 @@ public class SessioneWordle implements Serializable {
     }
     public int Tentativo(String username) {//metodo usato per incrementare i tentativi effettuati
 
-        InfoSessioneUtente info = Tentativi.get(username);
+        InfoSessioneUtente info = Tentativi.get(username);//recupero le info dell utente per la sessione
 
         if(info == null)return -1;//caso in cui l utente non ha selezionato il comando playWORDLE
-        if(info.isQuitGame())return -2;//caso in cui l utente ha gia giocato e ha effettuato il logouti
+        if(info.isQuitGame())return -2;//caso in cui l utente ha gia giocato e ha effettuato il logout
         if(info.getTentativi() < 12 && !info.getResultGame()) {
-            info.increaseTentativi();
+            info.increaseTentativi();//aumento i tentativi effettuati se si hanno ancora tentativi disponibili
             return 0;
         }
         if(info.getTentativi() >= 12) return -2;//caso in cui l utente ha gia giocato e ha terminato i tentativi

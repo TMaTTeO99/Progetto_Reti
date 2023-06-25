@@ -1,9 +1,11 @@
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.io.Serializable;
 import java.util.HashMap;
-import java.util.Objects;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 //classe usata per rappresemtare un utente, ogni utente è identificato da un username che deve essere univoco, ad ogni untente poi
 //sono associate diverse informazioni
@@ -12,7 +14,7 @@ public class Utente implements Serializable {
 
 
 
-    private HashMap<Integer, InfoLogin> LoginChannel = new HashMap<>();
+    private HashMap<Integer, InfoLogin> LoginChannel = new HashMap<>();//HashMap usata per mantenere le info riguardo al login
     private String Username = null;
     private String Passswd = null;
     private int Games = 0;//partite giocate
@@ -22,6 +24,10 @@ public class Utente implements Serializable {
     private int MaxConsecutive = 0;//striscia positiva piu lunga;
     private int [] GuesDistribuition = new int[12]; //Il numero massimo di tentativi che un utente puo fare è 12
     private NotificaClient stub;//variabile per recuperare lo stub passato dal client nella fase di registrazione
+
+    private ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
+    private Lock ReadLock = lock.readLock();
+    private Lock WriteLock = lock.writeLock();
 
     @JsonCreator //annotazioni utilizzate per poter deserializzare i file
     public Utente(
@@ -37,25 +43,19 @@ public class Utente implements Serializable {
         return Passswd;
     }
 
-    public void setPassswd(String passswd) {
-        Passswd = passswd;
-    }
+    public void setPassswd(String passswd) {Passswd = passswd;}
 
     public String getUsername() {
         return Username;
     }
 
-    public void setUsername(String username) {
-        Username = username;
-    }
+    public void setUsername(String username) {Username = username;}
 
     public int getGame() {
         return Games;
     }
 
-    public void setGame(int game) {
-        Games = game;
-    }
+    public void setGame(int game) {Games = game;}
 
     public void increasesGame() {Games += 1;}
 
@@ -63,9 +63,7 @@ public class Utente implements Serializable {
         return WinGame;
     }
 
-    public void setWinGame(int winGame) {
-        WinGame = winGame;
-    }
+    public void setWinGame(int winGame) {WinGame = winGame;}
 
     public void increasesWinGame() {WinGame += 1;}
 
@@ -73,21 +71,18 @@ public class Utente implements Serializable {
         return WinGamePerc;
     }
 
-    public void setWinGamePerc(float winGamePerc) {
-        WinGamePerc = winGamePerc;
-    }
+    public void setWinGamePerc(float winGamePerc) {WinGamePerc = winGamePerc;}
 
     public int getLastConsecutive() {
         return LastConsecutive;
     }
 
-    public void setLastConsecutive(int lastConsecutive) {
-        LastConsecutive = lastConsecutive;
-    }
+    public void setLastConsecutive(int lastConsecutive) {LastConsecutive = lastConsecutive;}
 
     public int getMaxConsecutive() {
         return MaxConsecutive;
     }
+
 
     public void setLogin(int idx, boolean val) {LoginChannel.put(idx, new InfoLogin(Username, val));}//val == 1 login, val == 0 logout
 
@@ -95,15 +90,9 @@ public class Utente implements Serializable {
 
     public void setGuesDistribuition(int idx, int guesDistribuition) {GuesDistribuition[idx] = guesDistribuition;}
 
-    public void setMaxConsecutive(int maxConsecutive) {
-        MaxConsecutive = maxConsecutive;
-    }
+    public void setMaxConsecutive(int maxConsecutive) {MaxConsecutive = maxConsecutive;}
 
     public NotificaClient getStub() {return stub;}
-
-    public void setStub(NotificaClient s) {stub = s;}
-
-    public void RemoveSTub() {stub = null;}//metodo usato per eliminare lo stub prima di serializzare
 
     public HashMap<Integer, InfoLogin> getLoginChannel() {return LoginChannel;}
 
@@ -111,6 +100,14 @@ public class Utente implements Serializable {
 
     public void UpdatePercWingame() {WinGamePerc = ( (float) (WinGame * 100) / (float)Games);}
 
+    @JsonIgnore //annotazione per non far serializzare le variabili di istanza che riguardano le var di lock
+    public ReentrantReadWriteLock getLock() {return lock;}
+    @JsonIgnore //annotazione per non far serializzare le variabili di istanza che riguardano le var di lock
+    public Lock getReadLock() {return ReadLock;}
+    @JsonIgnore //annotazione per non far serializzare le variabili di istanza che riguardano le var di lock
+    public Lock getWriteLock() {return WriteLock;}
+    public void setStub(NotificaClient s) {stub = s;}
+    public void RemoveSTub() {stub = null;}//metodo usato per eliminare lo stub prima di serializzare
     public void updateLastConsecutive(boolean flag) {
 
         if(flag) {//flag == true => il metodo viene chiamato quando il client ha vinto la partita
@@ -119,13 +116,19 @@ public class Utente implements Serializable {
         }
         else {LastConsecutive = 0;}//caso  in cui il client ha finito i tentativi senza indovinare la parola allora si interrompe la striscia positiva
     }
+    public void setReadWriteLock() {
+        lock = new ReentrantReadWriteLock();
+        ReadLock = lock.readLock();
+        WriteLock = lock.writeLock();
+    }
+
     public String getUserLogin(int idx) {
+
         InfoLogin info = LoginChannel.get(idx);
         if(info != null)return info.getName();
 
         return null;
     }
-
     public boolean getLogin(int idx) {
 
         InfoLogin info = LoginChannel.get(idx);
@@ -133,5 +136,4 @@ public class Utente implements Serializable {
 
         return false;
     }
-
 }

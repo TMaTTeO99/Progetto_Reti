@@ -13,9 +13,7 @@ public class StartGame extends JFrame {
 
     private int Port_Multicast;
     private int PortRMI;
-    private int Port_listening;
     private String IP_Multicast;
-    private String IP_server;
     private String usernamelogin;
     private String word;//stringa che conterrà la parola che l utente inserisce
     private Socket socket;
@@ -42,8 +40,6 @@ public class StartGame extends JFrame {
 
         SecurityKey = ScrtKey;
         dataConfig = dataCon;
-        IP_server = dataConfig.getIP_server();;
-        Port_listening = dataConfig.getPort_ListeningSocket();
         IP_Multicast = dataConfig.getIP_Multicast();
         Port_Multicast = dataConfig.getPort_Multicast();
         PortRMI = dataConfig.getPortExport();
@@ -85,6 +81,8 @@ public class StartGame extends JFrame {
         multiCastThread = new Thread(new CaptureUDPmessages(sockMulticast, SuggerimentiQueue, locksuggerimenti));
         multiCastThread.start();//lancio il thread che sta in ascolto
 
+        //aggiungo a Jbutton tutte le operazioni che devono fare quando vengono usati dall utente
+        //uso le espressioni lambda per evitare di creare delle classi normali o anonime per ogni jbutton
         Help.addActionListener(e -> {AddHelpSetUp();});
         TimeNextWord.addActionListener(e -> {AddTimeNextWordSetUp();});
         ShowMeSharing.addActionListener(e -> {AddShowMeSharing();});
@@ -96,7 +94,7 @@ public class StartGame extends JFrame {
         SendWord.addActionListener(e -> {AddSendWord();});
         sendMeStatistics.addActionListener(e -> {AddStatistics();});
 
-        //
+        //aggiungo i Jpanel al Jpanel principale
         mainPanel.add(makePanelLogout(Logout));
         mainPanel.add(makePanelPlayStart(Gioca));
         mainPanel.add(makePanelSend(SendWord));
@@ -436,7 +434,7 @@ public class StartGame extends JFrame {
 
                             StopCaptureUDPMessages();//metodo privato per la terminazione del thread
                             dispose();//elimino il frame corrente
-                            new StartLoginRegistrazione(dataConfig, SuggerimentiQueue, ID_Channel);
+                            new StartLoginRegistrazione(dataConfig, SuggerimentiQueue, ID_Channel, SecurityKey, socket);
                             break;
                         case -1:
                             JOptionPane.showMessageDialog(null, "Errore. Username inserito non corretto");
