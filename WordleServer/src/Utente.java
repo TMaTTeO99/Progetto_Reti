@@ -36,78 +36,42 @@ public class Utente implements Serializable {
         Username = u;
         Passswd = p;
     }
-    public void setGuesDistribuition(int [] g) {GuesDistribuition = g;}
-
-    public int [] getGuesDistribuition() {return GuesDistribuition;}
-    public String getPassswd() {
-        return Passswd;
-    }
-
-    public void setPassswd(String passswd) {Passswd = passswd;}
-
-    public String getUsername() {
-        return Username;
-    }
-
-    public void setUsername(String username) {Username = username;}
-
-    public int getGame() {
-        return Games;
-    }
-
-    public void setGame(int game) {Games = game;}
-
-    public void increasesGame() {Games += 1;}
-
-    public int getWinGame() {
-        return WinGame;
-    }
-
-    public void setWinGame(int winGame) {WinGame = winGame;}
-
-    public void increasesWinGame() {WinGame += 1;}
-
-    public float getWinGamePerc() {
-        return WinGamePerc;
-    }
-
-    public void setWinGamePerc(float winGamePerc) {WinGamePerc = winGamePerc;}
-
-    public int getLastConsecutive() {
-        return LastConsecutive;
-    }
-
-    public void setLastConsecutive(int lastConsecutive) {LastConsecutive = lastConsecutive;}
-
-    public int getMaxConsecutive() {
-        return MaxConsecutive;
-    }
-
-
-    public void setLogin(int idx, boolean val) {LoginChannel.put(idx, new InfoLogin(Username, val));}//val == 1 login, val == 0 logout
-
-    public int getGuesDistribuition(int idx) {return GuesDistribuition[idx];}
-
-    public void setGuesDistribuition(int idx, int guesDistribuition) {GuesDistribuition[idx] = guesDistribuition;}
-
-    public void setMaxConsecutive(int maxConsecutive) {MaxConsecutive = maxConsecutive;}
-
-    public NotificaClient getStub() {return stub;}
-
-    public HashMap<Integer, InfoLogin> getLoginChannel() {return LoginChannel;}
-
-    public void setLoginChannel(HashMap<Integer, InfoLogin> info) {LoginChannel = info;}
-
-    public void UpdatePercWingame() {WinGamePerc = ( (float) (WinGame * 100) / (float)Games);}
-
     @JsonIgnore //annotazione per non far serializzare le variabili di istanza che riguardano le var di lock
     public ReentrantReadWriteLock getLock() {return lock;}
     @JsonIgnore //annotazione per non far serializzare le variabili di istanza che riguardano le var di lock
     public Lock getReadLock() {return ReadLock;}
     @JsonIgnore //annotazione per non far serializzare le variabili di istanza che riguardano le var di lock
     public Lock getWriteLock() {return WriteLock;}
+    @JsonIgnore //annotazione per non far serializzare lo stub
+    public NotificaClient getStub() {return stub;}
+    public void setGuesDistribuition(int [] g) {GuesDistribuition = g;}
+    public int [] getGuesDistribuition() {return GuesDistribuition;}
+    public String getPassswd() {return Passswd;}
+
+    public void setPassswd(String passswd) {Passswd = passswd;}
+
+    public String getUsername() {return Username;}
+    public void setUsername(String username) {Username = username;}
+    public int getGame() {return Games;}
+    public void setGame(int game) {Games = game;}
+    public void increasesGame() {Games += 1;}
+    public int getWinGame() {return WinGame;}
+    public void setWinGame(int winGame) {WinGame = winGame;}
+    public void increasesWinGame() {WinGame += 1;}
+    public float getWinGamePerc() {return WinGamePerc;}
+    public void setWinGamePerc(float winGamePerc) {WinGamePerc = winGamePerc;}
+    public int getLastConsecutive() {return LastConsecutive;}
+    public void setLastConsecutive(int lastConsecutive) {LastConsecutive = lastConsecutive;}
+    public int getMaxConsecutive() {return MaxConsecutive;}
+    public int getGuesDistribuition(int idx) {return GuesDistribuition[idx];}
+    public void setGuesDistribuition(int idx, int guesDistribuition) {GuesDistribuition[idx] = guesDistribuition;}
+    public void setMaxConsecutive(int maxConsecutive) {MaxConsecutive = maxConsecutive;}
+    public HashMap<Integer, InfoLogin> getLoginChannel() {return LoginChannel;}
+    public void setLoginChannel(HashMap<Integer, InfoLogin> info) {LoginChannel = info;}
+    public void UpdatePercWingame() {WinGamePerc = ( (float) (WinGame * 100) / (float)Games);}
     public void setStub(NotificaClient s) {stub = s;}
     public void RemoveSTub() {stub = null;}//metodo usato per eliminare lo stub prima di serializzare
+    public void setLogin(int idx, boolean val) { LoginChannel.put(idx, new InfoLogin(Username, val));}//val == 1 login, val == 0 logout
     public void updateLastConsecutive(boolean flag) {
 
         if(flag) {//flag == true => il metodo viene chiamato quando il client ha vinto la partita
@@ -133,7 +97,6 @@ public class Utente implements Serializable {
 
         InfoLogin info = LoginChannel.get(idx);
         if(info != null) return info.getlogin();
-
         return false;
     }
 }

@@ -745,3 +745,71 @@ Giorno 46)	Riprecndo da dove ero arrivato:
 
 
 -------------------------------------------------------------------------------------------------------------------------------------------
+
+Giorno 47)	Riprendo dal problema di ieri, la generazione della chiave, poasso eseguire il mio protocollo per com'è pero
+		devo fare alcune modifiche :: 
+		
+		
+		Sembra aver funzionato, testare comunque :::
+		Dopo riprendo dal problema riguardo le lock per la sessione del gioco e la lock dell utente... 
+	
+		NO ANCORA NON FUNZIONA :: 
+		Il perche non funziona non dipende dal protocollo DH ma dipende dalla dall id della connessione devo capire bene perche::
+		
+		
+		Risolto..
+		Ora devo riprendere il fatto della deserializzazione, ora quando deserializzo gli utenti devo riconvertire le password
+		in quelle originali::
+		Questa cosa non si puo fare, allora quello che devo fare è utilizzare l immagine hash delle password e poi
+		inserirle nel oggetto utente. Quando poi l utente fornirà la password per accedere e fare il login per esempio 
+		devo ricalcolare temporaneamente il valore hash della password fornita, con quella contenuta nell utente confrontare 
+		Sembra funzionare :::
+		
+		Nota:: cosa succede nell algo che serializza se qualcuno durante l esecuzione del server elimina la cartella 
+		che contiene i file json?? :: da verificare
+		
+		Ho il problema del dead lock sulla login ::: sulla write lock 
+		devo riuscire ad isolare il problema ::: 
+		
+		Deve esserci qualche read o write lock che ieri ho sminchiato da qualche parte fra il thread che fa la login
+		quello che registra e quello del make json ::
+		
+		
+		Per ora ho levato nei worker le lock le sto usando solo nel make json, voglio vedere se mi si solleva lo stesso problema
+		
+		
+		Perche se accedo con lo stesso profilo da due client e cambia la classifica un utente riceve la notifica 
+		e un altro no?? da vedere:::: era il fatto che mandavo la notifica solo all utente che stava giocando perche facevo 
+		il controllo sull id pero non so perche lo facevo, ora sembra andare.
+		
+		Ora come ora senza stare a vedere le lock sembra andare bene pero dovrei stare attento con le lock.
+		Ora provo a implementare a modo queste lock perche secondo me servono, non basta solo la concurrent hash map.
+		
+		Non basta solo la concurrent quindi:
+		Siccome per il make json faccio solo get/remove/set stub, penso che le read write lock 
+		in quei metodi non le metto, le metto solo negli altri e poi provo a vedere se mi da quel bug::
+		
+		Per ora ho inserito le read e write lock sono nei metodi dell utente usati nella login, voglio vedere se 
+		mi da lo stesso bug :: si da lo stesso bug, a questo provo con i blocchi sincronized
+		Con i blocchi sincronized non mi da problemi, vorrei capire perche
+		
+		
+		HO TROVATO IL CAZZO DI PROBLEMAAAAAAa toppppppp.......
+		
+		Sembra di aver risoltooooo.....
+		Ora devo vedere dove ancora va implementata la mutua esclusione riguardo gli utenti, e dove anche va 
+		
+		Ora che ho capito il problema, devo fare come avevo detto all inizio, devo recuperare la llock e usarla quando serve
+		non posso metterla nei metodi dell utente perche è pesante
+		
+		In teoria, salvo problemi che saltano fuori dovrei aver scelto il giusto compromesso per quanto riguarda la mutua
+		esclusione degli utenti, dovrebbe andare bene, ora devo pensare per bene come fare con la sessione di game
+		e poi ci siamo quasi al termine ::
+		
+		NOTA: devo anche valutare la mutua esclusione della classifica per vedere se l ho fatta bene ma credo di si comunque fare check 
+		
+		
+
+-------------------------------------------------------------------------------------------------------------------------------------------
+
+

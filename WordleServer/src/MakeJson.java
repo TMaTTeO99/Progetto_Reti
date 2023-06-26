@@ -63,8 +63,10 @@ public class MakeJson implements Runnable{
             pars.setCodec(map);
 
             while(pars.nextToken() == JsonToken.START_OBJECT) {
+
                 Utente u = pars.readValueAs(Utente.class);
                 u.setReadWriteLock();
+
                 Registrati.put(u.getUsername(), u);
             }
         }
@@ -190,18 +192,15 @@ public class MakeJson implements Runnable{
 
                     case 'N' : //caso in cui il lista sarà presente l username di un utente
                               //in questo caso quindi quando ricevo 'N' indica username di
-                              //utente che deve essere serializzato dall inizio,
+                              //utente che deve essere serializzato dall inizio, quando è appena iscritto
 
                         Utente u = Registrati.get((String) dato.getDato());
                         if(u != null) {
                             try {
-                                u.getWriteLock().lock();
-                                stub = u.getStub();
-                                u.RemoveSTub();
-                                generator.writeObject(CipherPassGetTempU(u));
-                                u.setStub(stub);
+                                u.getReadLock().lock();
+                                generator.writeObject(u);
                             }
-                            finally {u.getWriteLock().unlock();}
+                            finally {u.getReadLock().unlock();}
                         }
                         break;
                     case 'U' ://Coso in cui un utente ha aggiornato i dati statistici
@@ -248,9 +247,11 @@ public class MakeJson implements Runnable{
         JsonGenerator genSessione = factory.createGenerator(NewJsonSessione);
         genSessione.setCodec(map);
 
-        ReadLockGame.lock();
+        try {
+            ReadLockGame.lock();
             genSessione.writeObject(dato.getDato());//serializzo l istanza del game
-        ReadLockGame.unlock();
+        }
+        finally {ReadLockGame.unlock();}
 
         //rinomino i file e distruggo quelli vecchi
         File oldJsonGame = new File(PathJSN.concat("/").concat(FileNameJsonGame));
@@ -270,11 +271,11 @@ public class MakeJson implements Runnable{
         Collection<Utente> lst =  Registrati.values();
 
         for(Utente Giocataore : lst) {
-
-            NotificaClient stub = Giocataore.getStub();
-            Giocataore.RemoveSTub();
-            gen.writeObject(CipherPassGetTempU(Giocataore));
-            Giocataore.setStub(stub);
+            try {
+                Giocataore.getReadLock().lock();
+                gen.writeObject(Giocataore);
+            }
+            finally {Giocataore.getReadLock().unlock();}
         }
 
         File oldJson = new File(PathJSN.concat("/").concat(FileNameJsonUtenti));
@@ -289,11 +290,14 @@ public class MakeJson implements Runnable{
         NewJsonClassifica = new FileWriter(PathJSN.concat("/").concat("tempClassifica.json"));
         JsonGenerator genClassifica = factory.createGenerator(NewJsonClassifica);
         genClassifica.setCodec(map);
-        ReadLockClassifica.lock();
-        for(int i = 0; i<Classifica.size(); i++) {
-            genClassifica.writeObject(Classifica.get(i));
+
+        try {
+            ReadLockClassifica.lock();
+            for(int i = 0; i<Classifica.size(); i++) {
+                genClassifica.writeObject(Classifica.get(i));
+            }
         }
-        ReadLockClassifica.unlock();
+        finally {ReadLockClassifica.unlock();}
 
         File oldJsonClass = new File(PathJSN.concat("/").concat(FielNameJsonClassifica));
         File RenameFileClass = new File(PathJSN.concat("/").concat("tempClassifica.json"));
@@ -302,35 +306,5 @@ public class MakeJson implements Runnable{
         RenameFileClass.renameTo(oldJsonClass);
 
     }
-    private Utente CipherPassGetTempU(Utente OriginalUser) throws Exception{
 
-
-        MessageDigest digest = MessageDigest.getInstance("SHA-256");//recupo la funzione HASH
-        byte[] encodedhash = digest.digest(OriginalUser.getPassswd().getBytes(StandardCharsets.UTF_8));
-
-        //creo il mio utente temporaneo per contenere le info da serializzare con la password cifrata
-        Utente tmp = new Utente(OriginalUser.getUsername(), bytesToHex(encodedhash));
-        tmp.setGame(OriginalUser.getGame());
-        tmp.setGuesDistribuition(OriginalUser.getGuesDistribuition());
-        tmp.setWinGamePerc(OriginalUser.getWinGamePerc());
-        tmp.setWinGame(OriginalUser.getWinGame());
-        tmp.setLastConsecutive(OriginalUser.getLastConsecutive());
-        tmp.setMaxConsecutive(OriginalUser.getMaxConsecutive());
-        tmp.setLoginChannel(OriginalUser.getLoginChannel());
-
-        return tmp;
-    }
-    //metodo usato per rappresentare la cifratura della password fatta con SHA-256 in una stringa esadecimale
-    private String bytesToHex(byte[] hash) {
-
-        StringBuilder hexString = new StringBuilder(2 * hash.length);
-        for (int i = 0; i < hash.length; i++) {
-            String hex = Integer.toHexString(0xff & hash[i]);//recupero  il byte senza il segno
-            if(hex.length() == 1) {//se hex ha lunghezza 1 aggingo uno 0 per avere una rappresentazione esadecimale con 2 cifre
-                hexString.append('0');
-            }
-            hexString.append(hex);
-        }
-        return hexString.toString();
-    }
 }

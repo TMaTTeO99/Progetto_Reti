@@ -112,7 +112,7 @@ public class ServerWordle{
                         SocketChannel channel = ListenSocket.accept();
                         channel.configureBlocking(false);//setto il channel come non bloccante
                         channel.register(selector, SelectionKey.OP_READ, ID_Channel);//registro il channel per operazione di lettura
-
+                        ID_Channel++;
                     }
                     else if (ReadyKey.isReadable() && ReadyKey.isValid()) {//caso in cui una operazione di read non ritorna 0
 
@@ -122,11 +122,10 @@ public class ServerWordle{
                         if((dati = ReadRequest(ReadyKey)) != null) {//se la lettura della richiesta è andata a buon fine lancio i worker
                             pool.execute(new Work(ReadyKey, Registrati, dati, Words, Game, ReadWordLock, DaSerializzare,
                                                   Classifica, ReadLockClassifica, WriteLockClassifca, IP_multicast, PortMulticast,
-                                                    dataConfig, SecurityKeys));
+                                                    dataConfig, SecurityKeys, WriteWordLock));
                         }
                     }
                 }
-                ID_Channel++;
             }
         }
         catch (Exception e){e.printStackTrace();}
@@ -248,9 +247,11 @@ public class ServerWordle{
 
         for(Utente u : Registrati.values()) {//cerco nella struttura dati in cui sono presenti tutti i client
             //per verificare che ho trovato l utente corretto controllando l id in allegato al channel
-            u.getReadLock().lock();
+            try {
+                u.getReadLock().lock();
                 if(u.getLoginChannel().get(ID) != null) return u;
-            u.getReadLock().unlock();
+            }
+            finally {u.getReadLock().unlock();}
         }
         return null;
     }

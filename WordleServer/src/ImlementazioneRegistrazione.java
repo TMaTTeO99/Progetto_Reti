@@ -1,5 +1,7 @@
+import java.nio.charset.StandardCharsets;
 import java.rmi.RemoteException;
 import java.rmi.server.RemoteServer;
+import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.concurrent.ConcurrentHashMap;
@@ -30,7 +32,7 @@ public class ImlementazioneRegistrazione extends RemoteServer implements Registr
         try {
 
             String key = SecurityKeys.get(ID);//recupero la chiave per la decifrazione dei dati
-            System.out.println(key);
+
             //decifro i dati
             String usnameString = SecurityClass.decrypt(username, key);
             String passString = SecurityClass.decrypt(passwd, key);
@@ -40,8 +42,14 @@ public class ImlementazioneRegistrazione extends RemoteServer implements Registr
             //caso in cui il client ha inserito dati non corretti
             if((flag_Passwd = ChckInput(usnameString, passString)) != 0)return flag_Passwd;
 
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");//recupo la funzione HASH
+            byte[] encodedhash = digest.digest(passString.getBytes(StandardCharsets.UTF_8));
+
+
             //se il client non è presente fra i registrati, se non c'è lo inserisco
-            if(Registrati.putIfAbsent(usnameString, new Utente(usnameString, passString)) == null) {
+            //come password uso l immagine hash della password all interno del ogetto utente
+
+            if(Registrati.putIfAbsent(usnameString, new Utente(usnameString, bytesToHex(encodedhash))) == null) {
                 //comunico al thread che serializza che è presente un nuovo utente e che quindi potrebbe dover serializzare
                 DaSerializzare.put(new DataToSerialize(usnameString, 'N'));//il char N indica che sta per arrivare un username
 
@@ -83,10 +91,35 @@ public class ImlementazioneRegistrazione extends RemoteServer implements Registr
 
         return 0;
     }
+    private String bytesToHex(byte[] hash) {
+
+        StringBuilder hexString = new StringBuilder(2 * hash.length);
+        for (int i = 0; i < hash.length; i++) {
+            String hex = Integer.toHexString(0xff & hash[i]);//recupero  il byte senza il segno
+            if(hex.length() == 1) {//se hex ha lunghezza 1 aggingo uno 0 per avere una rappresentazione esadecimale con 2 cifre
+                hexString.append('0');
+            }
+            hexString.append(hex);
+        }
+        return hexString.toString();
+    }
     public void RegisryForCallBack(String username, NotificaClient stub) throws RemoteException {
-        Registrati.get(username).setStub(stub);
+
+        Utente u = Registrati.get(username);
+        try {
+            u.getWriteLock().lock();
+            u.setStub(stub);
+        }
+        finally {u.getWriteLock().unlock();}
+
     }
     public void UnRegisryForCallBack(String username, NotificaClient stub)throws RemoteException {
-        Registrati.get(username).RemoveSTub();
+
+        Utente u = Registrati.get(username);
+        try {
+            u.getWriteLock().lock();
+            u.RemoveSTub();
+        }
+        finally {u.getWriteLock().unlock();}
     }
 }

@@ -31,6 +31,7 @@ public class StartLoginRegistrazione extends JFrame {
 
         //recupero all inetrno delle var di istanza le info che servono al client
 
+        ID_Channel = ID;
         socket = sck;
         SecurityKey = SecKey;
         dataConfig = dataCon;

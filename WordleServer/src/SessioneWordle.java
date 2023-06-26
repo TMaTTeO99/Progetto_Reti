@@ -4,7 +4,8 @@ import java.io.Serializable;
 import java.util.concurrent.ConcurrentHashMap;
 
 //Classe che implementa serializable in modo tale da poter salvare la sessione corrente di gioco
-//ogni volta che il server viene chiuso
+//e recuperarla quando il server viene chiuso
+
 public class SessioneWordle implements Serializable {
 
     private String word; //parola di una sessione di gioco
@@ -19,12 +20,22 @@ public class SessioneWordle implements Serializable {
 
     //metodo usato per l operazione di PlayWordle che il client richiede
     public int setGame(String username) {
-
+        /*
         InfoSessioneUtente tmpInfo = Tentativi.get(username);//recupero l e info dell utente per questa sessione
         if(tmpInfo == null) {//se non ci sono info significa che il client non ha partecipato al gioco per questa sessione
             Tentativi.put(username, new InfoSessioneUtente(0, false));
         }
         else {
+            if(tmpInfo.getTentativi() < 12 && !tmpInfo.getResultGame() && !tmpInfo.isQuitGame()) {return 1;}//1 indica che l utente ha gia inviato la richiesta di playWORDLE
+            else {return -1;}//-1 indica che l utente ha gia partecipato al gioco
+        }
+        return 0;//0 indica richiesta di playWORDLE andata a buon fine
+
+         */
+
+        InfoSessioneUtente tmpInfo = null;
+        //recupero l e info dell utente per questa sessione
+        if((tmpInfo = Tentativi.putIfAbsent(username, new InfoSessioneUtente(0, false))) != null) {//se non ci sono info significa che il client non ha partecipato al gioco per questa sessione
             if(tmpInfo.getTentativi() < 12 && !tmpInfo.getResultGame() && !tmpInfo.isQuitGame()) {return 1;}//1 indica che l utente ha gia inviato la richiesta di playWORDLE
             else {return -1;}//-1 indica che l utente ha gia partecipato al gioco
         }

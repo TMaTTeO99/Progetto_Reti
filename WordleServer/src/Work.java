@@ -1,4 +1,5 @@
 import java.io.*;
+import java.math.BigInteger;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetSocketAddress;
@@ -6,6 +7,7 @@ import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.SocketChannel;
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingDeque;
@@ -17,7 +19,8 @@ public class Work implements Runnable {
     private ConcurrentHashMap<String, Utente> Registrati;//utenti del gioco
     private PkjData Dati;//pachetto che conterra le risposte per il client
     private SessioneWordle Gioco;//sessione corrente del gioco
-    private Lock ReadWordLock;//readlock usata per laccedere in mutua esclusione alla sessione del gioco
+    private Lock ReadWordLock;//readlock usata per accedere in mutua esclusione alla sessione del gioco in lettura
+    private Lock WriteWordLock;//writelock usata per accedere in mutua esclusione alla sessione del gioco in scrittura
     private ArrayList<String> Words;//parole del vocabolario
     private LinkedBlockingDeque<DataToSerialize> DaSerializzare;//cosa usata per dire al thread che serializza quando e cosa serializzare
     private ArrayList<UserValoreClassifica> Classifica;
@@ -28,7 +31,7 @@ public class Work implements Runnable {
     private HashMap<Integer, String> SecurityKeys;//Hashmap che contiene le chiavi di sessione per la cifratura
     public Work(SelectionKey k, ConcurrentHashMap<String, Utente> R, PkjData dati, ArrayList<String> Vocabolario,
                 SessioneWordle g, Lock RWLock, LinkedBlockingDeque<DataToSerialize> daserializzare, ArrayList<UserValoreClassifica> Clss,
-                Lock RDLock, Lock WRLock, String IPMulticast, int PortMulticast, GetDataConfig dataConf, HashMap<Integer, String> ScrtyKeys) {
+                Lock RDLock, Lock WRLock, String IPMulticast, int PortMulticast, GetDataConfig dataConf, HashMap<Integer, String> ScrtyKeys, Lock WWLock) {
 
         dataConfig = dataConf;
         Key = k;
@@ -36,6 +39,7 @@ public class Work implements Runnable {
         Dati = dati;
         Gioco = g;
         ReadWordLock = RWLock;
+        WriteWordLock = WWLock;
         Words = Vocabolario;
         DaSerializzare = daserializzare;
         Classifica = Clss;
@@ -117,16 +121,17 @@ public class Work implements Runnable {
     //Metodi privati usati per costruire la risposta corretta
     private void SendAndRicevereSecurityData(StringTokenizer Tok, PkjData dati) {
 
-        long C = Long.parseLong(Tok.nextToken(" ").replace(":", ""));//recupero il dato del client
+        BigInteger C = new BigInteger(Tok.nextToken(" ").replace(":", ""));//recupero il dato del client
+        BigInteger P = new BigInteger(String.valueOf(dataConfig.getP()));
+        BigInteger s = null;
 
-        int s = -1;
         //calcolo S per il protocollo DH
-        long S = SecurityClass.Compute_C(dataConfig.getG(), dataConfig.getP());
+        BigInteger S = SecurityClass.Compute_C(dataConfig.getG(), dataConfig.getP());
         try {
 
             s = SecurityClass.getSecret();//recupero il segreto del server riguardo questa connessione
 
-            String keySecurity = Long.toBinaryString(SecurityClass.powInModulo(C, s, dataConfig.getP()));//calcolo la chiave di sessione
+            String keySecurity = C.modPow(s, P).toString(2);//calcolo la chiave di sessione
             while(keySecurity.length() < 16){keySecurity += '0';}//se la chiave è < 128 bit faccio pudding
 
             SecurityKeys.put((Integer) Key.attachment(), keySecurity);//inserisco la chiave in una HashMap indicizzata dall id associato alla connessione
@@ -161,17 +166,23 @@ public class Work implements Runnable {
 
         Utente u = Registrati.get(username);//recupero l utente
 
-
         if(u != null){
 
             try {
-                u.getReadLock().lock();//accedo in mutua esclusione ai dati dell utente
+                u.getReadLock().lock();
+
                 if(u.getLogin((Integer) Key.attachment())) {//controllo se l utente ha fatto il login
+
                     //recupero le info riguardo la creazione della parola
-                    ReadWordLock.lock();
-                    long currentW = Gioco.getCurrentTime();
-                    long nextW = Gioco.getNextTime();
-                    ReadWordLock.unlock();
+                    long currentW = -1;
+                    long nextW = -1;
+
+                    try {
+                        ReadWordLock.lock();
+                        currentW = Gioco.getCurrentTime();
+                        nextW = Gioco.getNextTime();
+                    }
+                    finally {ReadWordLock.unlock();}
 
                     //metodo privato per effettuare il calcolo dell tempo di produzione della nuova parola
                     long nextwClient = CalculateTime(currentW, nextW);
@@ -181,7 +192,8 @@ public class Work implements Runnable {
                 }
                 else Write_No_Cipher(dati, "", -1, "");
             }
-            finally {u.getReadLock().unlock();}//libero la lock
+            finally {u.getReadLock().unlock();}
+
         }
         else Write_No_Cipher(dati, "", -1, "");
 
@@ -193,23 +205,30 @@ public class Work implements Runnable {
 
         Utente u = Registrati.get(username);
         if(u != null) {
+
             try {
-                u.getReadLock().lock();//accedo ai dati dell utente in mutua esclusione
+
+                u.getReadLock().lock();
                 if(u.getLogin((Integer) Key.attachment())) {//controllo se l utente ha fatto il login
 
-                    //accedo in mutua esclusione alla classifica
-                    ReadLockClassifica.lock();
-                    String answer = new String();
-                    for(int i = 0; i< Classifica.size(); i++) {//costruisco la risposta
-                        UserValoreClassifica temp = Classifica.get(i);
-                        answer = answer.concat("USER: " + temp.getUsername() + " SCORE: " + temp.getScore() + "\n");
+                    String answer = null;
+                    try {
+                        //accedo in mutua esclusione alla classifica
+                        ReadLockClassifica.lock();
+                        answer = new String();
+                        for(int i = 0; i< Classifica.size(); i++) {//costruisco la risposta
+                            UserValoreClassifica temp = Classifica.get(i);
+                            answer = answer.concat("USER: " + temp.getUsername() + " SCORE: " + temp.getScore() + "\n");
+                        }
                     }
-                    ReadLockClassifica.unlock();
+                    finally {ReadLockClassifica.unlock();}
+
                     Write_No_Cipher(dati, "", 0, answer);
                 }
                 else Write_No_Cipher(dati, "", -1, "");
             }
             finally {u.getReadLock().unlock();}
+
         }
         else Write_No_Cipher(dati, "", -1, "");
 
@@ -227,45 +246,50 @@ public class Work implements Runnable {
 
             try {
 
-                u.getReadLock().lock();//accedo ai dati dell utente in mutua esclusione
-
+                u.getReadLock().lock();//sincronizzo per l accesso ai dati dell utente
                 if(u.getLogin((Integer) Key.attachment())) {//controllo se l utente ha fatto il login
 
-                    InfoSessioneUtente tmpInfo = Gioco.getInfoGameUtente(username);//recupero le info della partita dell utente
-                    if(tmpInfo != null) {//se l utente ha partecipato al gioco
+                    try {
+                        ReadWordLock.lock();//ho bisogno di sincronizzare con il thread che genera il gioco
+                        InfoSessioneUtente tmpInfo = Gioco.getInfoGameUtente(username);//recupero le info della partita dell utente
 
-                        if((tmpInfo.getQuitGame() && tmpInfo.getTentativi() > 0) || tmpInfo.getTentativi() >= 12 || tmpInfo.getResultGame()) {//se l utente non sta partecipando al gioco
+                        if(tmpInfo != null) {//se l utente ha partecipato al gioco
 
-                            //qui scorro i tentativi dell utente e costruisco i dati da inviare sul gruppo multicast
-                            //costruisco una stringa contenente tutte le sottostringhe che rappresentano i suggerimenti
-                            String answer = new String();
+                            if((tmpInfo.getQuitGame() && tmpInfo.getTentativi() > 0) || tmpInfo.getTentativi() >= 12 || tmpInfo.getResultGame()) {//se l utente non sta partecipando al gioco
 
-                            ArrayList<String> Suggerimenti = tmpInfo.getTryWord();
-                            answer = answer.concat(username);//inserisco l username dell utente che ha fatto i tentativi
+                                //qui scorro i tentativi dell utente e costruisco i dati da inviare sul gruppo multicast
+                                //costruisco una stringa contenente tutte le sottostringhe che rappresentano i suggerimenti
+                                String answer = new String();
 
-                            //costruisco la risposta
-                            for(int  i = 0; i<Suggerimenti.size(); i++) {answer = answer.concat(" " + Suggerimenti.get(i));}
+                                ArrayList<String> Suggerimenti = tmpInfo.getTryWord();
+                                answer = answer.concat(username);//inserisco l username dell utente che ha fatto i tentativi
 
-                            //invio la stringa con un datagrampacket al gruppo multicast
-                            try (DatagramSocket sock = new DatagramSocket()){
+                                //costruisco la risposta
+                                for(int  i = 0; i<Suggerimenti.size(); i++) {answer = answer.concat(" " + Suggerimenti.get(i));}
 
-                                byte [] byteAnswer = answer.getBytes();
-                                DatagramPacket pkj = new DatagramPacket(byteAnswer, 0, byteAnswer.length, AddressMulticastClients);
-                                sock.send(pkj);
+                                //invio la stringa con un datagrampacket al gruppo multicast
+                                try (DatagramSocket sock = new DatagramSocket()){
 
-                                Write_No_Cipher(dati, "", 0, "");//avviso il client che l operazione è stata fatta
+                                    byte [] byteAnswer = answer.getBytes();
+                                    DatagramPacket pkj = new DatagramPacket(byteAnswer, 0, byteAnswer.length, AddressMulticastClients);
+                                    sock.send(pkj);
+
+                                    Write_No_Cipher(dati, "", 0, "");//avviso il client che l operazione è stata fatta
+                                }
+                                catch (Exception e) {e.printStackTrace();}
                             }
-                            catch (Exception e) {e.printStackTrace();}
+                            else {
+                                Write_No_Cipher(dati, "", -2, "");//caso in cui l utente è ancora in gioco
+                            }
                         }
-                        else {
-                            Write_No_Cipher(dati, "", -2, "");//caso in cui l utente è ancora in gioco
-                        }
+                        else Write_No_Cipher(dati, "", -1, "");//caso in cui l utente non ha partecipato al gioco
                     }
-                    else Write_No_Cipher(dati, "", -1, "");//caso in cui l utente non ha partecipato al gioco
+                    finally {ReadWordLock.unlock();}
                 }
                 else Write_No_Cipher(dati, "", -3, "");//caso in cui l utente non ha effettuato il login
             }
             finally {u.getReadLock().unlock();}
+
         }
         else Write_No_Cipher(dati, "", -3, "");
 
@@ -294,11 +318,16 @@ public class Work implements Runnable {
                     Write_No_Cipher(dati, "", -1, "");
                 }
                 else {
-                    //controllo se l utente in questo momento sta giocando
-                    if(Gioco.IsInGame(username)){
-                        GameUtente = u.getGame() - 1;
+
+                    try {
+                        ReadWordLock.lock();
+                        //controllo se l utente in questo momento sta giocando
+                        if(Gioco.IsInGame(username)){
+                            GameUtente = u.getGame() - 1;
+                        }
+                        else GameUtente = u.getGame();
                     }
-                    else GameUtente = u.getGame();
+                    finally {ReadWordLock.unlock();}
 
                     //recupero le statistiche dell utente e creo la stringa che deve essere inviata
                     String answer = new String(new byte[0], StandardCharsets.UTF_8);
@@ -316,6 +345,7 @@ public class Work implements Runnable {
                 }
             }
             finally {u.getReadLock().unlock();}
+
         }
         else Write_No_Cipher(dati, "", -1, "");//se u non è registrato
     }
@@ -339,95 +369,100 @@ public class Work implements Runnable {
 
                     //caso in cui l utente non ha prima eseguito il comando playWORDLE oppure ha gia partecipato al gioco
                     //o vincendo la partita oppure esaurendo i tentativi per quella parola
-                    int FlagResult = 0;
-                    if((FlagResult = Gioco.Tentativo(username)) != 0) {
+                    try {
+                        ReadWordLock.lock();
 
-                        switch (FlagResult) {
-                            case -1 ://caso in cui l utente non ha selezionato il comando playWORDLE
-                                Write_No_Cipher(dati, "", -1, "");
-                                break;
-                            case -2 ://caso in cui l utente ha gia giocato e ha terminato i tentativi
-                                Write_No_Cipher(dati, "", -2, "");
-                                break;
-                            case -3 ://ha vinto la partita precedentemente
-                                Write_No_Cipher(dati, "", -3, "");
-                                break;
-                        }
-                    }
-                    else {
-                        if(CheckWord(word)) {//Controllo che la parola sia presente nel vocabolario, in caso non ci sia ritorno un messaggio di errore
-                            //recupero la parola del gioco in muta esclusione
-                            ReadWordLock.lock();
-                            String GameWord = Gioco.getWord();
-                            String wordTradotta = Gioco.getTranslatedWord();
-                            ReadWordLock.unlock();
+                        int FlagResult = 0;
+                        if((FlagResult = Gioco.Tentativo(username)) != 0) {
 
-                            if(GameWord.equals(word)) {//caso in cui il client ha indovinato la parola
-
-                                Gioco.setWinner(username);//setto i campi  per indicare che per quel utente la parola è stata indovinata
-
-                                //recupero il numero di tentativi fatti dal giocatore per vinvere l attuale partita
-                                int tentativiAttuali = Gioco.gettentativiUtente(username);
-
-                                //aumento il numero di partite vinte dal utente
-                                u.increasesWinGame();
-
-                                //ricalcolo la percentuale di partite vinte
-                                u.UpdatePercWingame();
-
-                                String suggestions = ComputeSuggestions(GameWord, word);//costruisco i suggerimenti per l utente
-                                Gioco.getTentativi().get(username).getTryWord().add(suggestions);//aggiungo il suggerimento alla sessione dell utente
-
-                                //recupero i tentativi della partita
-                                int tentativiUtente = Gioco.gettentativiUtente(username);
-
-                                //ricalcolo la distribuzione
-                                u.setGuesDistribuition(tentativiUtente - 1, (u.getGuesDistribuition(tentativiUtente - 1) + 1));
-                                System.out.println((float) (u.getGuesDistribuition(tentativiUtente - 1) * 100) / (float) u.getWinGame());
-
-                                //aumento striscia positiva di vittorie
-                                u.updateLastConsecutive(true);
-
-                                //aggiorno la classifica
-                                updateClassifica(username, u, tentativiAttuali);
-
-                                //segnalo al thread che serializza i dati che un altro utente ha modificato le sue statistiche
-                                SendSerialization('U');
-
-                                //Invio la classifica al thread che serializza per salvare la classifica aggiornata
-                                SendSerialization('C');
-
-                                //invio al thread che serializza la sessione del gioco
-                                SendSerialization('I');
-
-                                //Costruisco il messaggio di parola indovinata
-                                Cipher_AND_Write(dati, "", 0, wordTradotta);//0 indica parola indovinata
-
-                            }
-                            else {
-                                //a questo punto devo inviare i suggerimenti al client se dopo quest ultimo tentativo ne ha almeno un altro
-                                //devo quindi effettuare il calcolo dei sugerimenti, produrre la risposta e inviarla
-
-                                String suggestions = ComputeSuggestions(GameWord, word);//costruisco i suggerimenti per l utente
-                                Gioco.getTentativi().get(username).getTryWord().add(suggestions);//aggiungo il tentativo alla sessione dell utente
-                                if(Gioco.gettentativiUtente(username) < 12) {
-                                    System.out.println("Corretto");
-                                    Cipher_AND_Write(dati, "", 1, suggestions);//rispondo al client
-                                }
-                                else {//se invece il client ha terminato i tentativi invio al client la traduzione della parola e serializzare la sessione di Game
-
-                                    SendSerialization('I');//serializzo l istanza del game in questo modo non perdo dati riguado la sconfitta del client
-                                    u.updateLastConsecutive(false);//aggionro la striscia positiva di vittorie
-                                    u.UpdatePercWingame();//ricalcolo la percentuale di partite vinte
-
-                                    Cipher_AND_Write(dati, "", 2, wordTradotta);
-                                }
+                            switch (FlagResult) {
+                                case -1 ://caso in cui l utente non ha selezionato il comando playWORDLE
+                                    Write_No_Cipher(dati, "", -1, "");
+                                    break;
+                                case -2 ://caso in cui l utente ha gia giocato e ha terminato i tentativi
+                                    Write_No_Cipher(dati, "", -2, "");
+                                    break;
+                                case -3 ://ha vinto la partita precedentemente
+                                    Write_No_Cipher(dati, "", -3, "");
+                                    break;
                             }
                         }
                         else {
-                            Write_No_Cipher(dati, "", -4, "");//caso in cui la parola non esiste e il tentativo non viene considerato
+                            if(CheckWord(word)) {//Controllo che la parola sia presente nel vocabolario, in caso non ci sia ritorno un messaggio di errore
+                                //recupero la parola del gioco in muta esclusione
+
+                                String GameWord = Gioco.getWord();
+                                String wordTradotta = Gioco.getTranslatedWord();
+
+
+                                if(GameWord.equals(word)) {//caso in cui il client ha indovinato la parola
+
+                                    Gioco.setWinner(username);//setto i campi  per indicare che per quel utente la parola è stata indovinata
+
+                                    //recupero il numero di tentativi fatti dal giocatore per vinvere l attuale partita
+                                    int tentativiAttuali = Gioco.gettentativiUtente(username);
+
+                                    //aumento il numero di partite vinte dal utente
+                                    u.increasesWinGame();
+
+                                    //ricalcolo la percentuale di partite vinte
+                                    u.UpdatePercWingame();
+
+                                    String suggestions = ComputeSuggestions(GameWord, word);//costruisco i suggerimenti per l utente
+                                    Gioco.getTentativi().get(username).getTryWord().add(suggestions);//aggiungo il suggerimento alla sessione dell utente
+
+                                    //recupero i tentativi della partita
+                                    int tentativiUtente = Gioco.gettentativiUtente(username);
+
+                                    //ricalcolo la distribuzione
+                                    u.setGuesDistribuition(tentativiUtente - 1, (u.getGuesDistribuition(tentativiUtente - 1) + 1));
+                                    System.out.println((float) (u.getGuesDistribuition(tentativiUtente - 1) * 100) / (float) u.getWinGame());
+
+                                    //aumento striscia positiva di vittorie
+                                    u.updateLastConsecutive(true);
+
+                                    //aggiorno la classifica
+                                    updateClassifica(username, u, tentativiAttuali);
+
+                                    //segnalo al thread che serializza i dati che un altro utente ha modificato le sue statistiche
+                                    SendSerialization('U');
+
+                                    //Invio la classifica al thread che serializza per salvare la classifica aggiornata
+                                    SendSerialization('C');
+
+                                    //invio al thread che serializza la sessione del gioco
+                                    SendSerialization('I');
+
+                                    //Costruisco il messaggio di parola indovinata
+                                    Cipher_AND_Write(dati, "", 0, wordTradotta);//0 indica parola indovinata
+
+                                }
+                                else {
+                                    //a questo punto devo inviare i suggerimenti al client se dopo quest ultimo tentativo ne ha almeno un altro
+                                    //devo quindi effettuare il calcolo dei sugerimenti, produrre la risposta e inviarla
+
+                                    String suggestions = ComputeSuggestions(GameWord, word);//costruisco i suggerimenti per l utente
+                                    Gioco.getTentativi().get(username).getTryWord().add(suggestions);//aggiungo il tentativo alla sessione dell utente
+                                    if(Gioco.gettentativiUtente(username) < 12) {
+                                        Cipher_AND_Write(dati, "", 1, suggestions);//rispondo al client
+                                    }
+                                    else {//se invece il client ha terminato i tentativi invio al client la traduzione della parola e serializzare la sessione di Game
+
+                                        SendSerialization('I');//serializzo l istanza del game in questo modo non perdo dati riguado la sconfitta del client
+                                        u.updateLastConsecutive(false);//aggionro la striscia positiva di vittorie
+                                        u.UpdatePercWingame();//ricalcolo la percentuale di partite vinte
+
+                                        Cipher_AND_Write(dati, "", 2, wordTradotta);
+                                    }
+                                }
+                            }
+                            else {
+                                Write_No_Cipher(dati, "", -4, "");//caso in cui la parola non esiste e il tentativo non viene considerato
+                            }
                         }
                     }
+                    finally {ReadWordLock.unlock();}
+
                 }
                 else Write_No_Cipher(dati, "", -5, "");
             }
@@ -451,29 +486,32 @@ public class Work implements Runnable {
         u = Registrati.get(username);
 
         if(u != null) {
-           try {
 
-               u.getReadLock().lock();
-               if(u.getLogin((Integer) Key.attachment())) {//controllo che l utente abbia effettuato il login
+            try {
+                u.getWriteLock().lock();
+                if(u.getLogin((Integer) Key.attachment())) {//controllo che l utente abbia effettuato il login
 
-                   //setto i campi per indicare che il client partecipa al game
-                   ReadWordLock.lock();
-                   int result = Gioco.setGame(username);
-                   ReadWordLock.unlock();
+                    //setto i campi per indicare che il client partecipa al game
+                    int result = -10; //valore fittizio
+                    try {
+                        ReadWordLock.lock();
+                        result = Gioco.setGame(username);
+                    }
+                    finally {ReadWordLock.unlock();}
 
-                   if(result == 0) {
+                    if(result == 0) {
 
-                       u.increasesGame();//aumento il numero di partite in cui il client ha partecipato
-                       //inserisco in coda il messaggio per dire al thread che serializza che un utente ha aggiornato i suoi dati
-                       SendSerialization('U');
-                       error = 0;
-                   }
-                   else if(result == 1) {error = -1;}
-                   else {error = -2;}
-               }
-           }
-           finally {u.getReadLock().unlock();}
+                        u.increasesGame();//aumento il numero di partite in cui il client ha partecipato
 
+                        //inserisco in coda il messaggio per dire al thread che serializza che un utente ha aggiornato i suoi dati
+                        SendSerialization('U');
+                        error = 0;
+                    }
+                    else if(result == 1) {error = -1;}
+                    else {error = -2;}
+                }
+            }
+            finally {u.getWriteLock().unlock();}
         }
         else {error = -3;}
         Write_No_Cipher(dati, "", error, "");
@@ -523,7 +561,7 @@ public class Work implements Runnable {
 
         Write_No_Cipher(dati, "", error, "");
     }
-    private void LoginMethod(StringTokenizer Tok, PkjData dati) {
+    private void LoginMethod(StringTokenizer Tok, PkjData dati) throws Exception{
 
         String username = null;
         String passwd = null;
@@ -536,23 +574,26 @@ public class Work implements Runnable {
         username = Tok.nextToken(" ").replace(":", "");//recupero username
         passwd = Tok.nextToken(" ");//recupero passwd
 
+        if((u = Registrati.get(username)) != null) {//controllo che l utente sia registrato
 
-        if((u = Registrati.get(username)) != null) {//controllo che l utente sia loggato
+            //qui per effettuare il login controllo che immagine hash della password fornita
+            //dall utente sia uguale a quella presente dell oggetto utente
 
-            try{
-                u.getWriteLock().lock();
-                if(u.getPassswd().equals(passwd)) {//controllo la password
+            if(CheckImageHash(passwd, u)) {//controllo la password
 
+                try {
+                    u.getWriteLock().lock();
                     u.setLogin((Integer) Key.attachment(), true);//setto i campi per il login
                     error = 0;
                 }
-                else error = -2;//-2 indica che l utente non ha inserito correttamente la passwd
-            }
-            finally {u.getWriteLock().unlock();}
-        }
-        else error = -1;// -1 indica utente non registrato
-        Write_No_Cipher(dati, "", error, "");
+                finally {u.getWriteLock().unlock();}
 
+            }
+            else {error = -2;}//-2 indica che l utente non ha inserito correttamente la passwd
+        }
+        else {error = -1;}// -1 indica utente non registrato
+
+        Write_No_Cipher(dati, "", error, "");
     }
 
     //metodi privati per la gestione e il completamento delle richieste
@@ -653,7 +694,7 @@ public class Work implements Runnable {
         for(Utente u : Registrati.values()) {
 
             NotificaClient stub = u.getStub();
-            if(u.getLogin((Integer)Key.attachment()) && stub != null) {
+            if(stub != null) {
                 try {stub.SendNotifica(ClassificaNotifiche);}
                 catch (Exception e){e.printStackTrace();}
             }
@@ -752,6 +793,30 @@ public class Work implements Runnable {
                 CheckChars(UWchar, Lettera, GWchar, idx += 1, idxlettera, terminazione, consigli, trovata);
             }
         }
+    }
+    //metodo usato per rappresentare la cifratura della password fatta con SHA-256 in una stringa esadecimale
+    private String bytesToHex(byte[] hash) {
+
+        StringBuilder hexString = new StringBuilder(2 * hash.length);
+        for (int i = 0; i < hash.length; i++) {
+            String hex = Integer.toHexString(0xff & hash[i]);//recupero  il byte senza il segno
+            if(hex.length() == 1) {//se hex ha lunghezza 1 aggingo uno 0 per avere una rappresentazione esadecimale con 2 cifre
+                hexString.append('0');
+            }
+            hexString.append(hex);
+        }
+        return hexString.toString();
+    }
+    private boolean CheckImageHash(String Originalpass, Utente u) throws Exception{
+
+        try {
+            u.getReadLock().lock();
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");//recupo la funzione HASH
+            byte[] encodedhash = digest.digest(Originalpass.getBytes(StandardCharsets.UTF_8));
+            return u.getPassswd().equals(bytesToHex(encodedhash));
+        }
+        finally {u.getReadLock().unlock();}
+
     }
     private String GetDatiCifreati(int position, PkjData Dati) {
 

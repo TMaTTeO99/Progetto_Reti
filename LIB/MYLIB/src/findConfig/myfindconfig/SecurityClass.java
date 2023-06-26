@@ -1,46 +1,40 @@
 import javax.crypto.Cipher;
 import javax.crypto.spec.SecretKeySpec;
+import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
+import java.security.SecureRandom;
 import java.util.Random;
 
 //classe usata per la produzione della chiave e per la cifratura e decifrazione dei dati
 public class SecurityClass {
 
-    private static int secret = -1;//segreto degli interlocutori nel protocollo DH
+    private static BigInteger secret = new BigInteger("-1");//segreto degli interlocutori nel protocollo DH
 
 
-    public static int getSecret() throws NullPointerException {
+    public static BigInteger getSecret() throws NullPointerException {
 
         //se non viene richiamato prima Compute_C sollevo un exception
-        if(secret == -1) throw new NullPointerException();
+        if(secret.compareTo(new BigInteger("-1")) == 0) throw new NullPointerException();
 
         return secret;
     }
-    public static long Compute_C(int g, int p) {
+    public static BigInteger Compute_C(int g, int p) {
 
-        //calcolo il segreto
-        Random rnd = new Random();
-        secret = 0;
-        secret = rnd.nextInt((p-1) - 2) + 2;
-        return powInModulo(g, secret, p);
+        BigInteger P = new BigInteger(String.valueOf(p));
+        BigInteger G = new BigInteger(String.valueOf(g));
+
+        //il valore x che devo produrre deve essere : 1 < x < p -1
+        BigInteger lowbound = new BigInteger("1");
+        BigInteger highbound = new BigInteger(String.valueOf(p-1));
+
+        SecureRandom random = new SecureRandom();//oggetto che mi permette di generare un numero random
+
+        do {secret = new BigInteger(highbound.bitLength(), random);}
+        while (secret.compareTo(lowbound) < 0 || secret.compareTo(highbound) > 0);
+
+        return G.modPow(secret, P);
 
     }
-    //metodo usato per calcolare l esponenziale in modulo
-    public static long powInModulo(long b, long exp, long mod) {
-
-        long result = 1;
-        b = b % mod; // Assicurati che il valore di base sia compreso tra 0 e (modulo - 1)
-
-        while (exp > 0) {
-            if (exp % 2 == 1) {
-                result = (result * b) % mod;
-            }
-            b = (b * b) % mod;
-            exp /= 2;
-        }
-        return result;
-    }
-    //moetodi di cifratura e decifrazione
     public static byte [] encrypt(String message, String key) {
 
         byte [] dati = null;

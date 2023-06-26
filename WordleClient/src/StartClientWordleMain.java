@@ -60,29 +60,31 @@ public class StartClientWordleMain {
     }
     private static boolean SendAndRicevereSecurityData(Socket socket, GetDataConfig dataConfig) {
 
-        int flag = 0, lendata = 0, c = -1;
-        String nameMethod = "dataforkey:";
+        int flag = 0, lendata = 0;
+        BigInteger c = null;//segreto del client in questo caso
+        BigInteger P = new BigInteger(String.valueOf(dataConfig.getP()));//Intero P come biginteger
+        String nameMethod = "dataforkey:";//metodo che deve eseguire il server
 
         //calcolo C per il protocollo DH
-        long C = SecurityClass.Compute_C(dataConfig.getG(), dataConfig.getP());
-        long S = 0;
+        BigInteger C = SecurityClass.Compute_C(dataConfig.getG(), dataConfig.getP());//calcolo il segreto del client e poi g^segreto mod P
+        BigInteger S = null;//dati che ricevo dal server
 
         try{
-
+            //comunico con il server
             DataInputStream in = new DataInputStream(new BufferedInputStream(socket.getInputStream()));
             DataOutputStream ou = new DataOutputStream(new BufferedOutputStream(socket.getOutputStream()));
 
-            ou.writeInt(((("dataforkey:"+ C ).length()) * 2));
-            ou.writeChars("dataforkey:"+C);
+            ou.writeInt(((("dataforkey:"+ C.toString()).length()) * 2));
+            ou.writeChars("dataforkey:"+C.toString());
             ou.flush();
             in.readInt(); //scarto la len del messaggio
             ID_Channel = in.readInt();//recupero l'id da usare per la registrazione
 
-            flag = in.readInt();
+            flag = in.readInt();//recupero l intero che indica se è andato tutto bene
             if(flag != 0) {
 
                 String key = ReadData(in);
-                if(key != null) {S = Long.parseLong(key);}
+                if(key != null) {S = new BigInteger(key);}//recuporo i dati
 
             }
             else return false;//caso di errore
@@ -96,7 +98,8 @@ public class StartClientWordleMain {
             e.printStackTrace();
             return false;
         }
-        SecurityKey = Long.toBinaryString(SecurityClass.powInModulo(S, c, dataConfig.getP()));
+
+        SecurityKey = S.modPow(c, P).toString(2);//calcolo la chiave di sessione come S^segreto mod P
         while(SecurityKey.length() < 16){SecurityKey += '0';}//se la chiave è < 128 bit faccio pudding
 
         return true;

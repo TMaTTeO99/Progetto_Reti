@@ -41,18 +41,22 @@ public class OpenGame implements Runnable{
             //qui devo controllare che sia passato il giusto intervallo di tempo fra la precedente
             //creazione di un gioco e il momento corrente
             try {
+
                 currenttime = System.currentTimeMillis();//recupero il tempo corrente
+
                 //se è passato meno tempo rispetto a quello che deve passare per creare la nuova sessione di gioco dormo
-                if((currenttime - lasttime) < time) {
-                    Thread.sleep(time - (currenttime - lasttime));
-                }
+                if((currenttime - lasttime) < time) {Thread.sleep(time - (currenttime - lasttime));}
+
                 //dopo che è passato il tempo necessario alla creazione del nuovo game
                 String tmp = Vocabolario.get(randword.nextInt(Vocabolario.size()));
                 System.out.println("Parola del gioco " + tmp);
-                lock.lock();
+
+                try {
+                    lock.lock();
                     Game.setWord(tmp);//setto la parola del gioco
                     Game.setTranslatedWord(TranslateService(tmp));//setto la traduzione della parola
                     Game.setNextTime(time);//setto il tempo di quando verra "creata" la nuova parola
+
                     lasttime = System.currentTimeMillis();//recupero il tempo attaule che è il tempo di creazione della parola
                     currenttime = System.currentTimeMillis();//analogo a lasttime
                     Game.setCurrentTime(currenttime);
@@ -61,7 +65,9 @@ public class OpenGame implements Runnable{
                     //comunico al thread che serializza che deve serializzare il nuovo game
                     try {DaSerializzare.put(new DataToSerialize<>(Game, 'I'));}
                     catch (Exception e) {e.printStackTrace();}
-                lock.unlock();
+                }
+                finally {lock.unlock();}
+
                 WriteLastSpawn(lasttime);//modifico il file di config in modo da scriverci dentro il time stamp dell ultima
                                         //sessione di gioco creata
 
