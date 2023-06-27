@@ -9,10 +9,11 @@ import java.io.DataOutputStream;
 import java.net.Socket;
 import java.rmi.registry.LocateRegistry;
 import java.util.ArrayList;
+import java.util.UUID;
 
 public class StartLoginRegistrazione extends JFrame {
 
-    private Socket socket;
+    private Socket socket;//socket per comunicare con il server
     private JTextField UserTEXTLogin;
     private JPasswordField UserTEXTpasslogin;
     private JTextField TextFieldUserRegistra;
@@ -26,8 +27,8 @@ public class StartLoginRegistrazione extends JFrame {
     private ArrayList<Suggerimenti> SuggerimentiQueue;//coda che conterrà i tentativi che gli utenti condividono
     private GetDataConfig dataConfig;//oggetto che contiene i dati di configurazione
     private String SecurityKey;//chiave di sessione per la cifratura
-    private int ID_Channel;//ID che il server assegna alla connessione del client
-    public StartLoginRegistrazione(GetDataConfig dataCon, ArrayList<Suggerimenti> SuggQueue, int ID, String SecKey, Socket sck) throws Exception {
+    private UUID ID_Channel;//ID che il server assegna alla connessione del client
+    public StartLoginRegistrazione(GetDataConfig dataCon, ArrayList<Suggerimenti> SuggQueue, UUID ID, String SecKey, Socket sck) throws Exception {
 
         //recupero all inetrno delle var di istanza le info che servono al client
 
@@ -172,8 +173,7 @@ public class StartLoginRegistrazione extends JFrame {
                     returnvalue = inn.readInt();//recupero il valore di ritorno dal server
 
                 }
-                catch (Exception ee) {ee.printStackTrace();}
-
+                catch (Exception ee) {returnvalue = -10;}
                 return new ReturnPackage(returnvalue);
             }
             @Override
@@ -208,8 +208,7 @@ public class StartLoginRegistrazione extends JFrame {
                 }
                 catch (Exception e) {
                     // Gestisci eventuali errori di esecuzione della richiesta
-                    System.out.println("CATCH ESTERNO");
-                    e.printStackTrace();
+                    JOptionPane.showMessageDialog(null, "Errore nella visualizzazione del messaggio");
                 }
             }
         };
@@ -221,6 +220,9 @@ public class StartLoginRegistrazione extends JFrame {
         SwingWorker<Integer, Void> worker = new SwingWorker<Integer, Void>() {
             @Override
             protected Integer doInBackground() throws Exception {
+
+                int returnValue = Integer.MAX_VALUE;
+
                 try {
 
                     String user = TextFieldUserRegistra.getText();
@@ -230,11 +232,12 @@ public class StartLoginRegistrazione extends JFrame {
                     byte [] usernameByte = SecurityClass.encrypt(user, SecurityKey);
                     byte [] passwdByte = SecurityClass.encrypt(pass, SecurityKey);
 
-                    return servizio.registra(usernameByte, passwdByte, ID_Channel);
-
+                    //richiamo il metodo esportato dal server per registrare il client
+                    returnValue = servizio.registra(usernameByte, passwdByte, ID_Channel);
                 }
-                catch (Exception exce) {exce.printStackTrace();}
-                return null;
+                catch (Exception exce) {returnValue =  -10;}
+
+                return returnValue;
             }
 
             @Override
@@ -272,7 +275,7 @@ public class StartLoginRegistrazione extends JFrame {
                     }
 
                 }
-                catch (Exception e) {e.printStackTrace();}
+                catch (Exception e) {JOptionPane.showMessageDialog(null, "Errore nella visualizzazione del messaggio");}
             }
         };
         //Avvio il worker

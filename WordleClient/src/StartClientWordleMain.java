@@ -3,19 +3,21 @@ import java.math.BigInteger;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.util.ArrayList;
+import java.util.UUID;
 
 public class StartClientWordleMain {
 
     private static String SecurityKey; // chiave per la cifratura
-    private static int ID_Channel = -1;// id che il server assegna alla connessione quando il client si collega la prima volta
+    private static UUID ID_Channel = null;// id che il server assegna alla connessione quando il client si collega al server
 
     public static void main(String [] args) {
 
         try {
 
+            //oggetto per recuperare i dati di configurazione
             GetDataConfig dataConfig = new GetDataConfig("configClient.txt", "../");
 
-            dataConfig.SearchFile(new File(dataConfig.getPathStart()));
+            dataConfig.SearchFile(new File(dataConfig.getPathStart()));//recupero il file di configurazione
             if(dataConfig.getConfigureFile() == null) {
                 System.out.println("ERRORE. File di configurazione assente");
                 return;
@@ -51,7 +53,7 @@ public class StartClientWordleMain {
                 return;
 
             }
-            System.out.println(SecurityKey);
+
             StartLoginRegistrazione game = new StartLoginRegistrazione(dataConfig, SuggQueue, ID_Channel, SecurityKey, socket);
         }
         catch (Exception e) {
@@ -60,7 +62,7 @@ public class StartClientWordleMain {
     }
     private static boolean SendAndRicevereSecurityData(Socket socket, GetDataConfig dataConfig) {
 
-        int flag = 0, lendata = 0;
+        int flag = 0, lendata = 0, lenID = 0;
         BigInteger c = null;//segreto del client in questo caso
         BigInteger P = new BigInteger(String.valueOf(dataConfig.getP()));//Intero P come biginteger
         String nameMethod = "dataforkey:";//metodo che deve eseguire il server
@@ -78,7 +80,9 @@ public class StartClientWordleMain {
             ou.writeChars("dataforkey:"+C.toString());
             ou.flush();
             in.readInt(); //scarto la len del messaggio
-            ID_Channel = in.readInt();//recupero l'id da usare per la registrazione
+
+            //recupero l'id da usare per la registrazione
+            ID_Channel = UUID.fromString(ReadData(in));
 
             flag = in.readInt();//recupero l intero che indica se è andato tutto bene
             if(flag != 0) {
@@ -104,6 +108,7 @@ public class StartClientWordleMain {
 
         return true;
     }
+    //metodo usato per vedere se g è generatore di Zp
     private static boolean IsGenerator(Integer g, Integer p) {
 
         for (int i = 1; i < p - 1; i++) {
@@ -112,6 +117,7 @@ public class StartClientWordleMain {
         }
         return true;
     }
+    //metodo usato per verificare che P sia un numero primo con il test di primalità di miller-rabin
     private static boolean CheckPG(Integer p, Integer g) {
 
         BigInteger Pbig = new BigInteger(String.valueOf(p));

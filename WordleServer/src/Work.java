@@ -28,10 +28,10 @@ public class Work implements Runnable {
     private Lock WriteLockClassifica;//writelock per l istanza della classifica
     private InetSocketAddress AddressMulticastClients;//InetSocketaddress usato per inviare ai client del gruppo multicast i tentativi
     private GetDataConfig dataConfig;//oggetto che contiene dati di configurazione
-    private HashMap<Integer, String> SecurityKeys;//Hashmap che contiene le chiavi di sessione per la cifratura
+    private HashMap<UUID, String> SecurityKeys;//Hashmap che contiene le chiavi di sessione per la cifratura
     public Work(SelectionKey k, ConcurrentHashMap<String, Utente> R, PkjData dati, ArrayList<String> Vocabolario,
                 SessioneWordle g, Lock RWLock, LinkedBlockingDeque<DataToSerialize> daserializzare, ArrayList<UserValoreClassifica> Clss,
-                Lock RDLock, Lock WRLock, String IPMulticast, int PortMulticast, GetDataConfig dataConf, HashMap<Integer, String> ScrtyKeys, Lock WWLock) {
+                Lock RDLock, Lock WRLock, String IPMulticast, int PortMulticast, GetDataConfig dataConf, HashMap<UUID, String> ScrtyKeys, Lock WWLock) {
 
         dataConfig = dataConf;
         Key = k;
@@ -63,7 +63,7 @@ public class Work implements Runnable {
             switch (Method) {
 
                 case "login" :
-
+                    //decifro i dati, creo una stringa e poi uso un tokenizer per parsare la stringa e fare le operazioni
                     newTok = new StringTokenizer(GetDatiCifreati(("login:".length() * 2), Dati), ":");
                     LoginMethod(newTok, Dati);
                     break;
@@ -76,7 +76,7 @@ public class Work implements Runnable {
                     PlayWordleMethod(Tok, Dati);
                     break;
                 case "sendWord" :
-
+                    //analogo al caso della login
                     newTok = new StringTokenizer(GetDatiCifreati(("sendWord:".length() * 2), Dati), ":");
                     SendWordMethod(newTok, Dati);
                     break;
@@ -97,7 +97,7 @@ public class Work implements Runnable {
                     SendTimeWordMethod(Tok, Dati);
                     break;
                 case "dataforkey"://in questo caso i dati non sono cifrati perche ancora si sta creando la key
-
+                    //metodo usato per generare la chiave di sessione con l utente
                     SendAndRicevereSecurityData(Tok, Dati);
                     break;
             }
@@ -122,7 +122,7 @@ public class Work implements Runnable {
     private void SendAndRicevereSecurityData(StringTokenizer Tok, PkjData dati) {
 
         BigInteger C = new BigInteger(Tok.nextToken(" ").replace(":", ""));//recupero il dato del client
-        BigInteger P = new BigInteger(String.valueOf(dataConfig.getP()));
+        BigInteger P = new BigInteger(String.valueOf(dataConfig.getP()));//recupero l intero primo P
         BigInteger s = null;
 
         //calcolo S per il protocollo DH
@@ -134,18 +134,21 @@ public class Work implements Runnable {
             String keySecurity = C.modPow(s, P).toString(2);//calcolo la chiave di sessione
             while(keySecurity.length() < 16){keySecurity += '0';}//se la chiave è < 128 bit faccio pudding
 
-            SecurityKeys.put((Integer) Key.attachment(), keySecurity);//inserisco la chiave in una HashMap indicizzata dall id associato alla connessione
+            SecurityKeys.put((UUID) Key.attachment(), keySecurity);//inserisco la chiave in una HashMap indicizzata dall id associato alla connessione
 
             //recupero le info per inviare i dati e li invio
+            String IDString = ((UUID) Key.attachment()).toString();
+
             String String_S = String.valueOf(S);
-            int lendati = String_S.length();//lunghezza dei dati
+            int lendati = String_S.length() + IDString.length();//lunghezza dei dati
             dati.allocAnswer(lendati + 12 );//lunghezza dei dati + 4 byte per contenere la lunghezza del messaggio ,4 per l'intero finale che indica lo stato dell operazione e 4 per l ID del channel
 
             ByteArrayOutputStream SupportOut = new ByteArrayOutputStream();
             try (DataOutputStream OutWriter = new DataOutputStream(SupportOut)){
 
                 OutWriter.writeInt(lendati + 8);
-                OutWriter.writeInt((Integer) Key.attachment());
+                OutWriter.writeInt(IDString.length());
+                OutWriter.writeChars(IDString);//scrivo i dati
                 OutWriter.writeInt(1);//scrivo l intero che indica il tipo di operazione
                 OutWriter.writeInt(String_S.length());//scrivo lunghezza di eventuali dati aggiuntivi
                 OutWriter.writeChars(String_S);//scrivo i dati
@@ -169,15 +172,16 @@ public class Work implements Runnable {
         if(u != null){
 
             try {
-                u.getReadLock().lock();
 
-                if(u.getLogin((Integer) Key.attachment())) {//controllo se l utente ha fatto il login
+                u.getReadLock().lock();
+                if(u.getLogin((UUID) Key.attachment())) {//controllo se l utente ha fatto il login
 
                     //recupero le info riguardo la creazione della parola
                     long currentW = -1;
                     long nextW = -1;
 
                     try {
+                        //accedo in mutua esclusione alla sessione di gioco
                         ReadWordLock.lock();
                         currentW = Gioco.getCurrentTime();
                         nextW = Gioco.getNextTime();
@@ -209,7 +213,7 @@ public class Work implements Runnable {
             try {
 
                 u.getReadLock().lock();
-                if(u.getLogin((Integer) Key.attachment())) {//controllo se l utente ha fatto il login
+                if(u.getLogin((UUID) Key.attachment())) {//controllo se l utente ha fatto il login
 
                     String answer = null;
                     try {
@@ -247,7 +251,7 @@ public class Work implements Runnable {
             try {
 
                 u.getReadLock().lock();//sincronizzo per l accesso ai dati dell utente
-                if(u.getLogin((Integer) Key.attachment())) {//controllo se l utente ha fatto il login
+                if(u.getLogin((UUID) Key.attachment())) {//controllo se l utente ha fatto il login
 
                     try {
                         ReadWordLock.lock();//ho bisogno di sincronizzare con il thread che genera il gioco
@@ -314,7 +318,7 @@ public class Work implements Runnable {
 
             try {
                 u.getReadLock().lock();
-                if(!u.getLogin((Integer) Key.attachment())) {//utente non ha effettuato il login
+                if(!u.getLogin((UUID) Key.attachment())) {//utente non ha effettuato il login
                     Write_No_Cipher(dati, "", -1, "");
                 }
                 else {
@@ -358,20 +362,17 @@ public class Work implements Runnable {
 
         username = Tok.nextToken(" ").replace(":", "");//recupero username
         word = Tok.nextToken(" ");//recupero parola
-        System.out.println(username + " " + word);
         u = Registrati.get(username);
 
         if(u != null) {
 
             try {
                 u.getWriteLock().lock();
-                if(u.getLogin((Integer) Key.attachment())) {//se l utente ha effettuato il login
+                if(u.getLogin((UUID) Key.attachment())) {//se l utente ha effettuato il login
 
-                    //caso in cui l utente non ha prima eseguito il comando playWORDLE oppure ha gia partecipato al gioco
-                    //o vincendo la partita oppure esaurendo i tentativi per quella parola
                     try {
-                        ReadWordLock.lock();
 
+                        ReadWordLock.lock();
                         int FlagResult = 0;
                         if((FlagResult = Gioco.Tentativo(username)) != 0) {
 
@@ -389,7 +390,6 @@ public class Work implements Runnable {
                         }
                         else {
                             if(CheckWord(word)) {//Controllo che la parola sia presente nel vocabolario, in caso non ci sia ritorno un messaggio di errore
-                                //recupero la parola del gioco in muta esclusione
 
                                 String GameWord = Gioco.getWord();
                                 String wordTradotta = Gioco.getTranslatedWord();
@@ -416,7 +416,6 @@ public class Work implements Runnable {
 
                                     //ricalcolo la distribuzione
                                     u.setGuesDistribuition(tentativiUtente - 1, (u.getGuesDistribuition(tentativiUtente - 1) + 1));
-                                    System.out.println((float) (u.getGuesDistribuition(tentativiUtente - 1) * 100) / (float) u.getWinGame());
 
                                     //aumento striscia positiva di vittorie
                                     u.updateLastConsecutive(true);
@@ -489,7 +488,7 @@ public class Work implements Runnable {
 
             try {
                 u.getWriteLock().lock();
-                if(u.getLogin((Integer) Key.attachment())) {//controllo che l utente abbia effettuato il login
+                if(u.getLogin((UUID) Key.attachment())) {//controllo che l utente abbia effettuato il login
 
                     //setto i campi per indicare che il client partecipa al game
                     int result = -10; //valore fittizio
@@ -531,16 +530,15 @@ public class Work implements Runnable {
             try {
 
                 u.getWriteLock().lock();
-                if(u.getLogin((Integer) Key.attachment())) {//controllo abbia effettuato il login
+                if(u.getLogin((UUID) Key.attachment())) {//controllo abbia effettuato il login
 
                     //controllo che l username associato a quella connessione per il login sia != null e che
                     //coincida con quello che l utente ha inserito per il logout
                     //in questo modo posso evitare che l utente che sta chiedendo di fare il logout butti fuori
                     //dal gioco un altro utente
-                    if(u.getUserLogin((Integer) Key.attachment()) != null && u.getUserLogin((Integer) Key.attachment()).equals(username)) {
+                    if(u.getUserLogin((UUID) Key.attachment()) != null && u.getUserLogin((UUID) Key.attachment()).equals(username)) {
 
-
-                        u.setLogin((Integer) Key.attachment(), false);//setto i campi che indicano che l utente non è piu loggato
+                        u.setLogin((UUID) Key.attachment(), false);//setto i campi che indicano che l utente non è piu loggato
                         error = 0;
 
                         //prima di settare l abbandono del gioco devo controllare se l utente ha provato a partecipare
@@ -552,7 +550,7 @@ public class Work implements Runnable {
                     }
                     else {error = -3;} //-3 indica che l utente non ha inserito l'username corretto
                 }
-                else {error = -2; } //-2 indica che l utente non è loggato
+                else {error = -2;} //-2 indica che l utente non è loggato
             }
             finally {u.getWriteLock().unlock();}
 
@@ -583,7 +581,7 @@ public class Work implements Runnable {
 
                 try {
                     u.getWriteLock().lock();
-                    u.setLogin((Integer) Key.attachment(), true);//setto i campi per il login
+                    u.setLogin((UUID) Key.attachment(), true);//setto i campi per il login
                     error = 0;
                 }
                 finally {u.getWriteLock().unlock();}
@@ -599,7 +597,7 @@ public class Work implements Runnable {
     //metodi privati per la gestione e il completamento delle richieste
 
     //metodo usato per controllare che se la parola è presente nel vocabolario (in words)
-    private boolean CheckWord(String GuessWord) {
+    private boolean CheckWord(String GuessWord) {//metodo usato per controllare che la parola sia presente nel vocabolario
 
         if(GuessWord.length() != 10) return false;
         for (int i = 0; i<Words.size(); i++) {
@@ -608,13 +606,15 @@ public class Work implements Runnable {
         return false;
     }
     //metodo privato usarto per comunicare con il thread che serializza
-    private void SendSerialization(char type) {
+    private void SendSerialization(char type) {//metodo usato per comunicare con il thread che serializza
 
         try {
 
             switch (type) {
+                //caso in cui un utente ha aggiornato le sue statistiche
                 case 'U' :  DaSerializzare.put(new DataToSerialize<>(null, 'U'));
                     break;
+                //caso in cui invio la classifica perche è stata aggiornata
                 case 'C' : DaSerializzare.put(new DataToSerialize<>(Classifica, 'C'));
                     break;
                 case 'I' :
@@ -730,7 +730,7 @@ public class Work implements Runnable {
 
         try (DataOutputStream OutWriter = new DataOutputStream(SupportOut)){
 
-            String KeySecurity = SecurityKeys.get((Integer) Key.attachment());
+            String KeySecurity = SecurityKeys.get((UUID) Key.attachment());
             byte [] datiCifrati = SecurityClass.encrypt(method + Other, KeySecurity);
 
             OutWriter.writeInt(datiCifrati.length + 8);
@@ -807,6 +807,8 @@ public class Work implements Runnable {
         }
         return hexString.toString();
     }
+
+    //metodi usato per controllare la password che l utente ha fornito nella login
     private boolean CheckImageHash(String Originalpass, Utente u) throws Exception{
 
         try {
@@ -818,9 +820,10 @@ public class Work implements Runnable {
         finally {u.getReadLock().unlock();}
 
     }
+    //metodo usato per la decifrazione dei dati
     private String GetDatiCifreati(int position, PkjData Dati) {
 
-        String securityKey = SecurityKeys.get((Integer) Key.attachment());//recupero la chiave di sessione
+        String securityKey = SecurityKeys.get((UUID) Key.attachment());//recupero la chiave di sessione
         byte [] req = new byte[Dati.getRequest().length - position];//uso un array di supporto
 
         //copio i dati nell array di supporto che contiene i dati cifrati
@@ -830,12 +833,14 @@ public class Work implements Runnable {
         return SecurityClass.decrypt(req, securityKey);
 
     }
+    //metodo che effettivamente invia i dati all utente dopo che sono stati creati
     private void SendDataToClient(SocketChannel channel) throws Exception {
 
         int flag = 0;//flag per far terminare la scrittura dei dati nel caso il client chiuda la connessione anche se verra sollevata una eccezione
         while((flag = channel.write(ByteBuffer.wrap(Dati.getAnswer()))) != Dati.getIdxAnswer() && flag != -1);
 
     }
+    //metodo usato per calcolare quando sarà prodotta la prossima parola quindi la prossima sessione di gioco
     private long CalculateTime(long currentW, long nextW) {
         return (nextW - ( System.currentTimeMillis() - currentW));
     }

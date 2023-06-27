@@ -808,8 +808,61 @@ Giorno 47)	Riprendo dal problema di ieri, la generazione della chiave, poasso es
 		
 		NOTA: devo anche valutare la mutua esclusione della classifica per vedere se l ho fatta bene ma credo di si comunque fare check 
 		
+		Riguardo la mutua esclusione dell game :: ho fatto una modifica importante riguardo il metodo setGame nella classe 
+		sessioneworlde se dovesse dare problemi rifarla come prima
+		Riguardo a eventuali lock all interno della classe infosessioneutente non c'è bisogno di mettere le lock
+		basta quella che locka l utente, altri thread di altri utenti accederanno a info proprie che non andranno
+		in contrasto, le restanti info del game che non riguardano il singolo utente, sono protette dalla readlock
+		
+		Dovrei aver finito con la concorrenza
+		Mi rimane da fare la chiusura del server, vedere per la traduzione, controllare l algo dei suggerimenti, 
+		e fare la relazione, dare un altro sguardo a tutto e viaaaaa
+		
 		
 
 -------------------------------------------------------------------------------------------------------------------------------------------
+
+
+Giorno 48)	Riprendo con i task da fare::
+		1)Devo controllare la traduzione della parola
+		2)Riguardo la terminazione del server devo vedere se fattibile
+		3)Controllare il codice, commenti ecc....
+		
+		
+		C'è un bug nella logout, mi fa uscire inserendo un nome diverso
+		
+		Quello che credo che succeda è che se un utente fa la login, poi chiude il client, rimane loggato, 
+		quando il server si riavvia, l id che associa alle connessioni riparte sempre da 0, a questo punto, 
+		siccome è lo stesso id che usa per indicizzare il login degli utenti, se ad un altro utente, a quella conn viene
+		associato un id che è gia stato usato per indicizzare il login per il primo utente, se l viene iserito 
+		username del primo utente, mi butta fuori ::
+		
+		Come posso risolvere ?? ::: 
+		1) posso fare in modo che l id della connessione sia univoco, cioe, posso usare un parametro di config per il server
+		per dare il valore iniziale all ID del server, ogni volta che pero il server viene chiuso deve essere aggiornato
+		con il valore attuale
+		2) Ogni volta che un client si disconnette eliminare i campi
+		
+		Con la soluzione 2 non avrebbe senso tutto il meccanismo di mantenere i "canali del login" perche a questo punto
+		non potra mai esserci il caso in cui un utente chiude e rimane "logato", avrei anche difficoltà a eliminare 
+		il login perche poi se chiude non so come recuperare l username. 
+		Con la soluzione 1 che potrebbe essere quella piu semplice, rimane pero il problema che poi il numero di
+		id è limitato. 
+		Tagliando la testa al toro, è possibile generare un indice casuale univoco ad ogni avvio per ogni connessione con
+		UUID.randomUUID() e poi trasformarlo in una stringa, non posso usare un intero in quando l intero è rappresentato su meno byte
+		facendo questo pero devo modificare tutti i tipi e sli scambi di questo numero come ad esempio per la registrazione::
+		
+		Credo di aver risolto. Continuare a testare a modo
+		
+		Bisogna ora modificare i controllinel logout lato server, devo controllare 
+		
+		
+		Nota: devo anche effettuare il controllo della porta usata in generale 
+		
+				
+		
+-------------------------------------------------------------------------------------------------------------------------------------------
+
+
 
 

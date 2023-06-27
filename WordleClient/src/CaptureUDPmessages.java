@@ -2,14 +2,10 @@ import java.io.BufferedInputStream;
 import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
 import java.net.DatagramPacket;
-import java.net.InetSocketAddress;
 import java.net.MulticastSocket;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.NoSuchElementException;
 import java.util.StringTokenizer;
-import java.util.concurrent.LinkedBlockingDeque;
-import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -17,9 +13,9 @@ import java.util.concurrent.locks.ReentrantLock;
 public class CaptureUDPmessages implements Runnable{
 
     private final int MAX_SIZE = 256;//utilizzo una dimensione per datagrampacket di 256 byte
-    private Lock lock;
+    private Lock lock;//lock usata per la mutua esclusione sulla coda in cui inserisco i suggerimenti che il server invia
     private ArrayList<Suggerimenti> SuggerimentiQueue;
-    private MulticastSocket socket;
+    private MulticastSocket socket;//socket per stare in ascolto sul gruppo multicast
     public CaptureUDPmessages(MulticastSocket sckM, ArrayList<Suggerimenti> SuggQueue, ReentrantLock lck) throws Exception{
 
         SuggerimentiQueue = SuggQueue;
@@ -38,7 +34,7 @@ public class CaptureUDPmessages implements Runnable{
 
                 DatagramPacket packet = new DatagramPacket(datiDaricevere, 0, MAX_SIZE);
                 socket.receive(packet);//recupero il packet
-                System.out.print("PACKETTO RICEVUTO");
+
                 //leggo i dati dal paket tramite datainputstream
                 try(DataInputStream in = new DataInputStream(new ByteArrayInputStream(packet.getData()))) {
 
@@ -46,8 +42,7 @@ public class CaptureUDPmessages implements Runnable{
                     in.readNBytes(dati, 0, dati.length);//recupero il numero corretto di byte per poter trasformare i dati in stringa
                     String tentativiUtente = new String(dati, StandardCharsets.UTF_8);
 
-                    //Ora faccio solo dei test per vedere lato server e lato client se funzionano bene:
-                    System.out.println(tentativiUtente + " tentativi ricevuti");
+                    //caso in cui ho ricevuto dati reali
                     if(!tentativiUtente.equals("logout")) {
 
                         //qui ora controllo se ho ricevuto i dati dal server o è il client stesso che sta facendo il logout.
@@ -66,12 +61,10 @@ public class CaptureUDPmessages implements Runnable{
                         SuggerimentiQueue.add(sugg);
                         lock.unlock();
                     }
-                    else System.out.println("Chido ricezione condivisioni");
                 }
                 catch (Exception e) {e.printStackTrace();}
             }
         }
         catch (Exception e) {e.printStackTrace();}
-        System.out.println("ESCO DAL RUN :)");
     }
 }

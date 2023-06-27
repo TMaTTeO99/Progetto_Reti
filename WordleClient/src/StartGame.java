@@ -7,6 +7,7 @@ import java.net.*;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.UUID;
 import java.util.concurrent.locks.ReentrantLock;
 
 public class StartGame extends JFrame {
@@ -17,26 +18,26 @@ public class StartGame extends JFrame {
     private String usernamelogin;
     private String word;//stringa che conterrà la parola che l utente inserisce
     private Socket socket;
-    private Registrazione servizio = null;
-    private NotificaClient skeleton;
-    private ImplementazioneNotificaClient notifica;
+    private Registrazione servizio = null;//variabile usata per registrare il client per la callback visto che questa classe si avvia dopo il login
+    private NotificaClient skeleton;//skeleton che il client invia al server tramite il servizio offerto dal server per poi ricevere le notifiche
+    private ImplementazioneNotificaClient notifica;//oggetto che implementa veramente la classe per poter recuperare le notifiche del client
     private JTextField TExtFieldUserLogout;
     private JTextField TextFieldWordSendWord;
     private JLabel NextWordLable;
-    private JLabel Classifica = new JLabel("Nessuna Notifica");
+    private JLabel Classifica = new JLabel("Nessuna Notifica");//lable per visualizzare se arrivano callback
     private Date DataNextWord = new Date(0);
-    private ArrayList<Suggerimenti> SuggerimentiQueue;
+    private ArrayList<Suggerimenti> SuggerimentiQueue;//coda che conterra i suggerimenti che gli altri client condividono
     private ReentrantLock locksuggerimenti = new ReentrantLock();//lock usata per implementare mutua esclusione sulla coda dei suggerimenti
     private MulticastSocket sockMulticast;
     private InetSocketAddress addressMulticat;
     private Thread multiCastThread;//thread usato per recuperare le condivisioni dagli utenti
     private GetDataConfig dataConfig;
-    private int ID_Channel;
+    private UUID ID_Channel;//id che il server associa alla connessione
     private String SecurityKey;//chiave di sessione
     public StartGame(GetDataConfig dataCon, Socket sck,
                      String usrname, Registrazione srv,
                      ArrayList<Suggerimenti> SuggQueue,
-                     String ScrtKey, int ID) throws Exception{
+                     String ScrtKey, UUID ID) throws Exception{
 
         SecurityKey = ScrtKey;
         dataConfig = dataCon;
@@ -133,10 +134,7 @@ public class StartGame extends JFrame {
                     returnValue = inn.readInt();
                     pckage = new ReturnPackage(returnValue, inn);
                 }
-                catch (Exception ee) {
-                    ee.printStackTrace();
-                    pckage = new ReturnPackage(-1);
-                }
+                catch (Exception ee) {pckage = new ReturnPackage(-10);}
                 return pckage;
             }
 
@@ -197,7 +195,7 @@ public class StartGame extends JFrame {
                     inn.readInt();//scarto la len del messaggio
                     returnValue = inn.readInt();
                 }
-                catch (Exception ee) {ee.printStackTrace();}
+                catch (Exception ee) {returnValue = -10;}
                 return new ReturnPackage(returnValue);
             }
             @Override
@@ -253,11 +251,9 @@ public class StartGame extends JFrame {
 
                         int i = 0;
 
-                        System.out.println("PRIMA DEL PANNEL e dopo AWAIT");
-                        System.out.println(SuggerimentiQueue.size());
                         while(i < SuggerimentiQueue.size()) {
 
-                            //qui devo trovare il modo di visualizzare i suggerimenti in un unico panel
+                            //Aggiungo i suggerimenti a un unico mainpanel per poterli visualizzare
                             main.add(MakeAllSuggestionsPanel(SuggerimentiQueue.get(i)));
                             i++;
                         }
@@ -272,7 +268,7 @@ public class StartGame extends JFrame {
                         JOptionPane.showMessageDialog(null, "Nessuna Notifica");
                     }
                 }
-                catch (Exception ex) {ex.printStackTrace();}
+                catch (Exception ex) {JOptionPane.showMessageDialog(null, "Errore");}
                 finally {locksuggerimenti.unlock();}
 
 
@@ -301,10 +297,7 @@ public class StartGame extends JFrame {
                     returnValue = inn.readInt();
                     pckage = new ReturnPackage(returnValue, inn);
                 }
-                catch (Exception ee) {
-                    ee.printStackTrace();
-                    pckage = new ReturnPackage(-1);
-                }
+                catch (Exception ee) {pckage = new ReturnPackage(-1);}
                 return pckage;
             }
             @Override
@@ -371,6 +364,7 @@ public class StartGame extends JFrame {
                     info.setEditable(false);
                     info.setRows(3);
                     JScrollPane scrll = new JScrollPane(info);
+                    //inserisco nella text area i dati degli utenti presenti nella classifica
                     for(int i = 0; i<ClassNotifica.size(); i++) {
                         info.append("UTENTE: " + ClassNotifica.get(i).getUsername() + " SCORE: " + ClassNotifica.get(i).getScore() + "\n");
                     }
@@ -417,8 +411,7 @@ public class StartGame extends JFrame {
 
                 }
                 catch (Exception ee) {
-                    ee.printStackTrace();
-                    pckage = new ReturnPackage(-4);//caso di errore generico nel client
+                    pckage = new ReturnPackage(-10);//caso di errore generico
                 }
 
                 return pckage;
@@ -432,8 +425,9 @@ public class StartGame extends JFrame {
                     switch(returnValue) {
                         case 0 :
 
-                            StopCaptureUDPMessages();//metodo privato per la terminazione del thread
+                            StopCaptureUDPMessages();//metodo privato per la terminazione del thread che sta in ascolo dei datagramPacket
                             dispose();//elimino il frame corrente
+                            //torno al frame iniziale della login e della registrazione
                             new StartLoginRegistrazione(dataConfig, SuggerimentiQueue, ID_Channel, SecurityKey, socket);
                             break;
                         case -1:
@@ -479,10 +473,7 @@ public class StartGame extends JFrame {
                     returnValue = inn.readInt();
                     pckage = new ReturnPackage(returnValue);
                 }
-                catch (Exception ee) {
-                    ee.printStackTrace();
-                    pckage = new ReturnPackage(-4);//errore generico
-                }
+                catch (Exception ee) {pckage = new ReturnPackage(-10);}//errore generico
                 return pckage;
 
             }
@@ -553,10 +544,7 @@ public class StartGame extends JFrame {
 
 
                     }
-                    catch (Exception ee) {
-                        ee.printStackTrace();
-                        pckage = new ReturnPackage(returnValue);
-                    }
+                    catch (Exception ee) {pckage = new ReturnPackage(-10);}
                 }
                 return pckage;
             }
@@ -645,10 +633,7 @@ public class StartGame extends JFrame {
                     pckage = new ReturnPackage(returnValue, inn);
 
                 }
-                catch (Exception ee) {
-                    ee.printStackTrace();
-                    pckage = new ReturnPackage(-1);
-                }
+                catch (Exception ee) {pckage = new ReturnPackage(-1);}
 
                 return pckage;
             }
@@ -762,12 +747,7 @@ public class StartGame extends JFrame {
 
         //utilizzo una classe anonima per poter implementare un actionPerformed in modo da consentire all utente di usare il tasto invio
         //per eseguire il tasto Logout
-        TExtFieldUserLogout.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                log.doClick();
-            }
-        });
+        TExtFieldUserLogout.addActionListener(new ActionListener() {@Override public void actionPerformed(ActionEvent e) {log.doClick();}});
 
         panelLogout.setLayout(new BoxLayout(panelLogout, BoxLayout.Y_AXIS));
         panelLogout.add(new JLabel("Username: " + usernamelogin));//in caso un utente non ricordasse con quale username si è loggato
@@ -787,12 +767,7 @@ public class StartGame extends JFrame {
 
         //utilizzo una classe anonima per poter implementare un actionPerformed in modo da consentire all utente di usare il tasto invio
         //per eseguire il tasto Send
-        TextFieldWordSendWord.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                log.doClick();
-            }
-        });
+        TextFieldWordSendWord.addActionListener(new ActionListener() {@Override public void actionPerformed(ActionEvent e) {log.doClick();}});
 
         panelSend.setLayout(new BoxLayout(panelSend, BoxLayout.Y_AXIS));
         panelSend.add(TextFieldWordSendWord);

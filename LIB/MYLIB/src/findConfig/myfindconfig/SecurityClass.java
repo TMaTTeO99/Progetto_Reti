@@ -35,34 +35,30 @@ public class SecurityClass {
         return G.modPow(secret, P);
 
     }
+    //metodo usato per la cifratura dei dati
     public static byte [] encrypt(String message, String key) {
 
         byte [] dati = null;
         try {
-            Cipher cphr = Cipher.getInstance("AES/ECB/PKCS5Padding");
+            Cipher cphr = Cipher.getInstance("AES/ECB/PKCS5Padding");//recupero l istanza dell AES
             SecretKeySpec sKey = new SecretKeySpec(key.getBytes(StandardCharsets.UTF_8), "AES");
-            cphr.init(Cipher.ENCRYPT_MODE, sKey);
-            dati = cphr.doFinal(message.getBytes(StandardCharsets.UTF_8));
+            cphr.init(Cipher.ENCRYPT_MODE, sKey);//setto il cifrario in modalita cifratura
+            dati = cphr.doFinal(message.getBytes(StandardCharsets.UTF_8));//cifro i dati
         }
-        catch (Exception e){
-            e.printStackTrace();
-            return null;
-        }
+        catch (Exception e){return null;}
         return dati;
     }
+    //metodo usato per la decifrazione dei dati
     public static String decrypt(byte [] message, String key) {
 
         String dati = null;
         try {
             Cipher cphr = Cipher.getInstance("AES/ECB/PKCS5Padding");
             SecretKeySpec sKey = new SecretKeySpec(key.getBytes(StandardCharsets.UTF_8), "AES");
-            cphr.init(Cipher.DECRYPT_MODE, sKey);
+            cphr.init(Cipher.DECRYPT_MODE, sKey);//setto il cifrario in modalita decifrazione
             dati = new String(cphr.doFinal(message), StandardCharsets.UTF_8);
         }
-        catch (Exception e) {
-            e.printStackTrace();
-            return null;
-        }
+        catch (Exception e) {return null;}
         return dati;
     }
 

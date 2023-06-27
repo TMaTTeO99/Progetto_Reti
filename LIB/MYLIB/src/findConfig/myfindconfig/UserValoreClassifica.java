@@ -3,6 +3,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.io.Serializable;
 
+//classe usata da client e server per poter associare a un utente uno score e poter creare la classifica o il podio in caso di callback
 public class UserValoreClassifica implements Comparable<UserValoreClassifica>, Serializable {
 
     private String username;

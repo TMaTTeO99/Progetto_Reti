@@ -237,7 +237,6 @@ public class MakeJson implements Runnable{
             else if(e instanceof IOException) {System.out.println("Errore nella scrittura del file json");}
             else if(e instanceof NullPointerException) {System.out.println("Errore nella lettura del file json");}
         }
-        //ricordawre di chiudere i file alla fine e anche in caso di exception
     }
 
     //metodi privati per serializzare i dati

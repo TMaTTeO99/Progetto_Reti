@@ -1,13 +1,13 @@
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 
-//classe utilizzata per poter recuperare i valori di ritono che il server comunica al client, classe usata per poter far si
-//che l eventuale doInBackground method possa inviare i vaolri coprretti all eventual emetodo done
+//classe usata per poter far si che l eventuale doInBackground method possa inviare i vaolri coprretti all eventuale metodo done
 public class ReturnPackage {
 
     private int ReturnValue;
-    private DataInputStream inn;
-    private DataOutputStream ou;
+    private DataInputStream inn;//Datainputstream usato per poter continuare a leggere i dati che il server invia dopo aver letto
+                                //l intero che indica la riuscita o il fallimento di una operazione
+    private DataOutputStream ou;//analogo a inn
 
     public ReturnPackage(int RetVal, DataInputStream i, DataOutputStream o) {
         ReturnValue = RetVal;

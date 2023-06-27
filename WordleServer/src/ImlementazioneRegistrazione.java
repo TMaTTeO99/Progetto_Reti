@@ -4,6 +4,7 @@ import java.rmi.server.RemoteServer;
 import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.locks.Lock;
@@ -14,10 +15,10 @@ public class ImlementazioneRegistrazione extends RemoteServer implements Registr
     private Lock LockClassifcaWrite;//lock per per la classifica in scrittura
     private Lock LockClassifcaRead;//lock per per la classifica in lettura
     private ArrayList<UserValoreClassifica> Classifica;
-    private HashMap<Integer, String> SecurityKeys;//hashmap di chiavi di sessione
+    private HashMap<UUID, String> SecurityKeys;//hashmap di chiavi di sessione
 
     public ImlementazioneRegistrazione(ConcurrentHashMap<String, Utente> R, LinkedBlockingDeque<DataToSerialize> Lst,
-                                       ArrayList<UserValoreClassifica> Clss, Lock LckClss, Lock LckClassRd, HashMap<Integer, String> ScrtKeys) {
+                                       ArrayList<UserValoreClassifica> Clss, Lock LckClss, Lock LckClassRd, HashMap<UUID, String> ScrtKeys) {
         Registrati = R;
         DaSerializzare = Lst;
         Classifica = Clss;
@@ -25,7 +26,7 @@ public class ImlementazioneRegistrazione extends RemoteServer implements Registr
         LockClassifcaRead = LckClassRd;
         SecurityKeys = ScrtKeys;
     }
-    public int registra(byte [] username, byte [] passwd, int ID) throws RemoteException {
+    public int registra(byte [] username, byte [] passwd, UUID ID) throws RemoteException {
 
         int flag_Passwd = Integer.MAX_VALUE;//MAX_VALUE valore di inizializzazione
 
@@ -43,7 +44,7 @@ public class ImlementazioneRegistrazione extends RemoteServer implements Registr
             if((flag_Passwd = ChckInput(usnameString, passString)) != 0)return flag_Passwd;
 
             MessageDigest digest = MessageDigest.getInstance("SHA-256");//recupo la funzione HASH
-            byte[] encodedhash = digest.digest(passString.getBytes(StandardCharsets.UTF_8));
+            byte[] encodedhash = digest.digest(passString.getBytes(StandardCharsets.UTF_8));//cifro la password
 
 
             //se il client non è presente fra i registrati, se non c'è lo inserisco
@@ -83,12 +84,18 @@ public class ImlementazioneRegistrazione extends RemoteServer implements Registr
 
         //controllo che all interno della password sia presente almeno un numero e una lettera maiuscola
         char [] pass = passwd.toCharArray();
-        for(int i = 0; i < pass.length; i++) {
-            if((int)pass[i] >= 65 && (int)pass[i] <= 90)flaguppercase = 1;
+        char [] user = username.toCharArray();
+
+        for(int i = 0; i < pass.length; i++) {//controllo che nella password sia presente un numero e una lettera maiuscola
             if((int)pass[i] >= 48 && (int)pass[i] <= 57)flagnumber = 1;
+            if((int)pass[i] >= 65 && (int)pass[i] <= 90)flaguppercase = 1;
+            if(pass[i] == ' ' || pass[i] == '\t')return -4;
         }
         if(flaguppercase != 1 || flagnumber != 1)return -4;
 
+        for(int i = 0; i<user.length; i++) {//controllo che nell username non siano presenti spazi o tab
+            if(user[i] == ' ' || user[i] == '\t')return -4;
+        }
         return 0;
     }
     private String bytesToHex(byte[] hash) {

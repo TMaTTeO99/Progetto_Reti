@@ -71,17 +71,13 @@ public class StartServerWordleMain {
             ConfigureData.setG(2);
             ConfigureData.setP(13);
         }
-
-        //prima di istanziare il server leggo il vocabolario e lo inserisco in una struttura dati opportuna
-        ArrayList<String> vocabolario = ConfigureData.getVocabolario();
-
         try {
+            //prima di istanziare il server leggo il vocabolario e lo inserisco in una struttura dati opportuna
+            ArrayList<String> vocabolario = ConfigureData.getVocabolario();
+
             ServerWordle server = new ServerWordle(vocabolario, ConfigureData);
             server.StartServer();
         }
-        catch (Exception e) {
-            if(e instanceof SecurityException) {System.out.println("Fallita Creazione Della Directory Per I File Json");}
-            e.printStackTrace();
-        }
+        catch (Exception e) {System.out.println("Potenziale errore nel file di configurazione");}
     }
 }

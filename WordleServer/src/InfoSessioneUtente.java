@@ -20,10 +20,10 @@ public class InfoSessioneUtente implements Serializable {
         TryWord = new ArrayList<>();
     }
 
-    public void setTryWord(ArrayList<String> tryW) {TryWord = tryW;}
+    public void setTryWord(ArrayList<String> tryW) {TryWord = tryW;}//usato solo per deserializzare
     public ArrayList<String> getTryWord() {return TryWord;}
     public void setResultGame(boolean rs) {resultGame = rs;}
-    public void setTentativi(int n) {tentativi = n;}
+    public void setTentativi(int n) {tentativi = n;}//usato per deserializzare
     public void increaseTentativi() {tentativi++;}
     public int getTentativi() {return tentativi;}
     public boolean getResultGame() {return resultGame;}

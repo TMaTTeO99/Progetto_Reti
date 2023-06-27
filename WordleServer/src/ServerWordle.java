@@ -14,16 +14,16 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 public class ServerWordle{
     private static final int SIZE_SIZE = 4;//variabile per indicare il numero dio byte di un int, serve per legere i dati che arrivano
     private Registry RegistroRMI;//registro usato per esportare i metodi remoti
-    private Registrazione Skeleton;
-    private ExecutorService pool;
+    private Registrazione Skeleton;//oggetto che verrà esportato per consentire la registrazione degli utenti conRMI
+    private ExecutorService pool;//threadpool per rispondere alle richieste dei client
     private ConcurrentHashMap<String, Utente> Registrati; // Lista che conterrà gli utenti registrati
     private ImlementazioneRegistrazione ObjEsportato;//variabile per gestire la condition variable per il thread che scrive su json
     private LinkedBlockingDeque<DataToSerialize> DaSerializzare;//lista di supporto usata per capire quali utenti devono essere serializzati
-                                                       //ad ogni iscrizione
+                                                                //ad ogni iscrizione
     private SessioneWordle Game; //oggetto che rappresenta una sessione di gioco
 
     //uso delle readwritelock per gestire la sincronizzazione fra i thread worker, il thread che crea una istanza
-    //del deel gioco e il thread che serializza la sessione, usando la write lock per il thread che crea la sessione
+    //del gioco e il thread che serializza la sessione, usando la write lock per il thread che crea la sessione
     //uso la read lock per i thread che devono solo leggere (i worker e il thread che serializza)
     //quando deserializzo non le uso perche non potranno esserci thread che competono in quanto siamo nella fase di set-up
     private ReentrantReadWriteLock RWlockWORD = new ReentrantReadWriteLock();
@@ -34,24 +34,18 @@ public class ServerWordle{
     //uso thread separati perche il pool ha una dimensione di thread limitata
     private Thread threadGame;//thread usato per la creazione perodica di una nuova sessione di gioco
     private Thread threadSerialize;//thread usato per la serializzazione dei dati
-
     private String URLtranslate;//stringa in cui sarà contenuta l'URL del servizio di traduzione recuperato dal file config
 
+    //lock usate analogamente a quelle per il game ma per la classifica
     private ReentrantReadWriteLock LockClassifca = new ReentrantReadWriteLock();//lock usata per implementare la mutua esclusine sulla classifica
-
     private Lock ReadLockClassifica = LockClassifca.readLock();
-
     private Lock WriteLockClassifca = LockClassifca.writeLock();
-
     private ArrayList<UserValoreClassifica> Classifica; //oggetto che rappresenta la classifica
-
-    //per i test li lascio cosi, poi devo recuperarli dal file di config
     private int PortMulticast, Port_Listening;
     private String IP_multicast;
-    private GetDataConfig dataConfig;
-    private HashMap<Integer, String> SecurityKeys = new HashMap<>();//struttura dati che conterrà le chiavi di sicurezza associate alle connessioni
-
-    private HashMap<Integer, PkjData> ListPackages = new HashMap<>();//HashMap usata per contenere i pacchetti che contengono le richieste dei client
+    private GetDataConfig dataConfig;//oggetto che conterrà i parametri di configurazione
+    private HashMap<UUID, String> SecurityKeys = new HashMap<>();//struttura dati che conterrà le chiavi di sicurezza associate alle connessioni
+    private HashMap<UUID, PkjData> ListPackages = new HashMap<>();//HashMap usata per contenere i pacchetti che contengono le richieste dei client
     public ServerWordle(ArrayList<String> Vocabolario, GetDataConfig dataConf) throws Exception{
 
         dataConfig = dataConf;
@@ -91,7 +85,7 @@ public class ServerWordle{
             AcceptSocket.bind(new InetSocketAddress(Port_Listening));
             AcceptSocket.configureBlocking(false);//setto il canale come non bloccante
             AcceptSocket.register(selector, SelectionKey.OP_ACCEPT);//registro la ServerSocketChannel per operazione di Accept
-            Integer ID_Channel = 0;//intero per identificare la connessione
+            UUID ID_Channel = UUID.randomUUID();//variabile casuale per identificare la connessione
 
             while(true) { // per ora lascio while(true), in un secondo momento userò una var per la gestione della terminazione
 
@@ -106,17 +100,15 @@ public class ServerWordle{
                     IteratorKey.remove();//rimuvo la chiave dall iteratore
 
 
-                    if(ReadyKey.isAcceptable() && ReadyKey.isValid()) {//caso in un operazione di accept non ritorna null
+                    if(ReadyKey.isAcceptable() && ReadyKey.isValid()) {//caso in un operazione è pronta una operazione di accept
 
                         ServerSocketChannel ListenSocket = (ServerSocketChannel) ReadyKey.channel();//recupero la socket per accettare la connessione
                         SocketChannel channel = ListenSocket.accept();
                         channel.configureBlocking(false);//setto il channel come non bloccante
                         channel.register(selector, SelectionKey.OP_READ, ID_Channel);//registro il channel per operazione di lettura
-                        ID_Channel++;
+                        ID_Channel = UUID.randomUUID();;
                     }
                     else if (ReadyKey.isReadable() && ReadyKey.isValid()) {//caso in cui una operazione di read non ritorna 0
-
-                        //ATTENZIONE:::: considerare anche il problema della rejected exception del threadpool,
 
                         PkjData dati = null;
                         if((dati = ReadRequest(ReadyKey)) != null) {//se la lettura della richiesta è andata a buon fine lancio i worker
@@ -142,7 +134,7 @@ public class ServerWordle{
             PkjData TestDati = null;
             SocketChannel channel = (SocketChannel)key.channel();//recupero il channel
 
-            if((TestDati = ListPackages.get((Integer) key.attachment())) == null) {//se il pacchetto associato alla connessione non è presente devo cominciare a costruirlo da zero
+            if((TestDati = ListPackages.get((UUID) key.attachment())) == null) {//se il pacchetto associato alla connessione non è presente devo cominciare a costruirlo da zero
 
 
                 TestDati = new PkjData();//creo un pacchetto dati che conterrà la richiesta
@@ -164,7 +156,7 @@ public class ServerWordle{
                         case 0 :
                             return TestDati;
                         case 1 :
-                            ListPackages.put((Integer) key.attachment(), TestDati);//inserisco i dati in lista
+                            ListPackages.put((UUID) key.attachment(), TestDati);//inserisco i dati in lista
                             break;
                         default ://non faccio nulla
                             break;
@@ -173,7 +165,7 @@ public class ServerWordle{
                 }
                 else {//caso in cui non tutta la lunghezza dei dati in arrivo è stata letta
 
-                    ListPackages.put((Integer) key.attachment(), TestDati);//inserisco i dati in lista
+                    ListPackages.put((UUID) key.attachment(), TestDati);//inserisco i dati in lista
                     return null;
                 }
             }
@@ -193,7 +185,7 @@ public class ServerWordle{
                         case 0 :
                             return TestDati;
                         case 1 :
-                            ListPackages.put((Integer) key.attachment(), TestDati);//inserisco i dati in lista
+                            ListPackages.put((UUID) key.attachment(), TestDati);//inserisco i dati in lista
                             break;
                         default ://non faccio nulla
                             break;
@@ -205,7 +197,7 @@ public class ServerWordle{
         catch (Exception e) {
             e.printStackTrace();
             key.cancel();//cancello la chiave dal selettore
-            Utente releasedUtente = searchUtente((Integer) key.attachment());//elimino lo stub
+            Utente releasedUtente = searchUtente((UUID) key.attachment());//elimino lo stub
             if(releasedUtente != null)releasedUtente.RemoveSTub();
 
             return null;
@@ -224,7 +216,7 @@ public class ServerWordle{
             key.cancel();//cancello la chiave dal selettore
 
             //devo prima cercare il client che ha chiuso la connessione
-            Utente releasedUtente = searchUtente((Integer) key.attachment());
+            Utente releasedUtente = searchUtente((UUID) key.attachment());
             if(releasedUtente != null)releasedUtente.RemoveSTub();
         }
         return -1;
@@ -236,14 +228,14 @@ public class ServerWordle{
             key.cancel();//cancello la chiave dal selettore
 
             //devo prima cercare il client che ha chiuso la connessione
-            Utente releasedUtente = searchUtente((Integer) key.attachment());
+            Utente releasedUtente = searchUtente((UUID) key.attachment());
             if(releasedUtente != null)releasedUtente.RemoveSTub();
 
             return false;
         }
         return true;
     }
-    private Utente searchUtente(int ID) {
+    private Utente searchUtente(UUID ID) {
 
         for(Utente u : Registrati.values()) {//cerco nella struttura dati in cui sono presenti tutti i client
             //per verificare che ho trovato l utente corretto controllando l id in allegato al channel
