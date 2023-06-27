@@ -553,16 +553,16 @@ public class StartGame extends JFrame {
             protected void done() {
 
                 try {
-                    String wordTradotta = null;
+                    String wordTradottaAndStatistics = null;
                     ReturnPackage pckage = get();
                     int returnValue = pckage.getReturnValue();
 
                     switch(returnValue) {
                         case 2 ://caso in cui ho sfruttato l ultimo tentativo e ho perso
-                            //devo recuperare la parola tradotta
+                                //devo recuperare la parola tradotta e le statistiche
 
-                            wordTradotta = SecurityClass.decrypt(ReadDataByte(pckage.getInn()), SecurityKey);
-                            JOptionPane.showMessageDialog(null, "Tentativi terminati\n Traduzione: " + wordTradotta);
+                            wordTradottaAndStatistics = SecurityClass.decrypt(ReadDataByte(pckage.getInn()), SecurityKey);
+                            JOptionPane.showMessageDialog(null, "Tentativi terminati\n Traduzione: " + wordTradottaAndStatistics);
 
                             break;
                         case 1 ://caso in cui devo ricevere i suggerimenti
@@ -575,11 +575,9 @@ public class StartGame extends JFrame {
 
                             break;
                         case 0 ://caso in cui la parola è stata indovinata
-                            // In questo caso lato server dovro inserire la
-                            // traduzione della parola che qui andra letta
 
-                            wordTradotta = SecurityClass.decrypt(ReadDataByte(pckage.getInn()), SecurityKey);
-                            JOptionPane.showMessageDialog(null, "Vittoria\nTraduzione: " + wordTradotta);
+                            wordTradottaAndStatistics = SecurityClass.decrypt(ReadDataByte(pckage.getInn()), SecurityKey);
+                            JOptionPane.showMessageDialog(null, "Vittoria\nTraduzione: " + wordTradottaAndStatistics);
 
                             break;
                         case -1:

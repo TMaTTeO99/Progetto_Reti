@@ -118,6 +118,7 @@ public class OpenGame implements Runnable{
         catch (Exception e) {
             wordTradotta = wordTradotta.concat("TRADUZIONE NON DISPONIBILE");
         }
+        wordTradotta = wordTradotta.concat("\n");
         return wordTradotta;
     }
 

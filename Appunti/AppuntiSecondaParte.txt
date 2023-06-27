@@ -859,6 +859,9 @@ Giorno 48)	Riprendo con i task da fare::
 		
 		Nota: devo anche effettuare il controllo della porta usata in generale 
 		
+		NOTA: quando termina un gioco, il server dovrà inviare al client le sue statistiche e il client le deve far visualizzare
+		
+		
 				
 		
 -------------------------------------------------------------------------------------------------------------------------------------------

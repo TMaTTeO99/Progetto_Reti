@@ -323,6 +323,7 @@ public class Work implements Runnable {
                 }
                 else {
 
+                    /*
                     try {
                         ReadWordLock.lock();
                         //controllo se l utente in questo momento sta giocando
@@ -345,7 +346,8 @@ public class Work implements Runnable {
                     int [] TmpGuessDistrib = u.getGuesDistribuition();
                     for(int i = 0; i<12; i++) {answer = answer.concat("Vinte in " + (i+1) + " tentativi == " + Integer.toString(TmpGuessDistrib[i]) + "\n");}
 
-                    Cipher_AND_Write(dati, "", 0, answer);
+                     */
+                    Cipher_AND_Write(dati, "", 0, GetStatisticsUser(username, u));
                 }
             }
             finally {u.getReadLock().unlock();}
@@ -433,7 +435,7 @@ public class Work implements Runnable {
                                     SendSerialization('I');
 
                                     //Costruisco il messaggio di parola indovinata
-                                    Cipher_AND_Write(dati, "", 0, wordTradotta);//0 indica parola indovinata
+                                    Cipher_AND_Write(dati, GetStatisticsUser(username, u), 0, wordTradotta);//0 indica parola indovinata
 
                                 }
                                 else {
@@ -451,7 +453,7 @@ public class Work implements Runnable {
                                         u.updateLastConsecutive(false);//aggionro la striscia positiva di vittorie
                                         u.UpdatePercWingame();//ricalcolo la percentuale di partite vinte
 
-                                        Cipher_AND_Write(dati, "", 2, wordTradotta);
+                                        Cipher_AND_Write(dati, GetStatisticsUser(username, u), 2, wordTradotta);
                                     }
                                 }
                             }
@@ -726,12 +728,13 @@ public class Work implements Runnable {
 
         int lendati = method.length() + Other.length();//lunghezza dei dati
         dati.allocAnswer(lendati + 12 );//lunghezza dei dati + 4 byte per contenere la lunghezza del messaggio e 4 per l'intero finale che indica lo stato dell operazione
+
         ByteArrayOutputStream SupportOut = new ByteArrayOutputStream();
 
         try (DataOutputStream OutWriter = new DataOutputStream(SupportOut)){
 
             String KeySecurity = SecurityKeys.get((UUID) Key.attachment());
-            byte [] datiCifrati = SecurityClass.encrypt(method + Other, KeySecurity);
+            byte [] datiCifrati = SecurityClass.encrypt(Other + method, KeySecurity);
 
             OutWriter.writeInt(datiCifrati.length + 8);
             OutWriter.writeInt(error);
@@ -766,6 +769,34 @@ public class Work implements Runnable {
         //stampa di test
         System.out.println("PAROLA DEL GIOCO " + GameWord);//per ora decommento cosi vedo la parola
         return new String(CharConsigli);
+    }
+    //metodo usato per recuperare i dati di un utente e costruire una stringa contenente le sue statistiche
+    private String GetStatisticsUser(String username, Utente u) {
+
+        int GameUtente = 0;
+        try {
+            ReadWordLock.lock();
+            //controllo se l utente in questo momento sta giocando
+            if(Gioco.IsInGame(username)){
+                GameUtente = u.getGame() - 1;
+            }
+            else GameUtente = u.getGame();
+        }
+        finally {ReadWordLock.unlock();}
+
+        //recupero le statistiche dell utente e creo la stringa che deve essere inviata
+        String answer = new String(new byte[0], StandardCharsets.UTF_8);
+
+        answer = answer.concat("Partite giocate == " + Integer.toString(GameUtente) + "\n");
+        answer = answer.concat("Partite vinte == " + Integer.toString(u.getWinGame()) + "\n");
+        answer = answer.concat("Percentuale partite vinte == " +Float.toString(u.getWinGamePerc()) + "\n");
+        answer = answer.concat("Striscia positiva == " + Integer.toString(u.getLastConsecutive()) + "\n");
+        answer = answer.concat("Massima striscia positiva == " + Integer.toString(u.getMaxConsecutive()) + "\n");
+
+        int [] TmpGuessDistrib = u.getGuesDistribuition();
+        for(int i = 0; i<12; i++) {answer = answer.concat("Vinte in " + (i+1) + " tentativi == " + Integer.toString(TmpGuessDistrib[i]) + "\n");}
+
+        return answer;
     }
     private void CheckChars(char [] UWchar, char Lettera, char [] GWchar, int idx, int idxlettera, int terminazione, char [] consigli, char [] trovata) {
 
