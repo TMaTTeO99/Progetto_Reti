@@ -69,7 +69,7 @@ public class MakeJson implements Runnable{
 
                 Utente u = pars.readValueAs(Utente.class);
                 u.setReadWriteLock();
-                u.setLogin(false);
+
                 Registrati.put(u.getUsername(), u);
             }
         }

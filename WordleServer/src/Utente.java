@@ -15,8 +15,9 @@ public class Utente implements Serializable {
 
 
 
-    private boolean login = false;
-    private UUID ID_channel = null;
+    private HashMap<UUID, InfoLogin> LoginChannel = new HashMap<>();//HashMap usata per mantenere le info riguardo al login
+    //private boolean login = false;
+    //private UUID ID_channel = null;
     private String Username = null;
     private String Passswd = null;
     private int Games = 0;//partite giocate
@@ -26,7 +27,6 @@ public class Utente implements Serializable {
     private int MaxConsecutive = 0;//striscia positiva piu lunga;
     private int [] GuesDistribuition = new int[12]; //Il numero massimo di tentativi che un utente puo fare è 12
     private int winTentativi = 0;//numero di tentativi totali in tutte le partite vinte
-    private NotificaClient stub;//variabile per recuperare lo stub passato dal client nella fase di registrazione
 
     //lock usate per accedere in mutua esclusione ai dati dell utente
     private ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
@@ -46,12 +46,13 @@ public class Utente implements Serializable {
     public Lock getReadLock() {return ReadLock;}
     @JsonIgnore //annotazione per non far serializzare le variabili di istanza che riguardano le var di lock
     public Lock getWriteLock() {return WriteLock;}
-    @JsonIgnore //annotazione per non far serializzare lo stub
-    public NotificaClient getStub() {return stub;}
+
     public void setGuesDistribuition(int [] g) {GuesDistribuition = g;}//usato per deserializzare
     public int [] getGuesDistribuition() {return GuesDistribuition;}
     public String getPassswd() {return Passswd;}
-
+    public HashMap<UUID, InfoLogin> getLoginChannel() {return LoginChannel;}
+    public void setLoginChannel(HashMap<UUID, InfoLogin> info) {LoginChannel = info;}//usato per deserializzare
+    public void setLogin(UUID idx, boolean val) { LoginChannel.put(idx, new InfoLogin(Username, val));}//val == 1 login, val == 0 logout
     public void setPassswd(String passswd) {Passswd = passswd;}//usato per deserializzare
 
     public String getUsername() {return Username;}
@@ -72,14 +73,14 @@ public class Utente implements Serializable {
     public void setGuesDistribuition(int idx, int guesDistribuition) {GuesDistribuition[idx] = guesDistribuition;}
     public void setMaxConsecutive(int maxConsecutive) {MaxConsecutive = maxConsecutive;}//usato per deserializzare
     public void UpdatePercWingame() {WinGamePerc = ( (float) (WinGame * 100) / (float)Games);}
-    public void setStub(NotificaClient s) {stub = s;}
-    public void RemoveSTub() {stub = null;}//metodo usato per eliminare lo stub prima di serializzare
     public int getWinTentativi() {return winTentativi;}
     public void setWinTentativi(int wTentativi) {winTentativi = wTentativi;}
-    public boolean getLogin() {return login;}
+    /*public boolean getLogin() {return login;}
     public void setLogin(boolean lg) {login = lg;}
     public UUID getID_channel() {return ID_channel;}
     public void setID_channel(UUID ID) {ID_channel = ID;}
+
+     */
     public void updateLastConsecutive(boolean flag) {
 
         if(flag) {//flag == true => il metodo viene chiamato quando il client ha vinto la partita
@@ -93,6 +94,19 @@ public class Utente implements Serializable {
         lock = new ReentrantReadWriteLock();
         ReadLock = lock.readLock();
         WriteLock = lock.writeLock();
+    }
+    public String getUserLogin(UUID idx) {
+
+        InfoLogin info = LoginChannel.get(idx);
+        if(info != null)return info.getName();
+
+        return null;
+    }
+    public boolean getLogin(UUID idx) {
+
+        InfoLogin info = LoginChannel.get(idx);
+        if(info != null) return info.getlogin();
+        return false;
     }
 
 }

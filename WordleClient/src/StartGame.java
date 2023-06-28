@@ -55,7 +55,7 @@ public class StartGame extends JFrame {
         //Mi registro per il servizio di notifica
         notifica = new ImplementazioneNotificaClient(Classifica);
         skeleton = (NotificaClient) UnicastRemoteObject.exportObject(notifica, 0);
-        servizio.RegisryForCallBack(usernamelogin, skeleton);
+        servizio.RegisryForCallBack(usernamelogin, skeleton, ID_Channel);
 
 
 
@@ -407,7 +407,7 @@ public class StartGame extends JFrame {
                     pckage = new ReturnPackage(returnValue);
 
                     if(returnValue == 0) {
-                        servizio.UnRegisryForCallBack(user, skeleton);
+                        servizio.UnRegisryForCallBack(user, skeleton, ID_Channel);
                         UnicastRemoteObject.unexportObject(notifica, true);
                     }
 

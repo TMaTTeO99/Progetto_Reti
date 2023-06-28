@@ -112,22 +112,22 @@ public class ImlementazioneRegistrazione extends RemoteServer implements Registr
         }
         return hexString.toString();
     }
-    public void RegisryForCallBack(String username, NotificaClient stub) throws RemoteException {
+    public void RegisryForCallBack(String username, NotificaClient stub, UUID ID) throws RemoteException {
 
         Utente u = Registrati.get(username);
         try {
             u.getWriteLock().lock();
-            u.setStub(stub);
+            u.getLoginChannel().get(ID).setStub(stub);
         }
         finally {u.getWriteLock().unlock();}
 
     }
-    public void UnRegisryForCallBack(String username, NotificaClient stub)throws RemoteException {
+    public void UnRegisryForCallBack(String username, NotificaClient stub, UUID ID)throws RemoteException {
 
         Utente u = Registrati.get(username);
         try {
             u.getWriteLock().lock();
-            u.RemoveSTub();
+            u.getLoginChannel().get(ID).RemoveSTub();
         }
         finally {u.getWriteLock().unlock();}
     }
