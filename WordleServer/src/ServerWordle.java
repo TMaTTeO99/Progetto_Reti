@@ -198,7 +198,10 @@ public class ServerWordle{
             e.printStackTrace();
             key.cancel();//cancello la chiave dal selettore
             Utente releasedUtente = searchUtente((UUID) key.attachment());//elimino lo stub
-            if(releasedUtente != null)releasedUtente.RemoveSTub();
+            if(releasedUtente != null){
+                releasedUtente.RemoveSTub();
+                releasedUtente.setLogin(false);
+            }
 
             return null;
         }
@@ -217,7 +220,10 @@ public class ServerWordle{
 
             //devo prima cercare il client che ha chiuso la connessione
             Utente releasedUtente = searchUtente((UUID) key.attachment());
-            if(releasedUtente != null)releasedUtente.RemoveSTub();
+            if(releasedUtente != null){
+                releasedUtente.RemoveSTub();
+                releasedUtente.setLogin(false);
+            }
         }
         return -1;
     }
@@ -229,7 +235,10 @@ public class ServerWordle{
 
             //devo prima cercare il client che ha chiuso la connessione
             Utente releasedUtente = searchUtente((UUID) key.attachment());
-            if(releasedUtente != null)releasedUtente.RemoveSTub();
+            if(releasedUtente != null){
+                releasedUtente.RemoveSTub();
+                releasedUtente.setLogin(false);
+            }
 
             return false;
         }
@@ -241,7 +250,8 @@ public class ServerWordle{
             //per verificare che ho trovato l utente corretto controllando l id in allegato al channel
             try {
                 u.getReadLock().lock();
-                if(u.getLoginChannel().get(ID) != null) return u;
+                UUID tmp = u.getID_channel();
+                if(tmp != null && tmp == ID) return u;
             }
             finally {u.getReadLock().unlock();}
         }

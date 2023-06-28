@@ -860,10 +860,21 @@ Giorno 48)	Riprendo con i task da fare::
 		Nota: devo anche effettuare il controllo della porta usata in generale 
 		
 		NOTA: quando termina un gioco, il server dovrà inviare al client le sue statistiche e il client le deve far visualizzare
-		
+		Fatto.		
 		
 				
 		
+-------------------------------------------------------------------------------------------------------------------------------------------
+
+Giorno 49)	Riprendo da dove ero arrivato ieri ::
+		
+		Continuo a debbuggare e a controllare se c'è qualcosa che non va, poi in caso dopo comincio la relazione::
+		NOTA: voglio sistemare il fatto di avere una lista di login, il punto è : se un utente effettua il login, voglio 
+		evitare che un altro client conoscendo password e username, possa accedere
+		Fatto..  
+		
+
+
 -------------------------------------------------------------------------------------------------------------------------------------------
 
 

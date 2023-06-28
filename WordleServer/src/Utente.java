@@ -15,7 +15,8 @@ public class Utente implements Serializable {
 
 
 
-    private HashMap<UUID, InfoLogin> LoginChannel = new HashMap<>();//HashMap usata per mantenere le info riguardo al login
+    private boolean login = false;
+    private UUID ID_channel = null;
     private String Username = null;
     private String Passswd = null;
     private int Games = 0;//partite giocate
@@ -70,14 +71,15 @@ public class Utente implements Serializable {
     public int getGuesDistribuition(int idx) {return GuesDistribuition[idx];}
     public void setGuesDistribuition(int idx, int guesDistribuition) {GuesDistribuition[idx] = guesDistribuition;}
     public void setMaxConsecutive(int maxConsecutive) {MaxConsecutive = maxConsecutive;}//usato per deserializzare
-    public HashMap<UUID, InfoLogin> getLoginChannel() {return LoginChannel;}
-    public void setLoginChannel(HashMap<UUID, InfoLogin> info) {LoginChannel = info;}//usato per deserializzare
     public void UpdatePercWingame() {WinGamePerc = ( (float) (WinGame * 100) / (float)Games);}
     public void setStub(NotificaClient s) {stub = s;}
     public void RemoveSTub() {stub = null;}//metodo usato per eliminare lo stub prima di serializzare
-    public void setLogin(UUID idx, boolean val) { LoginChannel.put(idx, new InfoLogin(Username, val));}//val == 1 login, val == 0 logout
     public int getWinTentativi() {return winTentativi;}
     public void setWinTentativi(int wTentativi) {winTentativi = wTentativi;}
+    public boolean getLogin() {return login;}
+    public void setLogin(boolean lg) {login = lg;}
+    public UUID getID_channel() {return ID_channel;}
+    public void setID_channel(UUID ID) {ID_channel = ID;}
     public void updateLastConsecutive(boolean flag) {
 
         if(flag) {//flag == true => il metodo viene chiamato quando il client ha vinto la partita
@@ -86,25 +88,11 @@ public class Utente implements Serializable {
         }
         else {LastConsecutive = 0;}//caso  in cui il client ha finito i tentativi senza indovinare la parola allora si interrompe la striscia positiva
     }
+
     public void setReadWriteLock() {
         lock = new ReentrantReadWriteLock();
         ReadLock = lock.readLock();
         WriteLock = lock.writeLock();
     }
-
-    public String getUserLogin(UUID idx) {
-
-        InfoLogin info = LoginChannel.get(idx);
-        if(info != null)return info.getName();
-
-        return null;
-    }
-    public boolean getLogin(UUID idx) {
-
-        InfoLogin info = LoginChannel.get(idx);
-        if(info != null) return info.getlogin();
-        return false;
-    }
-
 
 }

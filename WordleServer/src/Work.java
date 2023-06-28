@@ -174,7 +174,7 @@ public class Work implements Runnable {
             try {
 
                 u.getReadLock().lock();
-                if(u.getLogin((UUID) Key.attachment())) {//controllo se l utente ha fatto il login
+                if(u.getLogin()) {//controllo se l utente ha fatto il login
 
                     //recupero le info riguardo la creazione della parola
                     long currentW = -1;
@@ -213,7 +213,7 @@ public class Work implements Runnable {
             try {
 
                 u.getReadLock().lock();
-                if(u.getLogin((UUID) Key.attachment())) {//controllo se l utente ha fatto il login
+                if(u.getLogin()) {//controllo se l utente ha fatto il login
 
                     String answer = null;
                     try {
@@ -251,7 +251,7 @@ public class Work implements Runnable {
             try {
 
                 u.getReadLock().lock();//sincronizzo per l accesso ai dati dell utente
-                if(u.getLogin((UUID) Key.attachment())) {//controllo se l utente ha fatto il login
+                if(u.getLogin()) {//controllo se l utente ha fatto il login
 
                     try {
                         ReadWordLock.lock();//ho bisogno di sincronizzare con il thread che genera il gioco
@@ -319,7 +319,7 @@ public class Work implements Runnable {
             try {
 
                 u.getReadLock().lock();
-                if(!u.getLogin((UUID) Key.attachment())) {//utente non ha effettuato il login
+                if(!u.getLogin()) {//utente non ha effettuato il login
                     Write_No_Cipher(dati, "", -1, "");
                 }
                 else {Cipher_AND_Write(dati, "", 0, GetStatisticsUser(username, u));}
@@ -344,7 +344,7 @@ public class Work implements Runnable {
 
             try {
                 u.getWriteLock().lock();
-                if(u.getLogin((UUID) Key.attachment())) {//se l utente ha effettuato il login
+                if(u.getLogin()) {//se l utente ha effettuato il login
 
                     try {
 
@@ -467,7 +467,7 @@ public class Work implements Runnable {
 
             try {
                 u.getWriteLock().lock();
-                if(u.getLogin((UUID) Key.attachment())) {//controllo che l utente abbia effettuato il login
+                if(u.getLogin()) {//controllo che l utente abbia effettuato il login
 
                     //setto i campi per indicare che il client partecipa al game
                     int result = -10; //valore fittizio
@@ -509,15 +509,15 @@ public class Work implements Runnable {
             try {
 
                 u.getWriteLock().lock();
-                if(u.getLogin((UUID) Key.attachment())) {//controllo abbia effettuato il login
+                if(u.getLogin()) {//controllo abbia effettuato il login
 
                     //controllo che l username associato a quella connessione per il login sia != null e che
                     //coincida con quello che l utente ha inserito per il logout
                     //in questo modo posso evitare che l utente che sta chiedendo di fare il logout butti fuori
                     //dal gioco un altro utente
-                    if(u.getUserLogin((UUID) Key.attachment()) != null && u.getUserLogin((UUID) Key.attachment()).equals(username)) {
+                    if(u.getID_channel() == (UUID) Key.attachment()) {
 
-                        u.setLogin((UUID) Key.attachment(), false);//setto i campi che indicano che l utente non è piu loggato
+                        u.setLogin(false);//setto i campi che indicano che l utente non è piu loggato
                         error = 0;
 
                         //prima di settare l abbandono del gioco devo controllare se l utente ha provato a partecipare
@@ -553,20 +553,24 @@ public class Work implements Runnable {
 
         if((u = Registrati.get(username)) != null) {//controllo che l utente sia registrato
 
-            //qui per effettuare il login controllo che immagine hash della password fornita
-            //dall utente sia uguale a quella presente dell oggetto utente
+            if(!u.getLogin()) {
+                //qui per effettuare il login controllo che immagine hash della password fornita
+                //dall utente sia uguale a quella presente dell oggetto utente
 
-            if(CheckImageHash(passwd, u)) {//controllo la password
+                if(CheckImageHash(passwd, u)) {//controllo la password
 
-                try {
-                    u.getWriteLock().lock();
-                    u.setLogin((UUID) Key.attachment(), true);//setto i campi per il login
-                    error = 0;
+                    try {
+                        u.getWriteLock().lock();
+                        u.setLogin(true);//setto i campi per il login
+                        u.setID_channel((UUID) Key.attachment());
+                        error = 0;
+                    }
+                    finally {u.getWriteLock().unlock();}
+
                 }
-                finally {u.getWriteLock().unlock();}
-
+                else {error = -2;}//-2 indica che l utente non ha inserito correttamente la passwd
             }
-            else {error = -2;}//-2 indica che l utente non ha inserito correttamente la passwd
+            else error = -3;
         }
         else {error = -1;}// -1 indica utente non registrato
 
