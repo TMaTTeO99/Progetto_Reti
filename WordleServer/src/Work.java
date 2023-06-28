@@ -22,7 +22,7 @@ public class Work implements Runnable {
     private Lock ReadWordLock;//readlock usata per accedere in mutua esclusione alla sessione del gioco in lettura
     private Lock WriteWordLock;//writelock usata per accedere in mutua esclusione alla sessione del gioco in scrittura
     private ArrayList<String> Words;//parole del vocabolario
-    private LinkedBlockingDeque<DataToSerialize> DaSerializzare;//cosa usata per dire al thread che serializza quando e cosa serializzare
+    private LinkedBlockingDeque<DataToSerialize<?>> DaSerializzare;//cosa usata per dire al thread che serializza quando e cosa serializzare
     private ArrayList<UserValoreClassifica> Classifica;
     private Lock ReadLockClassifica;//readlock per l istanza della classifica
     private Lock WriteLockClassifica;//writelock per l istanza della classifica
@@ -30,7 +30,7 @@ public class Work implements Runnable {
     private GetDataConfig dataConfig;//oggetto che contiene dati di configurazione
     private HashMap<UUID, String> SecurityKeys;//Hashmap che contiene le chiavi di sessione per la cifratura
     public Work(SelectionKey k, ConcurrentHashMap<String, Utente> R, PkjData dati, ArrayList<String> Vocabolario,
-                SessioneWordle g, Lock RWLock, LinkedBlockingDeque<DataToSerialize> daserializzare, ArrayList<UserValoreClassifica> Clss,
+                SessioneWordle g, Lock RWLock, LinkedBlockingDeque<DataToSerialize<?>> daserializzare, ArrayList<UserValoreClassifica> Clss,
                 Lock RDLock, Lock WRLock, String IPMulticast, int PortMulticast, GetDataConfig dataConf, HashMap<UUID, String> ScrtyKeys, Lock WWLock) {
 
         dataConfig = dataConf;
@@ -222,7 +222,7 @@ public class Work implements Runnable {
                         answer = new String();
                         for(int i = 0; i< Classifica.size(); i++) {//costruisco la risposta
                             UserValoreClassifica temp = Classifica.get(i);
-                            answer = answer.concat("USER: " + temp.getUsername() + " SCORE: " + temp.getScore() + "\n");
+                            answer = answer.concat((i+1) + "°: " + "USER: " + temp.getUsername() + " SCORE: " + temp.getScore() + "\n");
                         }
                     }
                     finally {ReadLockClassifica.unlock();}
@@ -317,38 +317,12 @@ public class Work implements Runnable {
         if(u != null) {
 
             try {
+
                 u.getReadLock().lock();
                 if(!u.getLogin((UUID) Key.attachment())) {//utente non ha effettuato il login
                     Write_No_Cipher(dati, "", -1, "");
                 }
-                else {
-
-                    /*
-                    try {
-                        ReadWordLock.lock();
-                        //controllo se l utente in questo momento sta giocando
-                        if(Gioco.IsInGame(username)){
-                            GameUtente = u.getGame() - 1;
-                        }
-                        else GameUtente = u.getGame();
-                    }
-                    finally {ReadWordLock.unlock();}
-
-                    //recupero le statistiche dell utente e creo la stringa che deve essere inviata
-                    String answer = new String(new byte[0], StandardCharsets.UTF_8);
-
-                    answer = answer.concat("Partite giocate == " + Integer.toString(GameUtente) + "\n");
-                    answer = answer.concat("Partite vinte == " + Integer.toString(u.getWinGame()) + "\n");
-                    answer = answer.concat("Percentuale partite vinte == " +Float.toString(u.getWinGamePerc()) + "\n");
-                    answer = answer.concat("Striscia positiva == " + Integer.toString(u.getLastConsecutive()) + "\n");
-                    answer = answer.concat("Massima striscia positiva == " + Integer.toString(u.getMaxConsecutive()) + "\n");
-
-                    int [] TmpGuessDistrib = u.getGuesDistribuition();
-                    for(int i = 0; i<12; i++) {answer = answer.concat("Vinte in " + (i+1) + " tentativi == " + Integer.toString(TmpGuessDistrib[i]) + "\n");}
-
-                     */
-                    Cipher_AND_Write(dati, "", 0, GetStatisticsUser(username, u));
-                }
+                else {Cipher_AND_Write(dati, "", 0, GetStatisticsUser(username, u));}
             }
             finally {u.getReadLock().unlock();}
 
@@ -404,6 +378,9 @@ public class Work implements Runnable {
                                     //recupero il numero di tentativi fatti dal giocatore per vinvere l attuale partita
                                     int tentativiAttuali = Gioco.gettentativiUtente(username);
 
+                                    //Aggiorno il numero di tentativi totali delle partite vinte per poter fare il punteggio in classifica
+                                    u.setWinTentativi(u.getWinTentativi() + tentativiAttuali);
+
                                     //aumento il numero di partite vinte dal utente
                                     u.increasesWinGame();
 
@@ -423,7 +400,7 @@ public class Work implements Runnable {
                                     u.updateLastConsecutive(true);
 
                                     //aggiorno la classifica
-                                    updateClassifica(username, u, tentativiAttuali);
+                                    updateClassifica(username, u, u.getWinTentativi());
 
                                     //segnalo al thread che serializza i dati che un altro utente ha modificato le sue statistiche
                                     SendSerialization('U');

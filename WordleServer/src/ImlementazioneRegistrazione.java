@@ -11,13 +11,13 @@ import java.util.concurrent.locks.Lock;
 public class ImlementazioneRegistrazione extends RemoteServer implements Registrazione {
 
     private ConcurrentHashMap<String, Utente> Registrati;//utenti del gioco
-    private LinkedBlockingDeque<DataToSerialize> DaSerializzare;//lista per trasferire le info al thread che deve serializzare i dati
+    private LinkedBlockingDeque<DataToSerialize<?>> DaSerializzare;//lista per trasferire le info al thread che deve serializzare i dati
     private Lock LockClassifcaWrite;//lock per per la classifica in scrittura
     private Lock LockClassifcaRead;//lock per per la classifica in lettura
     private ArrayList<UserValoreClassifica> Classifica;
     private HashMap<UUID, String> SecurityKeys;//hashmap di chiavi di sessione
 
-    public ImlementazioneRegistrazione(ConcurrentHashMap<String, Utente> R, LinkedBlockingDeque<DataToSerialize> Lst,
+    public ImlementazioneRegistrazione(ConcurrentHashMap<String, Utente> R, LinkedBlockingDeque<DataToSerialize<?>> Lst,
                                        ArrayList<UserValoreClassifica> Clss, Lock LckClss, Lock LckClassRd, HashMap<UUID, String> ScrtKeys) {
         Registrati = R;
         DaSerializzare = Lst;
@@ -28,6 +28,7 @@ public class ImlementazioneRegistrazione extends RemoteServer implements Registr
     }
     public int registra(byte [] username, byte [] passwd, UUID ID) throws RemoteException {
 
+        Utente u = null;
         int flag_Passwd = Integer.MAX_VALUE;//MAX_VALUE valore di inizializzazione
 
         try {
@@ -50,9 +51,10 @@ public class ImlementazioneRegistrazione extends RemoteServer implements Registr
             //se il client non è presente fra i registrati, se non c'è lo inserisco
             //come password uso l immagine hash della password all interno del ogetto utente
 
-            if(Registrati.putIfAbsent(usnameString, new Utente(usnameString, bytesToHex(encodedhash))) == null) {
+            if(Registrati.putIfAbsent(usnameString, (u = new Utente(usnameString, bytesToHex(encodedhash)))) == null) {
                 //comunico al thread che serializza che è presente un nuovo utente e che quindi potrebbe dover serializzare
-                DaSerializzare.put(new DataToSerialize(usnameString, 'N'));//il char N indica che sta per arrivare un username
+
+                DaSerializzare.put(new DataToSerialize<>(u, 'N'));//il char N indica che sta per arrivare un username
 
                 LockClassifcaWrite.lock();
                     Classifica.add(new UserValoreClassifica(usnameString, 0));//inserisco in classifica l utente appena registrato con score 0

@@ -23,8 +23,8 @@ public class OpenGame implements Runnable{
     private SessioneWordle Game;//variabile che rappresenta il gioco
     private Lock lock;//lock per implementare mutua esclusione fra per i thread che accedono all istanza del gioco
     private String URLtransale;//URL del servizio di traduzione
-    private LinkedBlockingDeque<DataToSerialize> DaSerializzare;//lista per comunicare con il thread che serializza
-    public OpenGame(long t, long lt, ArrayList<String> Vcb, File ConfFile, SessioneWordle gm, Lock lck, String URL, LinkedBlockingDeque<DataToSerialize> SerializeQueue) {
+    private LinkedBlockingDeque<DataToSerialize<?>> DaSerializzare;//lista per comunicare con il thread che serializza
+    public OpenGame(long t, long lt, ArrayList<String> Vcb, File ConfFile, SessioneWordle gm, Lock lck, String URL, LinkedBlockingDeque<DataToSerialize<?>> SerializeQueue) {
         lasttime = lt;
         time = t;
         Vocabolario = Vcb;

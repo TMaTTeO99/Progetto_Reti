@@ -24,6 +24,7 @@ public class Utente implements Serializable {
     private int LastConsecutive = 0;//lunghezza ultima striscia positiva
     private int MaxConsecutive = 0;//striscia positiva piu lunga;
     private int [] GuesDistribuition = new int[12]; //Il numero massimo di tentativi che un utente puo fare è 12
+    private int winTentativi = 0;//numero di tentativi totali in tutte le partite vinte
     private NotificaClient stub;//variabile per recuperare lo stub passato dal client nella fase di registrazione
 
     //lock usate per accedere in mutua esclusione ai dati dell utente
@@ -75,6 +76,8 @@ public class Utente implements Serializable {
     public void setStub(NotificaClient s) {stub = s;}
     public void RemoveSTub() {stub = null;}//metodo usato per eliminare lo stub prima di serializzare
     public void setLogin(UUID idx, boolean val) { LoginChannel.put(idx, new InfoLogin(Username, val));}//val == 1 login, val == 0 logout
+    public int getWinTentativi() {return winTentativi;}
+    public void setWinTentativi(int wTentativi) {winTentativi = wTentativi;}
     public void updateLastConsecutive(boolean flag) {
 
         if(flag) {//flag == true => il metodo viene chiamato quando il client ha vinto la partita
@@ -102,4 +105,6 @@ public class Utente implements Serializable {
         if(info != null) return info.getlogin();
         return false;
     }
+
+
 }

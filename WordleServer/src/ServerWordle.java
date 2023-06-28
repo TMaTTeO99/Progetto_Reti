@@ -18,7 +18,7 @@ public class ServerWordle{
     private ExecutorService pool;//threadpool per rispondere alle richieste dei client
     private ConcurrentHashMap<String, Utente> Registrati; // Lista che conterrà gli utenti registrati
     private ImlementazioneRegistrazione ObjEsportato;//variabile per gestire la condition variable per il thread che scrive su json
-    private LinkedBlockingDeque<DataToSerialize> DaSerializzare;//lista di supporto usata per capire quali utenti devono essere serializzati
+    private LinkedBlockingDeque<DataToSerialize<?>> DaSerializzare;//lista di supporto usata per capire quali utenti devono essere serializzati
                                                                 //ad ogni iscrizione
     private SessioneWordle Game; //oggetto che rappresenta una sessione di gioco
 

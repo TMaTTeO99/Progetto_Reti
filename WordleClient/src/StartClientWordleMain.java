@@ -42,7 +42,10 @@ public class StartClientWordleMain {
 
             Socket socket = new Socket();//creo l oggetto socket e mi connetto al server appena avvio
             try {socket.connect(new InetSocketAddress(dataConfig.getIP_server(), dataConfig.getPort_ListeningSocket()));}
-            catch (Exception e) {e.printStackTrace();}
+            catch (Exception e) {
+                System.out.println("ERRORE. Impossibile connettersi al server");
+                return;
+            }
 
             //prima di avviare la GUI costruisco insieme al server la chiave di sicurezza per la sessione
             if(!SendAndRicevereSecurityData(socket, dataConfig)) {

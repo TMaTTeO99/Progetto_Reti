@@ -34,11 +34,13 @@ public class StartGame extends JFrame {
     private GetDataConfig dataConfig;
     private UUID ID_Channel;//id che il server associa alla connessione
     private String SecurityKey;//chiave di sessione
+    private JFrame LGFrame;
     public StartGame(GetDataConfig dataCon, Socket sck,
                      String usrname, Registrazione srv,
                      ArrayList<Suggerimenti> SuggQueue,
-                     String ScrtKey, UUID ID) throws Exception{
+                     String ScrtKey, UUID ID, JFrame LGF) throws Exception{
 
+        LGFrame = LGF;
         SecurityKey = ScrtKey;
         dataConfig = dataCon;
         IP_Multicast = dataConfig.getIP_Multicast();
@@ -426,9 +428,9 @@ public class StartGame extends JFrame {
                         case 0 :
 
                             StopCaptureUDPMessages();//metodo privato per la terminazione del thread che sta in ascolo dei datagramPacket
-                            dispose();//elimino il frame corrente
                             //torno al frame iniziale della login e della registrazione
-                            new StartLoginRegistrazione(dataConfig, SuggerimentiQueue, ID_Channel, SecurityKey, socket);
+                            setVisible(false);
+                            LGFrame.setVisible(true);
                             break;
                         case -1:
                             JOptionPane.showMessageDialog(null, "Errore. Username inserito non corretto");
@@ -538,7 +540,6 @@ public class StartGame extends JFrame {
 
                         inn.readInt();//scarto la len del messaggio
                         returnValue = inn.readInt();//recupero il valore di ritorno
-                        System.out.println(returnValue);
 
                         pckage = new ReturnPackage(returnValue, inn);
 

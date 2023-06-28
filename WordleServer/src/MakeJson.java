@@ -22,7 +22,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 public class MakeJson implements Runnable{
 
     private ConcurrentHashMap<String, Utente> Registrati;//utenti registrati
-    private LinkedBlockingDeque<DataToSerialize> UDSlist;//lista che conterra gli user name degli utenti da serializzare
+    private LinkedBlockingDeque<DataToSerialize<?>> UDSlist;//lista che conterra gli user name degli utenti da serializzare
     private String PathJSN;//Stringa che contiene il path di dove scrivere i file json
     private String FileNameJsonUtenti = "DataStorageUtenti.json";//stringa che verra usata per creare il file json degli utenti
     private String FileNameJsonGame = "DataStorageGame.json";//stringa che verra usata per creare il file json del gioco
@@ -35,7 +35,7 @@ public class MakeJson implements Runnable{
     private ArrayList<UserValoreClassifica> Classifica;//oggetto classifica
     private int AfterUpDate;//variabile usata per aggiornare il file json che continene gli utenti
                             //dopo che il contatore arriva a tale numero in modo da non serializzare sempre perche è una operazione lenta
-    public MakeJson(ConcurrentHashMap<String, Utente> Utenti, LinkedBlockingDeque<DataToSerialize> UDSL,
+    public MakeJson(ConcurrentHashMap<String, Utente> Utenti, LinkedBlockingDeque<DataToSerialize<?>> UDSL,
                     String PathJson, Lock RDlock, SessioneWordle g, ArrayList<UserValoreClassifica> Clss, Lock RDClass, int Aupdate) {
 
         AfterUpDate = Aupdate;
@@ -54,10 +54,13 @@ public class MakeJson implements Runnable{
 
         try {
             tmp = new File(name);//controllo l'esistenza del file
-            writefile = new FileWriter(name, true);//file usato per il generator in modalità lettura
-            if(!tmp.exists())return writefile;//se il file non esiste sono al primo avvio server quindi ritorno il file
+
+            //se il file non esiste sono al primo avvio server quindi ritorno il file
+            if(!tmp.exists()){return new FileWriter(name, true);}
 
             //Altrimenti se il file esiste devo deserializzare
+            writefile = new FileWriter(name, true);//file usato per il generator in modalità lettura
+
             JsonFactory factory = new JsonFactory();
             JsonParser pars = factory.createParser(tmp);
             pars.setCodec(map);
@@ -163,7 +166,15 @@ public class MakeJson implements Runnable{
         File TestDire = new File(PathJSN);
 
         //caso in cui la dir non esiste => la creo
-        if(!TestDire.exists()) {TestDire.mkdir();}
+        try {
+            if(!TestDire.exists()) {TestDire.mkdir();}
+        }
+        catch (Exception e){
+            System.out.println("Impossibile creare cartella di serializzazione");
+            System.out.println("I dati non verranno serializzati");
+            System.out.println("Controllare impostazioni security menager");
+            return;
+        }
 
         JsonGenerator generator = null;
         ObjectMapper map = new ObjectMapper();
@@ -193,8 +204,7 @@ public class MakeJson implements Runnable{
                     case 'N' : //caso in cui il lista sarà presente l username di un utente
                               //in questo caso quindi quando ricevo 'N' indica username di
                               //utente che deve essere serializzato dall inizio, quando è appena iscritto
-
-                        Utente u = Registrati.get((String) dato.getDato());
+                        Utente u = (Utente) dato.getDato();
                         if(u != null) {
                             try {
                                 u.getReadLock().lock();

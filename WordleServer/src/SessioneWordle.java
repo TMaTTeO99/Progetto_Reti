@@ -53,7 +53,7 @@ public class SessioneWordle implements Serializable {
     //metodo usato per controllare se l utente è in gioco oppure ha effettuato il logout prima di finire i tentativi
     public boolean IsInGame(String username) {
         InfoSessioneUtente u = Tentativi.get(username);
-        if(u != null) return !u.getQuitGame() && u.getTentativi() >= 0 && u.getTentativi() < 12;
+        if(u != null) return !u.getQuitGame() && (u.getTentativi() >= 0 && u.getTentativi() < 12) && !u.getResultGame();
         return false;
     }
     public void SetQuitUtente(String username) {//metodo usato per settare che l utente ha abbandonato la partita (logout prima di aver terminato i tentativi)

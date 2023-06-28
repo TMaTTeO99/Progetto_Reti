@@ -59,7 +59,7 @@ public class StartLoginRegistrazione extends JFrame {
         JButton Registra = new JButton("Registra");
 
         //definisco le operazioni che devono effettuare i JButton e le aggiungo
-        Login.addActionListener(e -> {StartLogin();});
+        Login.addActionListener(e -> {StartLogin(this);});
         Registra.addActionListener(e -> {StartRegistra();});
 
         // Aggiungo i pulsanti al frame
@@ -144,7 +144,7 @@ public class StartLoginRegistrazione extends JFrame {
 
 
     //sezione che contiene i metodi utilizzati all interno delle espressioni lambda
-    private void StartLogin() {
+    private void StartLogin(JFrame This) {
 
         SwingWorker<ReturnPackage, Void> worker = new SwingWorker<ReturnPackage, Void>() {
 
@@ -186,8 +186,8 @@ public class StartLoginRegistrazione extends JFrame {
 
                         case 0 ://caso in cui l utente ha effettuato il login con successo.
 
-                            dispose();// Chiudo il frame corrente
-                            new StartGame(dataConfig, socket, usernamelogin, servizio, SuggerimentiQueue, SecurityKey, ID_Channel);
+                            setVisible(false);
+                            new StartGame(dataConfig, socket, usernamelogin, servizio, SuggerimentiQueue, SecurityKey, ID_Channel, This);
                             break;
                         case -1 :
                             JOptionPane.showMessageDialog(null, "Errore. Per partecipare al gioco bisogna prima essere iscritti");
