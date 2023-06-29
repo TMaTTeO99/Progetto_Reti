@@ -322,7 +322,10 @@ public class StartGame extends JFrame {
                             break;
                     }
                 }
-                catch (Exception e) {e.printStackTrace();}
+                catch (Exception e) {
+
+                    e.printStackTrace();
+                }
             }
         };
         worker.execute();
@@ -828,7 +831,6 @@ public class StartGame extends JFrame {
         for(int i = 0; i< lst.size(); i++) {
 
             String suggerimento = lst.get(i);
-            System.out.println(suggerimento);
             JPanel panel = new JPanel(new GridLayout(1, 10));
 
             for(int j = 0; j<10; j++) {//suggestions è lunga 10

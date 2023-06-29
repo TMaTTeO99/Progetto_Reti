@@ -21,10 +21,7 @@ public class InfoLogin implements Serializable {
     public void setStub(NotificaClient s) {stub = s;}
     public void RemoveSTub() {stub = null;}//metodo usato per eliminare lo stub prima di serializzare
     public String getName() {return Name;}
-
     public void setName(String nm) {Name = nm;}
-
     public boolean getlogin() {return login;}
-
     public void setlogin(boolean log) {login = log;}
 }

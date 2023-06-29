@@ -871,7 +871,9 @@ Giorno 49)	Riprendo da dove ero arrivato ieri ::
 		Continuo a debbuggare e a controllare se c'è qualcosa che non va, poi in caso dopo comincio la relazione::
 		NOTA: voglio sistemare il fatto di avere una lista di login, il punto è : se un utente effettua il login, voglio 
 		evitare che un altro client conoscendo password e username, possa accedere
-		Fatto..  
+		Fatto..
+		
+		HO rimodificato in modo da poter loggarsi da piu device pero ora arrivano anche a tutti le notifiche  
 		
 
 

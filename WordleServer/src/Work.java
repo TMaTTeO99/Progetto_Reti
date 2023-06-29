@@ -509,13 +509,13 @@ public class Work implements Runnable {
             try {
 
                 u.getWriteLock().lock();
-                if(u.getLogin((UUID) Key.attachment())) {//controllo abbia effettuato il login
+                //controllo che l username associato a quella connessione per il login sia != null e che
+                //coincida con quello che l utente ha inserito per il logout
+                //in questo modo posso evitare che l utente che sta chiedendo di fare il logout butti fuori
+                //dal gioco un altro utente
+                if(u.getUserLogin((UUID) Key.attachment()) != null && u.getUserLogin((UUID) Key.attachment()).equals(username)) {
 
-                    //controllo che l username associato a quella connessione per il login sia != null e che
-                    //coincida con quello che l utente ha inserito per il logout
-                    //in questo modo posso evitare che l utente che sta chiedendo di fare il logout butti fuori
-                    //dal gioco un altro utente
-                    if(u.getUserLogin((UUID) Key.attachment()) != null && u.getUserLogin((UUID) Key.attachment()).equals(username)) {
+                    if(u.getLogin((UUID) Key.attachment())) {//controllo abbia effettuato il login
 
                         u.setLogin((UUID) Key.attachment(), false);//setto i campi che indicano che l utente non è piu loggato
                         error = 0;
@@ -527,9 +527,9 @@ public class Work implements Runnable {
                             SendSerialization('I');
                         }
                     }
-                    else {error = -3;} //-3 indica che l utente non ha inserito l'username corretto
+                    else {error = -2;} //-2 indica che l utente non è loggato
                 }
-                else {error = -2;} //-2 indica che l utente non è loggato
+                else {error = -3;} //-3 indica che l utente non ha inserito l'username corretto
             }
             finally {u.getWriteLock().unlock();}
 

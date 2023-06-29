@@ -91,7 +91,7 @@ public class StartLoginRegistrazione extends JFrame {
                 "2) Prima di poter tentare di indovinare una parola è necessario chiedere di giocare<br>" +
                 "3) Se un utente chiede di giocare ed effettua il logout prima di aver indovinato la parola la partita è considerata persa<br>" +
                 "4) Se un utente esaurisce i 12 tentativi senza indovinare la parola la partita è considerata persa <br>" +
-                "5) Se un utente comincia una partita e dubito dopo viene aggiornata la parola del gioco la partita è considerata persa</html>"
+                "5) Se un utente comincia una partita e subito dopo viene aggiornata la parola del gioco la partita è considerata persa</html>"
         ));
         panelShowRules.setBackground(new Color(192, 166, 209));
         return panelShowRules;
@@ -208,7 +208,8 @@ public class StartLoginRegistrazione extends JFrame {
                 }
                 catch (Exception e) {
                     // Gestisci eventuali errori di esecuzione della richiesta
-                    JOptionPane.showMessageDialog(null, "Errore nella visualizzazione del messaggio");
+                    JOptionPane.showMessageDialog(null, "Errore di connessione al server\n" +
+                                                                                "Controllare la connessione e riavviare il client");
                 }
             }
         };
