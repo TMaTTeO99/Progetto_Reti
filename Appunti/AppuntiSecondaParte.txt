@@ -879,6 +879,46 @@ Giorno 49)	Riprendo da dove ero arrivato ieri ::
 
 -------------------------------------------------------------------------------------------------------------------------------------------
 
+Giorno 50) 	Ho modificato il fatto di usare "/" per ricercare i file nelle dir in modo da essere indipendente dal sistema operativo
+		uso il metodo FileSystem.getdeafult.getseparetor
 
+-------------------------------------------------------------------------------------------------------------------------------------------
 
+Giorno 51)
 
+		Nota: devo controllare i dati che l utente inserisce lato server ::
+		
+		Se inserisco spazio prima e / o  dopo i dati che inserisco ho problemi ::
+		Registrazione :: fatto
+		
+		in questi metodi, siccome il preblema salat fuori solo se metto spazio a inizio e fine stringa
+		invece di impedire di inserirlo, se erroneamente viene inserito, lo elimino 
+		
+		Login ::
+		Logout :: 
+		SendWord :: 
+		
+		Fatto
+		
+		*******************IMPORTANTISSIMO**********************
+		
+		
+		Ora ho il problema di aggiornare la striscia positiva quando il il gioco viene restartato, siccome 
+		nel thread che crea il game devo aggiornare i campi degli utenti in gioco in quel momento prima
+		di avviare la nuova istanza, mi serve prendere la lock sugli utenti ma in quel momento gli utenti potrebbero 
+		giocare, o fare altre operazioni e quindi prendere la lock, a questo punto quello che succede che siccome c'è di
+		mezzo la lock del game, potrei andare in deadlock,  quindi per ora quello che ho fatto è : recuperare
+		i dati degli utenti e aggiornare il game, dopo che esco dalla sezione lockata per il game 
+		se gli utenti erano in gioco al game precedente e non avevano vinto e il game è stato cambiato 
+		aggiorno la striscia positiva, pero, cosi facendo potrei perdermi l'ultima partita fatta dagli utenti, non avendo cosi
+		risolto nulla. Per risolvere il problema va cambiato l'ordine di acquisizione delle lock degli utenti
+		e del game in modo che venga prima presa la lock del game e poi quella dell utente, in questo modo evito il deadlock
+		al prezzo da pagare di un rallentamento in caso debba essere creato il game mentre un utente sta giocando o fa altro, 
+		questo va fatto in tutti metodi dei worker, in piu ci sono alcuni metodi in cui non ho preso la lock degli utenti, quindi
+		va modificato 
+		
+		Domani  faccio tutto
+		
+		*******************IMPORTANTISSIMO**********************
+
+-------------------------------------------------------------------------------------------------------------------------------------------

@@ -154,9 +154,12 @@ public class StartLoginRegistrazione extends JFrame {
                 int returnvalue = Integer.MAX_VALUE;//MAX_VALUE usato solo come valore di inizializzazione
 
                 usernamelogin = UserTEXTLogin.getText();
-                String pass = new String(UserTEXTpasslogin.getPassword());//qui prima era getText, l ho modificato
+                String pass = new String(UserTEXTpasslogin.getPassword());
 
                 if(usernamelogin.length() == 0 || pass.length() == 0)return new ReturnPackage( -4);
+                if(usernamelogin.contains(" ") || usernamelogin.contains("\t"))return new ReturnPackage( -6);
+                if(pass.contains(" ") || pass.contains("\t"))return new ReturnPackage( -6);
+
                 try {
                     DataOutputStream ou = new DataOutputStream(new BufferedOutputStream(socket.getOutputStream()));
                     DataInputStream inn = new DataInputStream(new BufferedInputStream(socket.getInputStream()));
@@ -171,7 +174,6 @@ public class StartLoginRegistrazione extends JFrame {
                     ou.flush();
                     inn.readInt(); //scarto la len del messaggio
                     returnvalue = inn.readInt();//recupero il valore di ritorno dal server
-
                 }
                 catch (Exception ee) {returnvalue = -10;}
                 return new ReturnPackage(returnvalue);
@@ -200,13 +202,17 @@ public class StartLoginRegistrazione extends JFrame {
                             break;
                         case -4:
                             JOptionPane.showMessageDialog(null, "Necessario inserire username e password");
-                            break ;
+                            break;
+                        case -6:
+                            JOptionPane.showMessageDialog(null, "Username e password non possono contenere spazi o tab");
+                            break;
                         case -10:
                             JOptionPane.showMessageDialog(null, "Errore server");
                             break;
                     }
                 }
                 catch (Exception e) {
+                    e.printStackTrace();
                     // Gestisci eventuali errori di esecuzione della richiesta
                     JOptionPane.showMessageDialog(null, "Errore di connessione al server\n" +
                                                                                 "Controllare la connessione e riavviare il client");
@@ -269,6 +275,9 @@ public class StartLoginRegistrazione extends JFrame {
                         case -4:
                             JOptionPane.showMessageDialog(null, "Errore. La password deve essere di almeno 5 caratteri e deve contenere" +
                                                                                         "un numero e una lettera maiuscola");
+                            break;
+                        case -5 :
+                            JOptionPane.showMessageDialog(null, "Errore. Username e password non possono contenere spazi o tab");
                             break;
                         case -10:
                             JOptionPane.showMessageDialog(null, "Errore server");

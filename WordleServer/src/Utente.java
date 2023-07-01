@@ -16,8 +16,6 @@ public class Utente implements Serializable {
 
 
     private HashMap<UUID, InfoLogin> LoginChannel = new HashMap<>();//HashMap usata per mantenere le info riguardo al login
-    //private boolean login = false;
-    //private UUID ID_channel = null;
     private String Username = null;
     private String Passswd = null;
     private int Games = 0;//partite giocate
@@ -75,12 +73,6 @@ public class Utente implements Serializable {
     public void UpdatePercWingame() {WinGamePerc = ( (float) (WinGame * 100) / (float)Games);}
     public int getWinTentativi() {return winTentativi;}
     public void setWinTentativi(int wTentativi) {winTentativi = wTentativi;}
-    /*public boolean getLogin() {return login;}
-    public void setLogin(boolean lg) {login = lg;}
-    public UUID getID_channel() {return ID_channel;}
-    public void setID_channel(UUID ID) {ID_channel = ID;}
-
-     */
     public void updateLastConsecutive(boolean flag) {
 
         if(flag) {//flag == true => il metodo viene chiamato quando il client ha vinto la partita

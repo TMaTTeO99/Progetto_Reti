@@ -1,6 +1,7 @@
 import com.fasterxml.jackson.annotation.JsonCreator;
 
 import java.io.Serializable;
+import java.util.Enumeration;
 import java.util.concurrent.ConcurrentHashMap;
 
 //Classe che implementa serializable in modo tale da poter salvare la sessione corrente di gioco

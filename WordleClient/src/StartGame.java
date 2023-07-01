@@ -55,7 +55,7 @@ public class StartGame extends JFrame {
         //Mi registro per il servizio di notifica
         notifica = new ImplementazioneNotificaClient(Classifica);
         skeleton = (NotificaClient) UnicastRemoteObject.exportObject(notifica, 0);
-        servizio.RegisryForCallBack(usernamelogin, skeleton, ID_Channel);
+        servizio.RegistryForCallBack(usernamelogin, skeleton, ID_Channel);
 
 
 
@@ -396,8 +396,11 @@ public class StartGame extends JFrame {
             protected ReturnPackage doInBackground() throws Exception {
 
                 int returnValue = Integer.MAX_VALUE;//MAX_VALUE valore di inizizalizzazione
-                String user = TExtFieldUserLogout.getText();
                 ReturnPackage pckage = null;
+                String user = TExtFieldUserLogout.getText();
+                if(user.length() == 0)return new ReturnPackage(-6);
+                if(user.contains(" ") || user.contains("\t"))return new ReturnPackage(-5);
+
                 try {
                     DataOutputStream ou = new DataOutputStream(new BufferedOutputStream(socket.getOutputStream()));
                     DataInputStream inn = new DataInputStream(new BufferedInputStream(socket.getInputStream()));
@@ -410,7 +413,7 @@ public class StartGame extends JFrame {
                     pckage = new ReturnPackage(returnValue);
 
                     if(returnValue == 0) {
-                        servizio.UnRegisryForCallBack(user, skeleton, ID_Channel);
+                        servizio.UnRegistryForCallBack(user, skeleton, ID_Channel);
                         UnicastRemoteObject.unexportObject(notifica, true);
                     }
 
@@ -446,6 +449,12 @@ public class StartGame extends JFrame {
                             break;
                         case -4:
                             JOptionPane.showMessageDialog(null, "Errore");
+                            break;
+                        case -5:
+                            JOptionPane.showMessageDialog(null, "Errore. Username non puo contenere spazio o tab");
+                            break;
+                        case -6:
+                            JOptionPane.showMessageDialog(null, "Errore. Inserire username");
                             break;
                         case -10:
                             JOptionPane.showMessageDialog(null, "Errore server");
@@ -527,7 +536,8 @@ public class StartGame extends JFrame {
                 ReturnPackage pckage = null;
                 word = TextFieldWordSendWord.getText();
 
-                if(word.length() == 0) {return new ReturnPackage(-6);}//caso in cui l utente non inserisce la parola
+                if(word.length() == 0) return new ReturnPackage(-6);//caso in cui l utente non inserisce la parola
+                if(word.contains(" ") || word.contains("\t"))return new ReturnPackage(-8);
                 else {
 
                     try {
@@ -604,6 +614,9 @@ public class StartGame extends JFrame {
                             break;
                         case -7 :
                             JOptionPane.showMessageDialog(null, "Errore");
+                            break;
+                        case -8:
+                            JOptionPane.showMessageDialog(null, "Errore. La parola non puo contenere spazi o tab");
                             break;
                         case -10:
                             JOptionPane.showMessageDialog(null, "Errore server");

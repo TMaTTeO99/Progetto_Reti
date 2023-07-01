@@ -9,6 +9,7 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.FileSystems;
 import java.security.MessageDigest;
 import java.sql.SQLSyntaxErrorException;
 import java.util.*;
@@ -183,9 +184,9 @@ public class MakeJson implements Runnable{
 
         try {
             //ora devo controllare se il file esiste e in tal caso scorrerlo e deserializzare
-            if((JsonFileUtenti = CheckAndDeserializeUntenti(PathJSN.concat("/").concat(FileNameJsonUtenti), map)) == null) {throw new NullPointerException();}
-            if(DeserializeGame(PathJSN.concat("/").concat(FileNameJsonGame), map) == -1) throw new NullPointerException();
-            if(DeserializeClassifica(PathJSN.concat("/").concat(FielNameJsonClassifica), map) == -1)throw new NullPointerException();
+            if((JsonFileUtenti = CheckAndDeserializeUntenti(PathJSN.concat(FileSystems.getDefault().getSeparator()).concat(FileNameJsonUtenti), map)) == null) {throw new NullPointerException();}
+            if(DeserializeGame(PathJSN.concat(FileSystems.getDefault().getSeparator()).concat(FileNameJsonGame), map) == -1) throw new NullPointerException();
+            if(DeserializeClassifica(PathJSN.concat(FileSystems.getDefault().getSeparator()).concat(FielNameJsonClassifica), map) == -1)throw new NullPointerException();
 
 
             JsonFactory factory = new JsonFactory();
@@ -252,7 +253,7 @@ public class MakeJson implements Runnable{
     //metodi privati per serializzare i dati
     private void MakeJsonUpdateGame(ObjectMapper map, JsonFactory factory, FileWriter NewJsonSessione, DataToSerialize dato) throws Exception{
 
-        NewJsonSessione = new FileWriter(PathJSN.concat("/").concat("tempSessione.json"));
+        NewJsonSessione = new FileWriter(PathJSN.concat(FileSystems.getDefault().getSeparator()).concat("tempSessione.json"));
         JsonGenerator genSessione = factory.createGenerator(NewJsonSessione);
         genSessione.setCodec(map);
 
@@ -263,8 +264,8 @@ public class MakeJson implements Runnable{
         finally {ReadLockGame.unlock();}
 
         //rinomino i file e distruggo quelli vecchi
-        File oldJsonGame = new File(PathJSN.concat("/").concat(FileNameJsonGame));
-        File RenameFileGame = new File(PathJSN.concat("/").concat("tempSessione.json"));
+        File oldJsonGame = new File(PathJSN.concat(FileSystems.getDefault().getSeparator()).concat(FileNameJsonGame));
+        File RenameFileGame = new File(PathJSN.concat(FileSystems.getDefault().getSeparator()).concat("tempSessione.json"));
 
         oldJsonGame.delete();
         RenameFileGame.renameTo(oldJsonGame);
@@ -274,7 +275,7 @@ public class MakeJson implements Runnable{
 
         //a questo punto devo saerializzare i dati:: Attenzione il NewJsonUtenti dovrebbe essere aperto in mod append
 
-        NewJsonUtenti = new FileWriter(PathJSN.concat("/").concat("tempUtenti.json"));
+        NewJsonUtenti = new FileWriter(PathJSN.concat(FileSystems.getDefault().getSeparator()).concat("tempUtenti.json"));
         gen = factory.createGenerator(NewJsonUtenti);
         gen.setCodec(map);
         Collection<Utente> lst =  Registrati.values();
@@ -287,8 +288,8 @@ public class MakeJson implements Runnable{
             finally {Giocataore.getReadLock().unlock();}
         }
 
-        File oldJson = new File(PathJSN.concat("/").concat(FileNameJsonUtenti));
-        File RenameFile = new File(PathJSN.concat("/").concat("tempUtenti.json"));
+        File oldJson = new File(PathJSN.concat(FileSystems.getDefault().getSeparator()).concat(FileNameJsonUtenti));
+        File RenameFile = new File(PathJSN.concat(FileSystems.getDefault().getSeparator()).concat("tempUtenti.json"));
 
         oldJson.delete();
         RenameFile.renameTo(oldJson);
@@ -296,7 +297,7 @@ public class MakeJson implements Runnable{
     }
     private void MakeJsonUpdateClassifica(ObjectMapper map, JsonFactory factory, FileWriter NewJsonClassifica) throws Exception{
 
-        NewJsonClassifica = new FileWriter(PathJSN.concat("/").concat("tempClassifica.json"));
+        NewJsonClassifica = new FileWriter(PathJSN.concat(FileSystems.getDefault().getSeparator()).concat("tempClassifica.json"));
         JsonGenerator genClassifica = factory.createGenerator(NewJsonClassifica);
         genClassifica.setCodec(map);
 
@@ -308,8 +309,8 @@ public class MakeJson implements Runnable{
         }
         finally {ReadLockClassifica.unlock();}
 
-        File oldJsonClass = new File(PathJSN.concat("/").concat(FielNameJsonClassifica));
-        File RenameFileClass = new File(PathJSN.concat("/").concat("tempClassifica.json"));
+        File oldJsonClass = new File(PathJSN.concat(FileSystems.getDefault().getSeparator()).concat(FielNameJsonClassifica));
+        File RenameFileClass = new File(PathJSN.concat(FileSystems.getDefault().getSeparator()).concat("tempClassifica.json"));
 
         oldJsonClass.delete();
         RenameFileClass.renameTo(oldJsonClass);

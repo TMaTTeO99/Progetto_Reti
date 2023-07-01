@@ -2,11 +2,13 @@ import java.io.*;
 import java.math.BigInteger;
 import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.nio.file.FileSystems;
 import java.util.ArrayList;
 import java.util.UUID;
 
 public class StartClientWordleMain {
 
+    private static final String PathStart = ".." + FileSystems.getDefault().getSeparator(); //Path della dir da cui cominciare la ricerca del file di config
     private static String SecurityKey; // chiave per la cifratura
     private static UUID ID_Channel = null;// id che il server assegna alla connessione quando il client si collega al server
 
@@ -15,7 +17,7 @@ public class StartClientWordleMain {
         try {
 
             //oggetto per recuperare i dati di configurazione
-            GetDataConfig dataConfig = new GetDataConfig("configClient.txt", "../");
+            GetDataConfig dataConfig = new GetDataConfig("configClient.txt", PathStart);
 
             dataConfig.SearchFile(new File(dataConfig.getPathStart()));//recupero il file di configurazione
             if(dataConfig.getConfigureFile() == null) {

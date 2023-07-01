@@ -5,7 +5,9 @@ import java.io.*;
 import java.net.URL;
 import java.net.URLConnection;
 import java.util.ArrayList;
+import java.util.Enumeration;
 import java.util.Random;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.locks.Lock;
 
@@ -21,10 +23,15 @@ public class OpenGame implements Runnable{
     private File ConfigureFile;//file di configurazione che deve essere aggiornato alla chiusura del server per inserire il timestamp
                                //Dell ultima volta in cui è stata estratta una parola
     private SessioneWordle Game;//variabile che rappresenta il gioco
-    private Lock lock;//lock per implementare mutua esclusione fra per i thread che accedono all istanza del gioco
+    private Lock lock;//lock per implementare mutua esclusione per i thread che accedono all istanza del gioco
     private String URLtransale;//URL del servizio di traduzione
     private LinkedBlockingDeque<DataToSerialize<?>> DaSerializzare;//lista per comunicare con il thread che serializza
-    public OpenGame(long t, long lt, ArrayList<String> Vcb, File ConfFile, SessioneWordle gm, Lock lck, String URL, LinkedBlockingDeque<DataToSerialize<?>> SerializeQueue) {
+    private ConcurrentHashMap<String, Utente> Registrati;
+    public OpenGame(long t, long lt, ArrayList<String> Vcb, File ConfFile, SessioneWordle gm,
+                    Lock lck, String URL, LinkedBlockingDeque<DataToSerialize<?>> SerializeQueue,
+                    ConcurrentHashMap<String, Utente> Rgstrati) {
+
+        Registrati = Rgstrati;
         lasttime = lt;
         time = t;
         Vocabolario = Vcb;
@@ -36,8 +43,10 @@ public class OpenGame implements Runnable{
     }
     public void run() {
 
+        ConcurrentHashMap<String, InfoSessioneUtente> LastTentativi = null;
         Random randword = new Random();
         while(!Thread.interrupted()){
+
             //qui devo controllare che sia passato il giusto intervallo di tempo fra la precedente
             //creazione di un gioco e il momento corrente
             try {
@@ -52,6 +61,7 @@ public class OpenGame implements Runnable{
                 System.out.println("Parola del gioco " + tmp);
 
                 try {
+
                     lock.lock();
                     Game.setWord(tmp);//setto la parola del gioco
                     Game.setTranslatedWord(TranslateService(tmp));//setto la traduzione della parola
@@ -60,6 +70,7 @@ public class OpenGame implements Runnable{
                     lasttime = System.currentTimeMillis();//recupero il tempo attaule che è il tempo di creazione della parola
                     currenttime = System.currentTimeMillis();//analogo a lasttime
                     Game.setCurrentTime(currenttime);
+                    LastTentativi = Game.getTentativi();//recupero le info del sugli uteniti dell ultimo gioco prima di creare il game nuovo
                     Game.setTentativi();//inizializzo le info associate al game
 
                     //comunico al thread che serializza che deve serializzare il nuovo game
@@ -68,14 +79,25 @@ public class OpenGame implements Runnable{
                 }
                 finally {lock.unlock();}
 
+                //ora aggiorno le statistiche degli utenti nel nel game precedente erano in gioco e non hanno indovinato
+                //la parola, lo faccio dopo aver ricostruito il nuovo game in modo da non avere potenziale deadlock in quanto
+                //un utente potrebbe giocare quindi aver acquisito la lock, in quel momento potrebbe andare in esecuzione
+                //il thread corrente che acquisisce la lock sul game e tenta di aggiornare le statistiche degli utenti
+                //e quindi tentare di acquisire la lock sugli utenti bloccandosi, mentre il thread che sta eseguendo il
+                //metodo SendWordMethod è fermo ad attendere sulla lock del game
+                updateLastConsecutive(LastTentativi);
+
                 WriteLastSpawn(lasttime);//modifico il file di config in modo da scriverci dentro il time stamp dell ultima
-                                        //sessione di gioco creata
+                //sessione di gioco creata
 
                 System.out.println("Game creato");
             }
             catch (Exception e) {
-                e.printStackTrace();
-                lock.unlock();
+                if(e instanceof InterruptedException){
+                    System.out.println("Terminazione servizio creazione del gioco");
+                    break;
+                }
+                else e.printStackTrace();
             }
         }
     }
@@ -153,6 +175,24 @@ public class OpenGame implements Runnable{
 
         }
         catch (Exception e) {e.printStackTrace();}
+
+    }
+    private void updateLastConsecutive(ConcurrentHashMap<String, InfoSessioneUtente> LastTentativi) {
+
+        //qui devo controllare gli utenti che hanno partecipato al game precedente e non hanno indovinato la parola
+        Enumeration<String> lstCompetitors =  LastTentativi.keys();
+
+        while(lstCompetitors.hasMoreElements()) {
+            String user = lstCompetitors.nextElement();
+            if(!LastTentativi.get(user).getResultGame()) {
+                Utente u = Registrati.get(user);
+                try {
+                    u.getWriteLock().lock();
+                    u.updateLastConsecutive(false);
+                }
+                finally {u.getWriteLock().unlock();}
+            }
+        }
 
     }
 }

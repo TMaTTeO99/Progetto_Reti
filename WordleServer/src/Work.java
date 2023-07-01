@@ -336,10 +336,17 @@ public class Work implements Runnable {
         ByteArrayOutputStream SupportOut = null;
         Utente u = null;
 
-        username = Tok.nextToken(" ").replace(":", "");//recupero username
-        word = Tok.nextToken(" ");//recupero parola
-        u = Registrati.get(username);
 
+        //controllo i dati che ricevo dall utente
+        try {
+            username = Tok.nextToken(" ").replace(":", "");//recupero username
+            word = Tok.nextToken(" ");//recupero parola
+            u = Registrati.get(username);
+        }
+        catch (Exception e) {//caso in cui l utente non inserisce correttamente la parola
+            Write_No_Cipher(dati, "", -6, "");
+            return;
+        }
         if(u != null) {
 
             try {
@@ -502,8 +509,14 @@ public class Work implements Runnable {
         ByteArrayOutputStream SupportOut = null;
         Utente u = null;
 
-        username = Tok.nextToken(" ").replace(":", "");//recupero username
 
+        try {
+            username = Tok.nextToken(" ").replace(":", "");//recupero username
+        }
+        catch (Exception e){
+            Write_No_Cipher(dati, "", -6, "");
+            return;
+        }
         if((u = Registrati.get(username)) != null) {//controllo che l utente sia registrato
 
             try {
@@ -524,6 +537,7 @@ public class Work implements Runnable {
                         if(Gioco.IsInGame(username)) {
                             Gioco.SetQuitUtente(username);//setto i campi che indicano che l utente ha abbandonato la partita
                             u.UpdatePercWingame();//aggiorno la percentuale di partite vinte
+                            u.updateLastConsecutive(false);
                             SendSerialization('I');
                         }
                     }
@@ -542,14 +556,17 @@ public class Work implements Runnable {
 
         String username = null;
         String passwd = null;
-        ByteArrayOutputStream SupportOut = null;
         Utente u = null;
         int error = Integer.MAX_VALUE;//MAX_VALUE valore di inizializzazione
 
-
-        SupportOut = new ByteArrayOutputStream();
-        username = Tok.nextToken(" ").replace(":", "");//recupero username
-        passwd = Tok.nextToken(" ");//recupero passwd
+        try {//Effettuo un controllo preliminare su i dati che ricevo
+            username = Tok.nextToken(" ").replace(":", "");//recupero username
+            passwd = Tok.nextToken(" ");//recupero passwd
+        }
+        catch (Exception e) {
+            Write_No_Cipher(dati, "", -6, "");
+            return;
+        }
 
         if((u = Registrati.get(username)) != null) {//controllo che l utente sia registrato
 

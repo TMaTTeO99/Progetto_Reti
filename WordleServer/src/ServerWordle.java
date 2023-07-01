@@ -17,7 +17,7 @@ public class ServerWordle{
     private Registrazione Skeleton;//oggetto che verrà esportato per consentire la registrazione degli utenti conRMI
     private ExecutorService pool;//threadpool per rispondere alle richieste dei client
     private ConcurrentHashMap<String, Utente> Registrati; // Lista che conterrà gli utenti registrati
-    private ImlementazioneRegistrazione ObjEsportato;//variabile per gestire la condition variable per il thread che scrive su json
+    private ImplementazioneRegistrazione ObjEsportato;//variabile per gestire la condition variable per il thread che scrive su json
     private LinkedBlockingDeque<DataToSerialize<?>> DaSerializzare;//lista di supporto usata per capire quali utenti devono essere serializzati
                                                                 //ad ogni iscrizione
     private SessioneWordle Game; //oggetto che rappresenta una sessione di gioco
@@ -59,7 +59,7 @@ public class ServerWordle{
         DaSerializzare = new LinkedBlockingDeque<>();
 
         //lancio i thread separati dal threadpool
-        threadGame = new Thread(new OpenGame(dataConfig.getTimeStempWord(), dataConfig.getLastTimeWord(), Vocabolario, dataConfig.getConfigureFile(), Game, WriteWordLock, dataConfig.getURLtranslate(), DaSerializzare));
+        threadGame = new Thread(new OpenGame(dataConfig.getTimeStempWord(), dataConfig.getLastTimeWord(), Vocabolario, dataConfig.getConfigureFile(), Game, WriteWordLock, dataConfig.getURLtranslate(), DaSerializzare, Registrati));
         threadSerialize = new Thread(new MakeJson(Registrati, DaSerializzare, dataConfig.getPathSerialization(), ReadWordLock, Game, Classifica, ReadLockClassifica, dataConf.getAfterUpDate()));
 
         threadGame.start();
@@ -67,17 +67,27 @@ public class ServerWordle{
 
         Words = Vocabolario;
 
-        pool = (ThreadPoolExecutor) Executors.newFixedThreadPool(dataConfig.getMaxThread());//pool di thread per eseguire i diversi task
+        try {//uso la clausola try catch per per effettuare il controllo sull servizio di registrazione
+            ObjEsportato = new ImplementazioneRegistrazione(Registrati, DaSerializzare, Classifica, WriteLockClassifca, ReadLockClassifica, SecurityKeys);//creo l' oggetto da esportare
+            Skeleton = (Registrazione) UnicastRemoteObject.exportObject(ObjEsportato, 0);
+            RegistroRMI = LocateRegistry.createRegistry(dataConfig.getPortExport());
+            RegistroRMI.bind("Registrazione", Skeleton);
+        }
+        catch (Exception e){
+            threadGame.interrupt();
+            threadSerialize.interrupt();
+            DaSerializzare.put(new DataToSerialize<>(null, 'S'));
+            RegistroRMI.unbind("Registrazione");
+            UnicastRemoteObject.unexportObject(ObjEsportato, true);
+            throw new Exception();//lancio un eccezione che verra catturata dal main per evitare di avviare il metodo StartServer inutilmente
+        }
 
-        ObjEsportato = new ImlementazioneRegistrazione(Registrati, DaSerializzare, Classifica, WriteLockClassifca, ReadLockClassifica, SecurityKeys);//creo l' oggetto da esportare
-        Skeleton = (Registrazione) UnicastRemoteObject.exportObject(ObjEsportato, 0);
-        RegistroRMI = LocateRegistry.createRegistry(dataConfig.getPortExport());
-        RegistroRMI.bind("Registrazione", Skeleton);
         URLtranslate = dataConfig.getURLtranslate();
+        pool = (ThreadPoolExecutor) Executors.newFixedThreadPool(dataConfig.getMaxThread());//pool di thread per eseguire i diversi task
 
     }
 
-    public void StartServer() {
+    public void StartServer() throws Exception{
 
         try (ServerSocketChannel AcceptSocket = ServerSocketChannel.open()) {//clausola try with resource per per chiudere la socket in caso di terminazione
 
@@ -87,7 +97,7 @@ public class ServerWordle{
             AcceptSocket.register(selector, SelectionKey.OP_ACCEPT);//registro la ServerSocketChannel per operazione di Accept
             UUID ID_Channel = UUID.randomUUID();//variabile casuale per identificare la connessione
 
-            while(true) { // per ora lascio while(true), in un secondo momento userò una var per la gestione della terminazione
+            while(true) {
 
                 selector.select();//attendo che sia possibile effettuare una operazione
 
@@ -120,8 +130,22 @@ public class ServerWordle{
                 }
             }
         }
-        catch (Exception e){e.printStackTrace();}
+        catch (Exception e){//in caso di eccezione termino il server
 
+            System.out.println("Terminazione server in corso");
+
+            RegistroRMI.unbind("Registrazione");
+            UnicastRemoteObject.unexportObject(ObjEsportato, true);
+
+            threadGame.interrupt();
+            threadSerialize.interrupt();
+            DaSerializzare.put(new DataToSerialize<>(null, 'S'));
+
+            UnicastRemoteObject.unexportObject(ObjEsportato, true);
+            while(!pool.isTerminated()) {
+                pool.awaitTermination(10L, TimeUnit.MILLISECONDS);
+            }
+        }
     }
 
     //metodo utilizzato per leggere i dati che arrivano dalla richiesta

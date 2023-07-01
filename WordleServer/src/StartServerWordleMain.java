@@ -1,11 +1,12 @@
 import java.io.*;
 import java.math.BigInteger;
+import java.nio.file.FileSystems;
 import java.util.ArrayList;
 
 
 public class StartServerWordleMain {
 
-    private static final String PathStart = "../"; //Path della dir da cui cominciare la ricerca del file di config
+    private static final String PathStart = ".." + FileSystems.getDefault().getSeparator(); //Path della dir da cui cominciare la ricerca del file di config
 
     //metodo usato per fare il controllo del parametro indicato come generatore di Zp
     private static boolean IsGenerator(Integer g, Integer p) {
@@ -33,12 +34,12 @@ public class StartServerWordleMain {
         data.setLastTimeWord(0);
         data.setMaxThread(5);
         data.setTimeStempWord(86400000);
-        data.setPathSerialization("../JsonSerialization");
+        data.setPathSerialization(".." + FileSystems.getDefault().getSeparator() + "JsonSerialization");
         data.setPortExport(6500) ;
         data.setPort_Multicast(5240);
         data.setPort_ListeningSocket(6501);
         data.setIP_server("localhost");
-        data.setPathVocabolario("../vocabolario.txt");
+        data.setPathVocabolario(".." + FileSystems.getDefault().getSeparator() + "vocabolario.txt");
         data.setG(2);
         data.setP(13);
         data.setAfterUpDate(1);
@@ -46,7 +47,7 @@ public class StartServerWordleMain {
     }
     public static void main(String [] args) {
 
-
+        ArrayList<String> vocabolario = null;
         GetDataConfig ConfigureData = new GetDataConfig("configServer.txt", PathStart);
 
         //Ricerca e apertura del file di configurazione
@@ -71,13 +72,18 @@ public class StartServerWordleMain {
             ConfigureData.setG(2);
             ConfigureData.setP(13);
         }
-        try {
-            //prima di istanziare il server leggo il vocabolario e lo inserisco in una struttura dati opportuna
-            ArrayList<String> vocabolario = ConfigureData.getVocabolario();
 
+        //prima di istanziare il server leggo il vocabolario e lo inserisco in una struttura dati opportuna
+        try {vocabolario = ConfigureData.getVocabolario();}
+        catch (Exception e) {
+            System.out.println("Vocabolario non trovato");
+            return;
+        }
+        try {
             ServerWordle server = new ServerWordle(vocabolario, ConfigureData);
             server.StartServer();
         }
-        catch (Exception e) {System.out.println("Potenziale errore nel file di configurazione");}
+        catch (Exception ignored) {}
+        System.out.println("Chiusura Server. Probabile errore sulle porte utilizzate");
     }
 }
