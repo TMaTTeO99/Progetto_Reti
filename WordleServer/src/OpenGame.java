@@ -43,7 +43,7 @@ public class OpenGame implements Runnable{
     }
     public void run() {
 
-        ConcurrentHashMap<String, InfoSessioneUtente> LastTentativi = null;
+        //ConcurrentHashMap<String, InfoSessioneUtente> LastTentativi = null;
         Random randword = new Random();
         while(!Thread.interrupted()){
 
@@ -70,7 +70,8 @@ public class OpenGame implements Runnable{
                     lasttime = System.currentTimeMillis();//recupero il tempo attaule che è il tempo di creazione della parola
                     currenttime = System.currentTimeMillis();//analogo a lasttime
                     Game.setCurrentTime(currenttime);
-                    LastTentativi = Game.getTentativi();//recupero le info del sugli uteniti dell ultimo gioco prima di creare il game nuovo
+                    updateLastConsecutive(Game.getTentativi());
+                    //LastTentativi = Game.getTentativi();//recupero le info del sugli uteniti dell ultimo gioco prima di creare il game nuovo
                     Game.setTentativi();//inizializzo le info associate al game
 
                     //comunico al thread che serializza che deve serializzare il nuovo game
@@ -85,7 +86,7 @@ public class OpenGame implements Runnable{
                 //il thread corrente che acquisisce la lock sul game e tenta di aggiornare le statistiche degli utenti
                 //e quindi tentare di acquisire la lock sugli utenti bloccandosi, mentre il thread che sta eseguendo il
                 //metodo SendWordMethod è fermo ad attendere sulla lock del game
-                updateLastConsecutive(LastTentativi);
+                //updateLastConsecutive(LastTentativi);
 
                 WriteLastSpawn(lasttime);//modifico il file di config in modo da scriverci dentro il time stamp dell ultima
                 //sessione di gioco creata
@@ -189,6 +190,7 @@ public class OpenGame implements Runnable{
                 try {
                     u.getWriteLock().lock();
                     u.updateLastConsecutive(false);
+                    u.UpdatePercWingame();
                 }
                 finally {u.getWriteLock().unlock();}
             }

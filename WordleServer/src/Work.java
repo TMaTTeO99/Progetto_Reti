@@ -102,8 +102,15 @@ public class Work implements Runnable {
                     break;
             }
 
-            //qui invio la risposta al client
-            try {SendDataToClient(channel);}
+
+            try {
+                //simulazione di ritardo
+                //Random testDelay = new Random();
+                //Thread.sleep(testDelay.nextInt(2000));
+
+                
+                SendDataToClient(channel);//invio la risposta al client
+            }
             catch (Exception e) {e.printStackTrace();}
         }
         catch (Exception e) {
@@ -173,11 +180,23 @@ public class Work implements Runnable {
 
             try {
 
+                //recupero le info riguardo la creazione della parola
+                long currentW = -1;
+                long nextW = -1;
+
+                try {
+                    //accedo in mutua esclusione alla sessione di gioco
+                    ReadWordLock.lock();
+                    currentW = Gioco.getCurrentTime();
+                    nextW = Gioco.getNextTime();
+                }
+                finally {ReadWordLock.unlock();}
+
                 u.getReadLock().lock();
                 if(u.getLogin((UUID) Key.attachment())) {//controllo se l utente ha fatto il login
 
                     //recupero le info riguardo la creazione della parola
-                    long currentW = -1;
+                    /*long currentW = -1;
                     long nextW = -1;
 
                     try {
@@ -186,7 +205,7 @@ public class Work implements Runnable {
                         currentW = Gioco.getCurrentTime();
                         nextW = Gioco.getNextTime();
                     }
-                    finally {ReadWordLock.unlock();}
+                    finally {ReadWordLock.unlock();}   */
 
                     //metodo privato per effettuare il calcolo dell tempo di produzione della nuova parola
                     long nextwClient = CalculateTime(currentW, nextW);
@@ -250,11 +269,12 @@ public class Work implements Runnable {
 
             try {
 
+                ReadWordLock.lock();//ho bisogno di sincronizzare con il thread che genera il gioco
                 u.getReadLock().lock();//sincronizzo per l accesso ai dati dell utente
                 if(u.getLogin((UUID) Key.attachment())) {//controllo se l utente ha fatto il login
 
-                    try {
-                        ReadWordLock.lock();//ho bisogno di sincronizzare con il thread che genera il gioco
+                   // try {
+                        //ReadWordLock.lock();//ho bisogno di sincronizzare con il thread che genera il gioco
                         InfoSessioneUtente tmpInfo = Gioco.getInfoGameUtente(username);//recupero le info della partita dell utente
 
                         if(tmpInfo != null) {//se l utente ha partecipato al gioco
@@ -287,12 +307,15 @@ public class Work implements Runnable {
                             }
                         }
                         else Write_No_Cipher(dati, "", -1, "");//caso in cui l utente non ha partecipato al gioco
-                    }
-                    finally {ReadWordLock.unlock();}
+                    //}
+                    //finally {ReadWordLock.unlock();}
                 }
                 else Write_No_Cipher(dati, "", -3, "");//caso in cui l utente non ha effettuato il login
             }
-            finally {u.getReadLock().unlock();}
+            finally {
+                u.getReadLock().unlock();
+                ReadWordLock.unlock();
+            }
 
         }
         else Write_No_Cipher(dati, "", -3, "");
@@ -318,11 +341,18 @@ public class Work implements Runnable {
 
             try {
 
+                boolean checkGame = false;
+                try {
+                    ReadWordLock.lock();
+                    checkGame = checkIsInGame(username);//controllo che se l'utente è in gioco o no
+                }
+                finally {ReadWordLock.unlock();}
+
                 u.getReadLock().lock();
                 if(!u.getLogin((UUID) Key.attachment())) {//utente non ha effettuato il login
                     Write_No_Cipher(dati, "", -1, "");
                 }
-                else {Cipher_AND_Write(dati, "", 0, GetStatisticsUser(username, u));}
+                else {Cipher_AND_Write(dati, "", 0, GetStatisticsUser(username, u, checkGame));}
             }
             finally {u.getReadLock().unlock();}
 
@@ -350,12 +380,15 @@ public class Work implements Runnable {
         if(u != null) {
 
             try {
+                ReadWordLock.lock();
+                boolean inGame = checkIsInGame(username);
+
                 u.getWriteLock().lock();
                 if(u.getLogin((UUID) Key.attachment())) {//se l utente ha effettuato il login
 
-                    try {
+                    //try {
 
-                        ReadWordLock.lock();
+                        //ReadWordLock.lock();
                         int FlagResult = 0;
                         if((FlagResult = Gioco.Tentativo(username)) != 0) {
 
@@ -419,7 +452,7 @@ public class Work implements Runnable {
                                     SendSerialization('I');
 
                                     //Costruisco il messaggio di parola indovinata
-                                    Cipher_AND_Write(dati, GetStatisticsUser(username, u), 0, wordTradotta);//0 indica parola indovinata
+                                    Cipher_AND_Write(dati, GetStatisticsUser(username, u, inGame), 0, wordTradotta);//0 indica parola indovinata
 
                                 }
                                 else {
@@ -437,7 +470,7 @@ public class Work implements Runnable {
                                         u.updateLastConsecutive(false);//aggionro la striscia positiva di vittorie
                                         u.UpdatePercWingame();//ricalcolo la percentuale di partite vinte
 
-                                        Cipher_AND_Write(dati, GetStatisticsUser(username, u), 2, wordTradotta);
+                                        Cipher_AND_Write(dati, GetStatisticsUser(username, u, inGame), 2, wordTradotta);
                                     }
                                 }
                             }
@@ -445,13 +478,16 @@ public class Work implements Runnable {
                                 Write_No_Cipher(dati, "", -4, "");//caso in cui la parola non esiste e il tentativo non viene considerato
                             }
                         }
-                    }
-                    finally {ReadWordLock.unlock();}
+                    //}
+                    //finally {ReadWordLock.unlock();}
 
                 }
                 else Write_No_Cipher(dati, "", -5, "");
             }
-            finally {u.getWriteLock().unlock();}
+            finally {
+                u.getWriteLock().unlock();
+                ReadWordLock.unlock();
+            }
         }
         else Write_No_Cipher(dati, "", -5, "");
 
@@ -473,16 +509,19 @@ public class Work implements Runnable {
         if(u != null) {
 
             try {
+
+                //setto i campi per indicare che il client partecipa al game
+                int result = -10; //valore fittizio
+                try {
+                    ReadWordLock.lock();
+                    result = Gioco.setGame(username);
+                }
+                finally {ReadWordLock.unlock();}
+
                 u.getWriteLock().lock();
                 if(u.getLogin((UUID) Key.attachment())) {//controllo che l utente abbia effettuato il login
 
-                    //setto i campi per indicare che il client partecipa al game
-                    int result = -10; //valore fittizio
-                    try {
-                        ReadWordLock.lock();
-                        result = Gioco.setGame(username);
-                    }
-                    finally {ReadWordLock.unlock();}
+
 
                     if(result == 0) {
 
@@ -520,6 +559,8 @@ public class Work implements Runnable {
         if((u = Registrati.get(username)) != null) {//controllo che l utente sia registrato
 
             try {
+                ReadWordLock.lock();
+                boolean inGame = checkIsInGame(username);
 
                 u.getWriteLock().lock();
                 //controllo che l username associato a quella connessione per il login sia != null e che
@@ -534,7 +575,7 @@ public class Work implements Runnable {
                         error = 0;
 
                         //prima di settare l abbandono del gioco devo controllare se l utente ha provato a partecipare
-                        if(Gioco.IsInGame(username)) {
+                        if(inGame) {
                             Gioco.SetQuitUtente(username);//setto i campi che indicano che l utente ha abbandonato la partita
                             u.UpdatePercWingame();//aggiorno la percentuale di partite vinte
                             u.updateLastConsecutive(false);
@@ -545,7 +586,10 @@ public class Work implements Runnable {
                 }
                 else {error = -3;} //-3 indica che l utente non ha inserito l'username corretto
             }
-            finally {u.getWriteLock().unlock();}
+            finally {
+                u.getWriteLock().unlock();
+                ReadWordLock.unlock();
+            }
 
         }
         else error = -1;;// -1 indica utente non registrato
@@ -779,19 +823,23 @@ public class Work implements Runnable {
         System.out.println("PAROLA DEL GIOCO " + GameWord);//per ora decommento cosi vedo la parola
         return new String(CharConsigli);
     }
+
+    //metodo usato per controllare prima di inviare le statistiche se l'utente è in gioco o no
+    boolean checkIsInGame(String username) {
+
+        //controllo se l utente in questo momento sta giocando
+        if(Gioco.IsInGame(username)) return true;
+
+        return false;
+    }
     //metodo usato per recuperare i dati di un utente e costruire una stringa contenente le sue statistiche
-    private String GetStatisticsUser(String username, Utente u) {
+    private String GetStatisticsUser(String username, Utente u, boolean InGame) {
 
         int GameUtente = 0;
-        try {
-            ReadWordLock.lock();
-            //controllo se l utente in questo momento sta giocando
-            if(Gioco.IsInGame(username)){
-                GameUtente = u.getGame() - 1;
-            }
-            else GameUtente = u.getGame();
-        }
-        finally {ReadWordLock.unlock();}
+
+        //controllo se l utente in questo momento sta giocando
+        if(InGame){GameUtente = u.getGame() - 1;}
+        else GameUtente = u.getGame();
 
         //recupero le statistiche dell utente e creo la stringa che deve essere inviata
         String answer = new String(new byte[0], StandardCharsets.UTF_8);

@@ -54,7 +54,7 @@ public class ImplementazioneRegistrazione extends RemoteServer implements Regist
             if(Registrati.putIfAbsent(usnameString, (u = new Utente(usnameString, bytesToHex(encodedhash)))) == null) {
                 //comunico al thread che serializza che è presente un nuovo utente e che quindi potrebbe dover serializzare
 
-                DaSerializzare.put(new DataToSerialize<>(u, 'N'));//il char N indica che sta per arrivare un username
+                DaSerializzare.put(new DataToSerialize<>(u, 'N'));//il char N indica che sta per arrivare un utente
 
                 LockClassifcaWrite.lock();
                     Classifica.add(new UserValoreClassifica(usnameString, 0));//inserisco in classifica l utente appena registrato con score 0
