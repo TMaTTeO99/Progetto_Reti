@@ -64,13 +64,13 @@ public class GetDataConfig {
                         TimeStempWord = ToMLS(tok.nextToken());//metodo privato per la conversione in long
                         break;
                     case "pathjson" :
-                        PathSerialization = ".." + FileSystems.getDefault().getSeparator() + tok.nextToken();
+                        PathSerialization = System.getProperty("user.dir") + FileSystems.getDefault().getSeparator() + tok.nextToken();
                         break;
                     case "PortExport":
                         PortExport = Integer.parseInt(tok.nextToken());
                         break;
                     case "PathVocabolario":
-                        PathVocabolario = ".." + FileSystems.getDefault().getSeparator() + tok.nextToken();
+                        PathVocabolario = System.getProperty("user.dir") + FileSystems.getDefault().getSeparator() + tok.nextToken();
                         break;
                     case "lastWord":
                         LastTimeWord = Long.parseLong(tok.nextToken());
@@ -105,10 +105,11 @@ public class GetDataConfig {
     public void ReadConfig() throws Exception{
 
         String line = null;
-        BufferedReader inConfig = new BufferedReader(new FileReader(ConfigureFile));
-        while((line = inConfig.readLine()) != null) {ParsCLine(line);}
-
-        inConfig.close();
+        try (BufferedReader inConfig = new BufferedReader(new FileReader(ConfigureFile))){
+            while((line = inConfig.readLine()) != null) {ParsCLine(line);}
+        }
+        catch (Exception ignor) {}
+        
     }
     //metodo per la ricerca del path del file di configurazione
     public void SearchFile(File curfile) {

@@ -11,6 +11,7 @@ public class SecurityClass {
     private static BigInteger secret = new BigInteger("-1");//segreto degli interlocutori nel protocollo DH
 
 
+    //metodo usato per recuperare il segreto che client e serever producono casualmente
     public static BigInteger getSecret() throws NullPointerException {
 
         //se non viene richiamato prima Compute_C sollevo un exception
@@ -18,6 +19,7 @@ public class SecurityClass {
 
         return secret;
     }
+    //metodo usato per il calcolo dei dati che client e server si scambiano per poi creare la chiave di sessione
     public static BigInteger Compute_C(int g, int p) {
 
         BigInteger P = new BigInteger(String.valueOf(p));
@@ -35,6 +37,7 @@ public class SecurityClass {
         return G.modPow(secret, P);
 
     }
+
     //metodo usato per la cifratura dei dati
     public static byte [] encrypt(String message, String key) {
 
@@ -48,6 +51,7 @@ public class SecurityClass {
         catch (Exception e){return null;}
         return dati;
     }
+
     //metodo usato per la decifrazione dei dati
     public static String decrypt(byte [] message, String key) {
 
