@@ -29,7 +29,7 @@ public class StartGame extends JFrame {
     private ArrayList<Suggerimenti> SuggerimentiQueue;//coda che conterra i suggerimenti che gli altri client condividono
     private ReentrantLock locksuggerimenti = new ReentrantLock();//lock usata per implementare mutua esclusione sulla coda dei suggerimenti
     private MulticastSocket sockMulticast;
-    private InetSocketAddress addressMulticat;
+    private InetAddress addressMulticat;
     private Thread multiCastThread;//thread usato per recuperare le condivisioni dagli utenti
     private GetDataConfig dataConfig;
     private UUID ID_Channel;//id che il server associa alla connessione
@@ -79,8 +79,10 @@ public class StartGame extends JFrame {
 
         //a questo punto quello che faccio è lanciare un thread che sta i ascolto
         //dei dati che vengono inviati dal server sul gruppo multicast
-        sockMulticast = new MulticastSocket(addressMulticat = new InetSocketAddress(IP_Multicast, Port_Multicast));//creo la socket
-        sockMulticast.joinGroup(addressMulticat, null);//non specifico nessuna interfaccia di rete per essere piu generico possibile e mi unisco
+
+        addressMulticat = InetAddress.getByName(IP_Multicast);
+        sockMulticast = new MulticastSocket(Port_Multicast);//creo la socket
+        sockMulticast.joinGroup(addressMulticat);//non specifico nessuna interfaccia di rete per essere piu generico possibile e mi unisco
         multiCastThread = new Thread(new CaptureUDPmessages(sockMulticast, SuggerimentiQueue, locksuggerimenti));
         multiCastThread.start();//lancio il thread che sta in ascolto
 
@@ -919,12 +921,12 @@ public class StartGame extends JFrame {
         try (DatagramSocket sckStopThread = new DatagramSocket()){
 
             byte [] data = new String("logout").getBytes();
-            DatagramPacket pkj = new DatagramPacket(data, 0, data.length, addressMulticat);
+            DatagramPacket pkj = new DatagramPacket(data, 0, data.length, addressMulticat, Port_Multicast);
 
             multiCastThread.interrupt();//lancio un interruzione che verrà testata nella guardia del while
             sckStopThread.send(pkj);//invio il messaggio di terminazione per far sbloccare il thread dalla receive
 
-            sockMulticast.leaveGroup(addressMulticat, null);//esco dal gruppo multicast
+            sockMulticast.leaveGroup(addressMulticat);//esco dal gruppo multicast
 
         }
         catch (Exception e){e.printStackTrace();}

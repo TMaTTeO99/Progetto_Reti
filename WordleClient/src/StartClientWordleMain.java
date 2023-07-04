@@ -8,7 +8,7 @@ import java.util.UUID;
 
 public class StartClientWordleMain {
 
-    private static final String PathStart = ".." + FileSystems.getDefault().getSeparator(); //Path della dir da cui cominciare la ricerca del file di config
+    private static final String PathStart = System.getProperty("user.dir") + FileSystems.getDefault().getSeparator(); //Path della dir da cui cominciare la ricerca del file di config
     private static String SecurityKey; // chiave per la cifratura
     private static UUID ID_Channel = null;// id che il server assegna alla connessione quando il client si collega al server
 
@@ -50,7 +50,7 @@ public class StartClientWordleMain {
             }
 
             //prima di avviare la GUI costruisco insieme al server la chiave di sicurezza per la sessione
-            if(!SendAndRicevereSecurityData(socket, dataConfig)) {
+            if(!SendAndRiceveSecurityData(socket, dataConfig)) {
 
                 //In caso di fallimento della costruzione della chiave di sessione chiudo tutto
                 System.out.println("Errore. Impossibile costruire chiave di sessione");
@@ -58,14 +58,14 @@ public class StartClientWordleMain {
                 return;
 
             }
-
             StartLoginRegistrazione game = new StartLoginRegistrazione(dataConfig, SuggQueue, ID_Channel, SecurityKey, socket);
         }
         catch (Exception e) {
             e.printStackTrace();
         }
     }
-    private static boolean SendAndRicevereSecurityData(Socket socket, GetDataConfig dataConfig) {
+    //metodo utilizzato per la creazione della chiave di sessione per poter cifrare i dati
+    private static boolean SendAndRiceveSecurityData(Socket socket, GetDataConfig dataConfig) {
 
         int flag = 0, lendata = 0, lenID = 0;
         BigInteger c = null;//segreto del client in questo caso

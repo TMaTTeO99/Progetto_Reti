@@ -6,6 +6,8 @@ import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
+import java.net.InetSocketAddress;
+import java.net.MulticastSocket;
 import java.net.Socket;
 import java.rmi.registry.LocateRegistry;
 import java.util.ArrayList;
@@ -28,10 +30,10 @@ public class StartLoginRegistrazione extends JFrame {
     private GetDataConfig dataConfig;//oggetto che contiene i dati di configurazione
     private String SecurityKey;//chiave di sessione per la cifratura
     private UUID ID_Channel;//ID che il server assegna alla connessione del client
+
     public StartLoginRegistrazione(GetDataConfig dataCon, ArrayList<Suggerimenti> SuggQueue, UUID ID, String SecKey, Socket sck) throws Exception {
 
         //recupero all inetrno delle var di istanza le info che servono al client
-
         ID_Channel = ID;
         socket = sck;
         SecurityKey = SecKey;
@@ -156,6 +158,7 @@ public class StartLoginRegistrazione extends JFrame {
                 usernamelogin = UserTEXTLogin.getText();
                 String pass = new String(UserTEXTpasslogin.getPassword());
 
+                //controllo che i dati in ingresso siano corretti
                 if(usernamelogin.length() == 0 || pass.length() == 0)return new ReturnPackage( -4);
                 if(usernamelogin.contains(" ") || usernamelogin.contains("\t"))return new ReturnPackage( -6);
                 if(pass.contains(" ") || pass.contains("\t"))return new ReturnPackage( -6);
