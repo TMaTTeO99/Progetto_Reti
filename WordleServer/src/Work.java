@@ -108,7 +108,7 @@ public class Work implements Runnable {
                 //Random testDelay = new Random();
                 //Thread.sleep(testDelay.nextInt(2000));
 
-                
+
                 SendDataToClient(channel);//invio la risposta al client
             }
             catch (Exception e) {e.printStackTrace();}
@@ -195,18 +195,6 @@ public class Work implements Runnable {
                 u.getReadLock().lock();
                 if(u.getLogin((UUID) Key.attachment())) {//controllo se l utente ha fatto il login
 
-                    //recupero le info riguardo la creazione della parola
-                    /*long currentW = -1;
-                    long nextW = -1;
-
-                    try {
-                        //accedo in mutua esclusione alla sessione di gioco
-                        ReadWordLock.lock();
-                        currentW = Gioco.getCurrentTime();
-                        nextW = Gioco.getNextTime();
-                    }
-                    finally {ReadWordLock.unlock();}   */
-
                     //metodo privato per effettuare il calcolo dell tempo di produzione della nuova parola
                     long nextwClient = CalculateTime(currentW, nextW);
 
@@ -273,42 +261,39 @@ public class Work implements Runnable {
                 u.getReadLock().lock();//sincronizzo per l accesso ai dati dell utente
                 if(u.getLogin((UUID) Key.attachment())) {//controllo se l utente ha fatto il login
 
-                   // try {
-                        //ReadWordLock.lock();//ho bisogno di sincronizzare con il thread che genera il gioco
-                        InfoSessioneUtente tmpInfo = Gioco.getInfoGameUtente(username);//recupero le info della partita dell utente
+                    InfoSessioneUtente tmpInfo = Gioco.getInfoGameUtente(username);//recupero le info della partita dell utente
 
-                        if(tmpInfo != null) {//se l utente ha partecipato al gioco
+                    if(tmpInfo != null) {//se l utente ha partecipato al gioco
 
-                            if((tmpInfo.getQuitGame() && tmpInfo.getTentativi() > 0) || tmpInfo.getTentativi() >= 12 || tmpInfo.getResultGame()) {//se l utente non sta partecipando al gioco
+                        if((tmpInfo.getQuitGame() && tmpInfo.getTentativi() > 0) || tmpInfo.getTentativi() >= 12 || tmpInfo.getResultGame()) {//se l utente non sta partecipando al gioco
 
-                                //qui scorro i tentativi dell utente e costruisco i dati da inviare sul gruppo multicast
-                                //costruisco una stringa contenente tutte le sottostringhe che rappresentano i suggerimenti
-                                String answer = new String();
+                            //qui scorro i tentativi dell utente e costruisco i dati da inviare sul gruppo multicast
+                            //costruisco una stringa contenente tutte le sottostringhe che rappresentano i suggerimenti
+                            String answer = new String();
 
-                                ArrayList<String> Suggerimenti = tmpInfo.getTryWord();
-                                answer = answer.concat(username);//inserisco l username dell utente che ha fatto i tentativi
+                            ArrayList<String> Suggerimenti = tmpInfo.getTryWord();
+                            answer = answer.concat(username);//inserisco l username dell utente che ha fatto i tentativi
 
-                                //costruisco la risposta
-                                for(int  i = 0; i<Suggerimenti.size(); i++) {answer = answer.concat(" " + Suggerimenti.get(i));}
+                            //costruisco la risposta
+                            for(int  i = 0; i<Suggerimenti.size(); i++) {answer = answer.concat(" " + Suggerimenti.get(i));}
 
-                                //invio la stringa con un datagrampacket al gruppo multicast
-                                try (DatagramSocket sock = new DatagramSocket()){
+                            //invio la stringa con un datagrampacket al gruppo multicast
+                            try (DatagramSocket sock = new DatagramSocket()){
 
-                                    byte [] byteAnswer = answer.getBytes();
-                                    DatagramPacket pkj = new DatagramPacket(byteAnswer, 0, byteAnswer.length, AddressMulticastClients);
-                                    sock.send(pkj);
+                                byte [] byteAnswer = answer.getBytes();
+                                DatagramPacket pkj = new DatagramPacket(byteAnswer, 0, byteAnswer.length, AddressMulticastClients);
+                                sock.send(pkj);
 
-                                    Write_No_Cipher(dati, "", 0, "");//avviso il client che l operazione è stata fatta
-                                }
-                                catch (Exception e) {e.printStackTrace();}
+                                Write_No_Cipher(dati, "", 0, "");//avviso il client che l operazione è stata fatta
                             }
-                            else {
-                                Write_No_Cipher(dati, "", -2, "");//caso in cui l utente è ancora in gioco
-                            }
+                            catch (Exception e) {e.printStackTrace();}
                         }
-                        else Write_No_Cipher(dati, "", -1, "");//caso in cui l utente non ha partecipato al gioco
-                    //}
-                    //finally {ReadWordLock.unlock();}
+                        else {
+                            Write_No_Cipher(dati, "", -2, "");//caso in cui l utente è ancora in gioco
+                        }
+                    }
+                    else Write_No_Cipher(dati, "", -1, "");//caso in cui l utente non ha partecipato al gioco
+
                 }
                 else Write_No_Cipher(dati, "", -3, "");//caso in cui l utente non ha effettuato il login
             }
@@ -386,100 +371,95 @@ public class Work implements Runnable {
                 u.getWriteLock().lock();
                 if(u.getLogin((UUID) Key.attachment())) {//se l utente ha effettuato il login
 
-                    //try {
+                    int FlagResult = 0;
+                    if((FlagResult = Gioco.Tentativo(username)) != 0) {
 
-                        //ReadWordLock.lock();
-                        int FlagResult = 0;
-                        if((FlagResult = Gioco.Tentativo(username)) != 0) {
+                        switch (FlagResult) {
+                            case -1 ://caso in cui l utente non ha selezionato il comando playWORDLE
+                                Write_No_Cipher(dati, "", -1, "");
+                                break;
+                            case -2 ://caso in cui l utente ha gia giocato e ha terminato i tentativi
+                                Write_No_Cipher(dati, "", -2, "");
+                                break;
+                            case -3 ://ha vinto la partita precedentemente
+                                Write_No_Cipher(dati, "", -3, "");
+                                break;
+                        }
+                    }
+                    else {
+                        if(CheckWord(word)) {//Controllo che la parola sia presente nel vocabolario, in caso non ci sia ritorno un messaggio di errore
 
-                            switch (FlagResult) {
-                                case -1 ://caso in cui l utente non ha selezionato il comando playWORDLE
-                                    Write_No_Cipher(dati, "", -1, "");
-                                    break;
-                                case -2 ://caso in cui l utente ha gia giocato e ha terminato i tentativi
-                                    Write_No_Cipher(dati, "", -2, "");
-                                    break;
-                                case -3 ://ha vinto la partita precedentemente
-                                    Write_No_Cipher(dati, "", -3, "");
-                                    break;
+                            String GameWord = Gioco.getWord();
+                            String wordTradotta = Gioco.getTranslatedWord();
+
+
+                            if(GameWord.equals(word)) {//caso in cui il client ha indovinato la parola
+
+                                Gioco.setWinner(username);//setto i campi  per indicare che per quel utente la parola è stata indovinata
+
+                                //recupero il numero di tentativi fatti dal giocatore per vinvere l attuale partita
+                                int tentativiAttuali = Gioco.gettentativiUtente(username);
+
+                                //Aggiorno il numero di tentativi totali delle partite vinte per poter fare il punteggio in classifica
+                                u.setWinTentativi(u.getWinTentativi() + tentativiAttuali);
+
+                                //aumento il numero di partite vinte dal utente
+                                u.increasesWinGame();
+
+                                //ricalcolo la percentuale di partite vinte
+                                u.UpdatePercWingame();
+
+                                String suggestions = ComputeSuggestions(GameWord, word);//costruisco i suggerimenti per l utente
+                                Gioco.getTentativi().get(username).getTryWord().add(suggestions);//aggiungo il suggerimento alla sessione dell utente
+
+                                //recupero i tentativi della partita
+                                int tentativiUtente = Gioco.gettentativiUtente(username);
+
+                                //ricalcolo la distribuzione
+                                u.setGuesDistribuition(tentativiUtente - 1, (u.getGuesDistribuition(tentativiUtente - 1) + 1));
+
+                                //aumento striscia positiva di vittorie
+                                u.updateLastConsecutive(true);
+
+                                //aggiorno la classifica
+                                updateClassifica(username, u, u.getWinTentativi());
+
+                                //segnalo al thread che serializza i dati che un altro utente ha modificato le sue statistiche
+                                SendSerialization('U');
+
+                                //Invio la classifica al thread che serializza per salvare la classifica aggiornata
+                                SendSerialization('C');
+
+                                //invio al thread che serializza la sessione del gioco
+                                SendSerialization('I');
+
+                                //Costruisco il messaggio di parola indovinata
+                                Cipher_AND_Write(dati, GetStatisticsUser(username, u, inGame), 0, wordTradotta);//0 indica parola indovinata
+
+                            }
+                            else {
+                                //a questo punto devo inviare i suggerimenti al client se dopo quest ultimo tentativo ne ha almeno un altro
+                                //devo quindi effettuare il calcolo dei sugerimenti, produrre la risposta e inviarla
+
+                                String suggestions = ComputeSuggestions(GameWord, word);//costruisco i suggerimenti per l utente
+                                Gioco.getTentativi().get(username).getTryWord().add(suggestions);//aggiungo il tentativo alla sessione dell utente
+                                if(Gioco.gettentativiUtente(username) < 12) {
+                                    Cipher_AND_Write(dati, "", 1, suggestions);//rispondo al client
+                                }
+                                else {//se invece il client ha terminato i tentativi invio al client la traduzione della parola e serializzare la sessione di Game
+
+                                    SendSerialization('I');//serializzo l istanza del game in questo modo non perdo dati riguado la sconfitta del client
+                                    u.updateLastConsecutive(false);//aggionro la striscia positiva di vittorie
+                                    u.UpdatePercWingame();//ricalcolo la percentuale di partite vinte
+
+                                    Cipher_AND_Write(dati, GetStatisticsUser(username, u, inGame), 2, wordTradotta);
+                                }
                             }
                         }
                         else {
-                            if(CheckWord(word)) {//Controllo che la parola sia presente nel vocabolario, in caso non ci sia ritorno un messaggio di errore
-
-                                String GameWord = Gioco.getWord();
-                                String wordTradotta = Gioco.getTranslatedWord();
-
-
-                                if(GameWord.equals(word)) {//caso in cui il client ha indovinato la parola
-
-                                    Gioco.setWinner(username);//setto i campi  per indicare che per quel utente la parola è stata indovinata
-
-                                    //recupero il numero di tentativi fatti dal giocatore per vinvere l attuale partita
-                                    int tentativiAttuali = Gioco.gettentativiUtente(username);
-
-                                    //Aggiorno il numero di tentativi totali delle partite vinte per poter fare il punteggio in classifica
-                                    u.setWinTentativi(u.getWinTentativi() + tentativiAttuali);
-
-                                    //aumento il numero di partite vinte dal utente
-                                    u.increasesWinGame();
-
-                                    //ricalcolo la percentuale di partite vinte
-                                    u.UpdatePercWingame();
-
-                                    String suggestions = ComputeSuggestions(GameWord, word);//costruisco i suggerimenti per l utente
-                                    Gioco.getTentativi().get(username).getTryWord().add(suggestions);//aggiungo il suggerimento alla sessione dell utente
-
-                                    //recupero i tentativi della partita
-                                    int tentativiUtente = Gioco.gettentativiUtente(username);
-
-                                    //ricalcolo la distribuzione
-                                    u.setGuesDistribuition(tentativiUtente - 1, (u.getGuesDistribuition(tentativiUtente - 1) + 1));
-
-                                    //aumento striscia positiva di vittorie
-                                    u.updateLastConsecutive(true);
-
-                                    //aggiorno la classifica
-                                    updateClassifica(username, u, u.getWinTentativi());
-
-                                    //segnalo al thread che serializza i dati che un altro utente ha modificato le sue statistiche
-                                    SendSerialization('U');
-
-                                    //Invio la classifica al thread che serializza per salvare la classifica aggiornata
-                                    SendSerialization('C');
-
-                                    //invio al thread che serializza la sessione del gioco
-                                    SendSerialization('I');
-
-                                    //Costruisco il messaggio di parola indovinata
-                                    Cipher_AND_Write(dati, GetStatisticsUser(username, u, inGame), 0, wordTradotta);//0 indica parola indovinata
-
-                                }
-                                else {
-                                    //a questo punto devo inviare i suggerimenti al client se dopo quest ultimo tentativo ne ha almeno un altro
-                                    //devo quindi effettuare il calcolo dei sugerimenti, produrre la risposta e inviarla
-
-                                    String suggestions = ComputeSuggestions(GameWord, word);//costruisco i suggerimenti per l utente
-                                    Gioco.getTentativi().get(username).getTryWord().add(suggestions);//aggiungo il tentativo alla sessione dell utente
-                                    if(Gioco.gettentativiUtente(username) < 12) {
-                                        Cipher_AND_Write(dati, "", 1, suggestions);//rispondo al client
-                                    }
-                                    else {//se invece il client ha terminato i tentativi invio al client la traduzione della parola e serializzare la sessione di Game
-
-                                        SendSerialization('I');//serializzo l istanza del game in questo modo non perdo dati riguado la sconfitta del client
-                                        u.updateLastConsecutive(false);//aggionro la striscia positiva di vittorie
-                                        u.UpdatePercWingame();//ricalcolo la percentuale di partite vinte
-
-                                        Cipher_AND_Write(dati, GetStatisticsUser(username, u, inGame), 2, wordTradotta);
-                                    }
-                                }
-                            }
-                            else {
-                                Write_No_Cipher(dati, "", -4, "");//caso in cui la parola non esiste e il tentativo non viene considerato
-                            }
+                            Write_No_Cipher(dati, "", -4, "");//caso in cui la parola non esiste e il tentativo non viene considerato
                         }
-                    //}
-                    //finally {ReadWordLock.unlock();}
+                    }
 
                 }
                 else Write_No_Cipher(dati, "", -5, "");
@@ -520,8 +500,6 @@ public class Work implements Runnable {
 
                 u.getWriteLock().lock();
                 if(u.getLogin((UUID) Key.attachment())) {//controllo che l utente abbia effettuato il login
-
-
 
                     if(result == 0) {
 
@@ -614,20 +592,20 @@ public class Work implements Runnable {
 
         if((u = Registrati.get(username)) != null) {//controllo che l utente sia registrato
 
-                //qui per effettuare il login controllo che immagine hash della password fornita
-                //dall utente sia uguale a quella presente dell oggetto utente
+            //qui per effettuare il login controllo che immagine hash della password fornita
+            //dall utente sia uguale a quella presente dell oggetto utente
 
-                if(CheckImageHash(passwd, u)) {//controllo la password
+            if(CheckImageHash(passwd, u)) {//controllo la password
 
-                    try {
-                        u.getWriteLock().lock();
-                        u.setLogin((UUID) Key.attachment(), true);//setto i campi per il login
-                        error = 0;
-                    }
-                    finally {u.getWriteLock().unlock();}
-
+                try {
+                    u.getWriteLock().lock();
+                    u.setLogin((UUID) Key.attachment(), true);//setto i campi per il login
+                    error = 0;
                 }
-                else {error = -2;}//-2 indica che l utente non ha inserito correttamente la passwd
+                finally {u.getWriteLock().unlock();}
+
+            }
+            else {error = -2;}//-2 indica che l utente non ha inserito correttamente la passwd
 
         }
         else {error = -1;}// -1 indica utente non registrato

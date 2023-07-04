@@ -101,7 +101,7 @@ public class ServerWordle{
 
                 selector.select();//attendo che sia possibile effettuare una operazione
 
-                Set<SelectionKey> Keys = selector.selectedKeys();//recupero il set di key pronte per per una delle operazioni
+                Set<SelectionKey> Keys = selector.selectedKeys();//recupero il set di key pronte
                 Iterator<SelectionKey> IteratorKey = Keys.iterator();
 
                 while(IteratorKey.hasNext()) {//scorro su tutto l'iteratore
@@ -110,7 +110,7 @@ public class ServerWordle{
                     IteratorKey.remove();//rimuvo la chiave dall iteratore
 
 
-                    if(ReadyKey.isAcceptable() && ReadyKey.isValid()) {//caso in un operazione è pronta una operazione di accept
+                    if(ReadyKey.isAcceptable() && ReadyKey.isValid()) {//se pronta una operazione di accept
 
                         ServerSocketChannel ListenSocket = (ServerSocketChannel) ReadyKey.channel();//recupero la socket per accettare la connessione
                         SocketChannel channel = ListenSocket.accept();
@@ -121,7 +121,7 @@ public class ServerWordle{
                     else if (ReadyKey.isReadable() && ReadyKey.isValid()) {//caso in cui una operazione di read non ritorna 0
 
                         PkjData dati = null;
-                        if((dati = ReadRequest(ReadyKey)) != null) {//se la lettura della richiesta è andata a buon fine lancio i worker
+                        if((dati = ReadRequest(ReadyKey)) != null) {//se la lettura della richiesta è andata a buon fine ed è completa
                             pool.execute(new Work(ReadyKey, Registrati, dati, Words, Game, ReadWordLock, DaSerializzare,
                                                   Classifica, ReadLockClassifica, WriteLockClassifca, IP_multicast, PortMulticast,
                                                     dataConfig, SecurityKeys, WriteWordLock));
@@ -219,7 +219,7 @@ public class ServerWordle{
             }
         }
         catch (Exception e) {
-            e.printStackTrace();
+
             key.cancel();//cancello la chiave dal selettore
             Utente releasedUtente = searchUtente((UUID) key.attachment());//elimino lo stub
             if(releasedUtente != null) releasedUtente.getLoginChannel().get((UUID) key.attachment()).RemoveSTub();

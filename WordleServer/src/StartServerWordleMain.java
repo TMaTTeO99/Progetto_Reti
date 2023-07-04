@@ -6,7 +6,7 @@ import java.util.ArrayList;
 
 public class StartServerWordleMain {
 
-    private static final String PathStart = ".." + FileSystems.getDefault().getSeparator(); //Path della dir da cui cominciare la ricerca del file di config
+    private static final String PathStart = System.getProperty("user.dir") + FileSystems.getDefault().getSeparator(); //Path della dir da cui cominciare la ricerca del file di config
 
     //metodo usato per fare il controllo del parametro indicato come generatore di Zp
     private static boolean IsGenerator(Integer g, Integer p) {
@@ -80,8 +80,8 @@ public class StartServerWordleMain {
             return;
         }
         try {
-            ServerWordle server = new ServerWordle(vocabolario, ConfigureData);
-            server.StartServer();
+            //ServerWordle server = new ServerWordle(vocabolario, ConfigureData);
+            //server.StartServer();
         }
         catch (Exception ignored) {}
         System.out.println("Chiusura Server. Probabile errore sulle porte utilizzate");

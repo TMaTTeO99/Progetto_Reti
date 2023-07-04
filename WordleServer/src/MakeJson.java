@@ -48,7 +48,7 @@ public class MakeJson implements Runnable{
         Game = g;
         Classifica = Clss;
     }
-    private FileWriter CheckAndDeserializeUntenti(String name, ObjectMapper map) {
+    private int CheckAndDeserializeUntenti(String name, ObjectMapper map) {
 
         File tmp = null;
         FileWriter writefile = null;//file writer per poter settare la modalità di scrittura append
@@ -57,7 +57,7 @@ public class MakeJson implements Runnable{
             tmp = new File(name);//controllo l'esistenza del file
 
             //se il file non esiste sono al primo avvio server quindi ritorno il file
-            if(!tmp.exists()){return new FileWriter(name, true);}
+            if(!tmp.exists()){return 1;}
 
             //Altrimenti se il file esiste devo deserializzare
             writefile = new FileWriter(name, true);//file usato per il generator in modalità lettura
@@ -73,10 +73,14 @@ public class MakeJson implements Runnable{
 
                 Registrati.put(u.getUsername(), u);
             }
+            pars.close();
         }
-        catch (Exception e) { e.printStackTrace();}
+        catch (Exception e) {
+            e.printStackTrace();
+            return -1;
+        }
         System.out.println("TERMINATA DESERIALIZZAZIONE UTENTI");
-        return writefile;
+        return 0;
     }
     private int DeserializeGame(String name, ObjectMapper map) {
 
@@ -123,6 +127,7 @@ public class MakeJson implements Runnable{
                 }
 
             }
+            pars.close();
         }
         catch (Exception e) {
             e.printStackTrace();
@@ -145,7 +150,7 @@ public class MakeJson implements Runnable{
             while(pars.nextToken() == JsonToken.START_OBJECT) {
                 Classifica.add(pars.readValueAs(UserValoreClassifica.class));
             }
-
+            pars.close();
         }
         catch (Exception e) {
             e.printStackTrace();
@@ -162,7 +167,6 @@ public class MakeJson implements Runnable{
         FileWriter NewJsonUtenti = null;
         FileWriter NewJsonSessione = null;
         FileWriter NewJsonClassifica = null;
-        FileWriter JsonFileUtenti = null;
 
         File TestDire = new File(PathJSN);
 
@@ -184,15 +188,13 @@ public class MakeJson implements Runnable{
 
         try {
             //ora devo controllare se il file esiste e in tal caso scorrerlo e deserializzare
-            if((JsonFileUtenti = CheckAndDeserializeUntenti(PathJSN.concat(FileSystems.getDefault().getSeparator()).concat(FileNameJsonUtenti), map)) == null) {throw new NullPointerException();}
+            if((CheckAndDeserializeUntenti(PathJSN.concat(FileSystems.getDefault().getSeparator()).concat(FileNameJsonUtenti), map)) == -1) {throw new NullPointerException();}
             if(DeserializeGame(PathJSN.concat(FileSystems.getDefault().getSeparator()).concat(FileNameJsonGame), map) == -1) throw new NullPointerException();
             if(DeserializeClassifica(PathJSN.concat(FileSystems.getDefault().getSeparator()).concat(FielNameJsonClassifica), map) == -1)throw new NullPointerException();
 
 
             JsonFactory factory = new JsonFactory();
-            generator = factory.createGenerator(JsonFileUtenti);
-            generator.setCodec(map);
-            generator.useDefaultPrettyPrinter();
+
 
             while(!Thread.interrupted()) {
 
@@ -205,6 +207,12 @@ public class MakeJson implements Runnable{
                     case 'N' : //caso in cui il lista sarà presente l username di un utente
                               //in questo caso quindi quando ricevo 'N' indica username di
                               //utente che deve essere serializzato dall inizio, quando è appena iscritto
+
+                        FileWriter forCloseFile = null;
+                        generator = factory.createGenerator(forCloseFile = new FileWriter(PathJSN.concat(FileSystems.getDefault().getSeparator()).concat(FileNameJsonUtenti), true));
+                        generator.setCodec(map);
+                        generator.useDefaultPrettyPrinter();
+
                         Utente u = (Utente) dato.getDato();
                         if(u != null) {
                             try {
@@ -213,6 +221,8 @@ public class MakeJson implements Runnable{
                             }
                             finally {u.getReadLock().unlock();}
                         }
+                        generator.close();
+                        forCloseFile.close();
                         break;
                     case 'U' ://Coso in cui un utente ha aggiornato i dati statistici
                               //Uso un intero per controllare quanti utenti hanno aggiornato i loro dati, serializzo quando un certo
@@ -243,7 +253,7 @@ public class MakeJson implements Runnable{
             System.out.println("Interruzione Servizio di salvataggio dati");
         }
         catch (Exception e) {
-            e.printStackTrace();
+
             if(e instanceof InterruptedException) {System.out.println("Interruzione Servizio di salvataggio dati");}
             else if(e instanceof IOException) {System.out.println("Errore nella scrittura del file json");}
             else if(e instanceof NullPointerException) {System.out.println("Errore nella lettura del file json");}
@@ -262,6 +272,9 @@ public class MakeJson implements Runnable{
             genSessione.writeObject(dato.getDato());//serializzo l istanza del game
         }
         finally {ReadLockGame.unlock();}
+
+        genSessione.close();
+        NewJsonSessione.close();
 
         //rinomino i file e distruggo quelli vecchi
         File oldJsonGame = new File(PathJSN.concat(FileSystems.getDefault().getSeparator()).concat(FileNameJsonGame));
@@ -288,6 +301,9 @@ public class MakeJson implements Runnable{
             finally {Giocataore.getReadLock().unlock();}
         }
 
+        gen.close();
+        NewJsonUtenti.close();
+
         File oldJson = new File(PathJSN.concat(FileSystems.getDefault().getSeparator()).concat(FileNameJsonUtenti));
         File RenameFile = new File(PathJSN.concat(FileSystems.getDefault().getSeparator()).concat("tempUtenti.json"));
 
@@ -308,6 +324,8 @@ public class MakeJson implements Runnable{
             }
         }
         finally {ReadLockClassifica.unlock();}
+        genClassifica.close();
+        NewJsonClassifica.close();
 
         File oldJsonClass = new File(PathJSN.concat(FileSystems.getDefault().getSeparator()).concat(FielNameJsonClassifica));
         File RenameFileClass = new File(PathJSN.concat(FileSystems.getDefault().getSeparator()).concat("tempClassifica.json"));

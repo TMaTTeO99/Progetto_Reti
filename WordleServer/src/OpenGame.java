@@ -43,7 +43,6 @@ public class OpenGame implements Runnable{
     }
     public void run() {
 
-        //ConcurrentHashMap<String, InfoSessioneUtente> LastTentativi = null;
         Random randword = new Random();
         while(!Thread.interrupted()){
 
@@ -71,7 +70,6 @@ public class OpenGame implements Runnable{
                     currenttime = System.currentTimeMillis();//analogo a lasttime
                     Game.setCurrentTime(currenttime);
                     updateLastConsecutive(Game.getTentativi());
-                    //LastTentativi = Game.getTentativi();//recupero le info del sugli uteniti dell ultimo gioco prima di creare il game nuovo
                     Game.setTentativi();//inizializzo le info associate al game
 
                     //comunico al thread che serializza che deve serializzare il nuovo game
@@ -80,17 +78,9 @@ public class OpenGame implements Runnable{
                 }
                 finally {lock.unlock();}
 
-                //ora aggiorno le statistiche degli utenti nel nel game precedente erano in gioco e non hanno indovinato
-                //la parola, lo faccio dopo aver ricostruito il nuovo game in modo da non avere potenziale deadlock in quanto
-                //un utente potrebbe giocare quindi aver acquisito la lock, in quel momento potrebbe andare in esecuzione
-                //il thread corrente che acquisisce la lock sul game e tenta di aggiornare le statistiche degli utenti
-                //e quindi tentare di acquisire la lock sugli utenti bloccandosi, mentre il thread che sta eseguendo il
-                //metodo SendWordMethod è fermo ad attendere sulla lock del game
-                //updateLastConsecutive(LastTentativi);
 
                 WriteLastSpawn(lasttime);//modifico il file di config in modo da scriverci dentro il time stamp dell ultima
-                //sessione di gioco creata
-
+                                         //sessione di gioco creata
                 System.out.println("Game creato");
             }
             catch (Exception e) {
@@ -167,15 +157,16 @@ public class OpenGame implements Runnable{
                     ou.write(line+"\n");
                 }
             }
-            //a questo punto elimino il file vecchio e rinomino quello nuovo
-            File oldFile = new File(ConfigureFile.getPath());
-            File renameFile = new File(ConfigureFile.getParent().concat("/tmpConfig.txt"));
-
-            oldFile.delete();
-            renameFile.renameTo(oldFile);
 
         }
         catch (Exception e) {e.printStackTrace();}
+
+        //a questo punto elimino il file vecchio e rinomino quello nuovo
+        File oldFile = new File(ConfigureFile.getPath());
+        File renameFile = new File(ConfigureFile.getParent().concat("/tmpConfig.txt"));
+
+        oldFile.delete();
+        renameFile.renameTo(oldFile);
 
     }
     private void updateLastConsecutive(ConcurrentHashMap<String, InfoSessioneUtente> LastTentativi) {
