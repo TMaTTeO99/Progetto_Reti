@@ -1,0 +1,13 @@
+thread=10
+timeword=1 0 0 0
+pathjson=JsonSerialization
+PortExport=6500
+PathVocabolario=vocabolario.txt
+lastWord=1690301156323
+URL=https://api.mymemory.translated.net/
+IP_multicast=239.0.0.1
+Port_multicast=5240
+Port_ListenigSck=6501
+P_number=9973
+G_generator=7
+AfterUpDate=2
