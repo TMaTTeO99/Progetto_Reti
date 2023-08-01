@@ -1,0 +1,78 @@
+Compilazione ed esecuzione progetto
+
+Note
+Il software è stato testato sui seguenti sistemi operativi:
+• Ubuntu 20.04.6 LTS
+• Windows 10 (machina virtuale)
+
+I seguenti file devono essere contenuti nella stessa directory da cui viene lanciato il software
+(la directory in cui ci si posiziona con il terminale per lanciare il programma):
+1) ConfigClient.txt
+2) ConfigServer.txt
+3) Vocabolario.txt
+
+Istruzioni di semplice compilazione ed esecuzione
+
+LINUX
+Accedere da terminale alla directory PROGETTO_MATTEO ed eseguire le seguenti istruzioni:
+
+• Compilazione server:
+javac -cp ./LIB/JSON/jackson-annotations-2.13.3.jar:./LIB/JSON/jackson-core-2.13.3.jar:./LIB/JSON/jackson-databind-2.13.3.jar:./LIB/MYLIB/MyLib.jar:Server/ -d BuildServer/ Server/StartServerWordleMain.java
+
+• Esecuzione server:
+java -cp ./LIB/JSON/jackson-annotations-2.13.3.jar:./LIB/JSON/jackson-core-2.13.3.jar:./LIB/JSON/jackson-databind-2.13.3.jar:./LIB/MYLIB/MyLib.jar: BuildServer/StartServerWordleMain
+
+• Compilazione client:
+
+javac -cp ./LIB/JSON/jackson-annotations-2.13.3.jar:./LIB/JSON/jackson-core-2.13.3.jar:./LIB/JSON/jackson-databind-2.13.3.jar:./LIB/MYLIB/MyLib.jar:Client/ -d BuildClient/ Client/StartClientWordleMain.java
+
+• Esecuzione client:
+java -cp ./LIB/JSON/jackson-annotations-2.13.3.jar:./LIB/JSON/jackson-core-2.13.3.jar:./LIB/JSON/jackson-databind-2.13.3.jar:./LIB/MYLIB/MyLib.jar:BuildClient/StartClientWordleMain
+
+
+Windows
+
+Accedere da terminale alla directory PROGETTO_MATTEO ed eseguire le seguenti istruzioni:
+
+• Compilazione server:
+javac -cp .\LIB\JSON\jackson-annotations-2.13.3.jar;.\LIB\JSON\jackson-core-2.13.3.jar;.\LIB\JSON\jackson-databind-2.13.3.jar;.\LIB\MYLIB\MyLib.jar;.\Server -d BuildServer Server\StartServerWordleMain.java
+
+• Esecuzione server:
+java -cp .\LIB\JSON\jackson-annotations-2.13.3.jar;.\LIB\JSON\jackson-core-2.13.3.jar;.\LIB\JSON\jackson-databind-2.13.3.jar;.\LIB\MYLIB\MyLib.jar;.\BuildServer StartServerWordleMain
+
+• Compilazione:
+javac -cp .\LIB\JSON\jackson-annotations-2.13.3.jar;.\LIB\JSON\jackson-core-2.13.3.jar;.\LIB\JSON\jackson-databind-2.13.3.jar;.\LIB\MYLIB\MyLib.jar;.\Client -d BuildClient Client\StartClientWordleMain.java
+
+• Esecuzione client:
+java -cp .\LIB\JSON\jackson-annotations-2.13.3.jar;.\LIB\JSON\jackson-core-2.13.3.jar;.\LIB\JSON\jackson-databind-2.13.3.jar;.\LIB\MYLIB\MyLib.jar;.\BuildClient StartClientWordleMain
+
+Istruzioni per la creazione ed esecuzione dei file .Jar
+
+Linux
+Accedere da terminale alla directory PROGETTO_MATTEO ed eseguire le seguenti istruzioni
+passo passo:
+
+Server
+• Produzione file di manifesto per il jar del server:echo -e "Main-Class: StartServerWordleMain\nClass-Path: ../LIB/JSON/jackson-annotations-2.13.3.jar ../LIB/JSON/jackson-core-2.13.3.jar ../LIB/JSON/jackson-databind-2.13.3.jar ../LIB/MYLIB/MyLib.jar" > manifestoServer.txt
+
+• Compilazione server:
+javac -cp ./LIB/JSON/jackson-annotations-2.13.3.jar:./LIB/JSON/jackson-core-2.13.3.jar:./LIB/JSON/jackson-databind-2.13.3.jar:./LIB/MYLIB/MyLib.jar:./Server -d BuildServer Server/StartServerWordleMain.java
+
+• Produzione file jar server:
+jar cfm JAR/Server.jar manifestoServer.txt -C BuildServer/ . -C LIB/JSON/ jackson-annotations-2.13.3.jar -C LIB/JSON/ jackson-core-2.13.3.jar -C LIB/JSON/ jackson-databind-2.13.3.jar
+
+• Esecuzione del file Server.jar:
+java -jar JAR/Server.jar
+
+Client
+• Produzione file di manifesto per il jar del client:
+echo -e "Main-Class: StartClientWordleMain\nClass-Path: ../LIB/JSON/jackson-annotations-2.13.3.jar ../LIB/JSON/jackson-core-2.13.3.jar ../LIB/JSON/jackson-databind-2.13.3.jar ../LIB/MYLIB/MyLib.jar" > manifestoClient.txt
+
+• Compilazione client:
+javac -cp ./LIB/JSON/jackson-annotations-2.13.3.jar:./LIB/JSON/jackson-core-2.13.3.jar:./LIB/JSON/jackson-databind-2.13.3.jar:./LIB/MYLIB/MyLib.jar:Client/ -d BuildClient/ Client/StartClientWordleMain.java
+
+• Produzione file jar client:
+jar cfm JAR/Client.jar manifestoClient.txt -C BuildClient/ . -C LIB/JSON/ jackson-annotations-2.13.3.jar -C LIB/JSON/ jackson-core-2.13.3.jar -C LIB/JSON/ jackson-databind-2.13.3.jar
+
+• Esecuzione del file Client.jar:
+java -jar JAR/Client.jar
