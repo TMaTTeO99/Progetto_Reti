@@ -1,7 +1,0 @@
-PortExport=6500
-IP_multicast=239.0.0.1
-Port_multicast=5240
-Port_ListenigSck=6501
-IP_server=localhost
-P_number=9973
-G_generator=7
